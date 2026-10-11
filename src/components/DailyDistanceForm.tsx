@@ -38,6 +38,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { isStaffPatrol, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
+import { CHALLENGE_START, CHALLENGE_START_LABEL } from "@/lib/challengeStart";
 
 export interface DailyDistanceFormProps {
   /** Callback fired after a successful submission */
@@ -262,6 +263,13 @@ export function DailyDistanceForm({
       return;
     }
 
+    if (!rideDate || rideDate < CHALLENGE_START) {
+      toast.error(
+        `Le défi a commencé le ${CHALLENGE_START_LABEL} : les sorties d'avant ne comptent pas.`,
+      );
+      return;
+    }
+
     if (!selectedPatrolId) {
       toast.error("Veuillez sélectionner la patrouille à laquelle associer cette distance");
       return;
@@ -441,7 +449,11 @@ export function DailyDistanceForm({
           await (supabase as any).from("group_rides").delete().eq("id", createdGroupId);
         }
         console.error("Erreur insertion activités Supabase :", insertError);
-        toast.error("Erreur Supabase : " + insertError.message);
+        toast.error(
+          insertError.message?.includes("date_debut_defi")
+            ? `Le défi a commencé le ${CHALLENGE_START_LABEL} : les sorties d'avant ne comptent pas.`
+            : "Erreur Supabase : " + insertError.message,
+        );
         setSubmitting(false);
         return;
       }
@@ -778,11 +790,13 @@ export function DailyDistanceForm({
                 onChange={(e) => setRideDate(e.target.value)}
                 disabled={joiningGroup}
                 className="h-12 rounded-xl shadow-xs"
+                min={CHALLENGE_START}
                 max={new Date().toISOString().slice(0, 10)}
                 required
               />
               <p className="text-[11px] text-muted-foreground">
-                Par défaut : aujourd&apos;hui (modifiable si la sortie date d&apos;hier).
+                Par défaut : aujourd&apos;hui (modifiable si la sortie date d&apos;hier). Seules les
+                sorties depuis le {CHALLENGE_START_LABEL} comptent.
               </p>
             </div>
           </div>

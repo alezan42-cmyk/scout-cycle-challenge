@@ -4,17 +4,18 @@ create or replace function pg_temp.as_user(_uid text) returns void language plpg
 begin perform set_config('request.jwt.claim.sub', coalesce(_uid, ''), false); end; $$;
 
 -- Données (en superutilisateur)
+-- (dates des sorties >= 27/09/2026, début du défi ; l'ancienneté se juge sur created_at)
 delete from public.user_roles where user_id = '33333333-3333-3333-3333-333333333333' and role = 'admin';
 insert into public.activities (id, user_id, km, ride_date, status, proof_path, created_at) values
-  ('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 10, current_date - 70, 'pending', 'https://x/storage/v1/object/public/proofs/vieille.jpg', now() - interval '70 days'),
-  ('cccccccc-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 11, current_date - 40, 'pending', 'https://x/storage/v1/object/public/proofs/recente.jpg', now() - interval '40 days');
+  ('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 10, greatest(current_date - 70, date '2026-09-27'), 'pending', 'https://x/storage/v1/object/public/proofs/vieille.jpg', now() - interval '70 days'),
+  ('cccccccc-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 11, greatest(current_date - 40, date '2026-09-27'), 'pending', 'https://x/storage/v1/object/public/proofs/recente.jpg', now() - interval '40 days');
 insert into public.group_rides (id, created_by, ride_date, sport, created_at) values
-  ('dddddddd-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', current_date - 40, 'velo', now() - interval '40 days'),
-  ('dddddddd-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', current_date - 5, 'velo', now() - interval '5 days'),
-  ('dddddddd-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222', current_date - 40, 'velo', now() - interval '40 days');
+  ('dddddddd-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', greatest(current_date - 40, date '2026-09-27'), 'velo', now() - interval '40 days'),
+  ('dddddddd-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', greatest(current_date - 5, date '2026-09-27'), 'velo', now() - interval '5 days'),
+  ('dddddddd-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222', greatest(current_date - 40, date '2026-09-27'), 'velo', now() - interval '40 days');
 insert into public.group_ride_members (group_id, user_id) values ('dddddddd-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222');
 insert into public.activities (id, user_id, km, ride_date, status, strava_link, group_ride_id, created_at) values
-  ('cccccccc-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222', 20, current_date - 40, 'approved', 'https://strava.com/a/1', 'dddddddd-0000-0000-0000-000000000003', now() - interval '40 days');
+  ('cccccccc-0000-0000-0000-000000000003', '22222222-2222-2222-2222-222222222222', 20, greatest(current_date - 40, date '2026-09-27'), 'approved', 'https://strava.com/a/1', 'dddddddd-0000-0000-0000-000000000003', now() - interval '40 days');
 insert into public.countdowns (title, target_date, is_active) values
   ('Passé', now() - interval '3 days', true), ('À venir', now() + interval '3 days', true);
 
