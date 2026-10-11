@@ -39,6 +39,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { isStaffPatrol, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
 import { CHALLENGE_START, CHALLENGE_START_LABEL } from "@/lib/challengeStart";
+import { AlezanMascot } from '../components/AlezanMascot';
+import { AlezanNamePoll } from '../components/AlezanNamePoll';
 
 export interface DailyDistanceFormProps {
   /** Callback fired after a successful submission */
@@ -1001,6 +1003,7 @@ export function DailyDistanceForm({
         </form>
       </CardContent>
     </Card>
+    <AlezanNamePoll />
   );
 }
 
