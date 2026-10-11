@@ -173,22 +173,29 @@ function Index() {
             ? monthRange(-1)
             : null;
 
-  const { data: leaderboardData = [], isLoading: isLeaderboardLoading } = useQuery<
-    LeaderboardItem[]
-  >({
+  const {
+    data: leaderboardData,
+    isLoading: isLeaderboardLoading,
+    isError: isLeaderboardError,
+  } = useQuery<LeaderboardItem[]>({
     queryKey: ["leaderboard", period, sportMode],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       // Direct aggregation from real Supabase profiles and activities with sport filtering
       try {
-        const { data: realProfiles } = await supabase
+        const { data: realProfiles, error: profilesError } = await supabase
           .from("profiles_public")
           .select(
             "id, full_name, totem, quali, patrol_id, is_admin, scout_year, patrols(id, name, category)",
           );
 
-        const { data: realActs } = await supabase
+        const { data: realActs, error: activitiesError } = await supabase
           .from("activities_public")
           .select("user_id, km, elevation_m, ride_date, status, note, group_ride_id");
+
+        if (profilesError) throw profilesError;
+        if (activitiesError) throw activitiesError;
 
         type ProfileWithPatrol = {
           id: string;
@@ -285,8 +292,9 @@ function Index() {
           .sort((a, b) => b.km - a.km);
 
         return items;
-      } catch {
-        return [];
+      } catch (error) {
+        console.error("Erreur de synchronisation du classement :", error);
+        throw error;
       }
     },
   });
@@ -966,7 +974,7 @@ function Index() {
           </div>
 
           <span className="hidden text-xs text-muted-foreground md:inline">
-            Mise à jour en temps réel
+            Mise à jour automatique toutes les 30 s
           </span>
         </div>
 
@@ -979,6 +987,10 @@ function Index() {
           <div className="rounded-2xl border bg-card p-12 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             <p className="mt-3 text-sm text-muted-foreground">Calcul des kilomètres en cours…</p>
+          </div>
+        ) : isLeaderboardError && !leaderboardData ? (
+          <div className="rounded-2xl border border-destructive/30 bg-card p-10 text-center text-sm text-muted-foreground">
+            Impossible de synchroniser le classement. Réessaie dans quelques instants.
           </div>
         ) : view === "peloton" ? (
           <PelotonPanel scouts={filteredScouts} patrols={patrolRows} sportMode={sportMode} />
