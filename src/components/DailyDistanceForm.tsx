@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  Bike,
   Calendar,
   Users,
   Upload,
@@ -13,7 +12,6 @@ import {
   Clock,
   ArrowRight,
   MapPin,
-  Footprints,
   Mountain,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +22,8 @@ import { parseElevation } from "@/lib/jerseys";
 import { useAuth } from "@/lib/useAuth";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { buildEncouragement } from "@/lib/encouragement";
-import { db, type Patrol, type ActivitySport, getPatrolEmblem } from "@/lib/database";
+import { db, type Patrol, type ActivitySport, getPatrolEmblem, SPORT_INFO } from "@/lib/database";
+import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +62,7 @@ export interface DailyDistanceFormProps {
 
 const PRESET_DISTANCES_VELO = [5, 10, 15, 25, 40, 60];
 const PRESET_DISTANCES_COURSE = [2, 5, 8, 10, 15, 21];
+const PRESET_DISTANCES_MARCHE = [2, 4, 6, 10, 15, 20];
 
 // Fonction utilitaire pour calculer la distance Haversine en mètres entre deux points GPS
 function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -374,11 +374,11 @@ export function DailyDistanceForm({
       const activityStatus: "approved" | "pending" = isAutoApproved ? "approved" : "pending";
 
       const finalNote =
-        sport === "course"
-          ? rideNote.trim()
-            ? `[course] ${rideNote.trim()}`
-            : "[course]"
-          : rideNote.trim() || null;
+        sport === "velo"
+          ? rideNote.trim() || null
+          : rideNote.trim()
+            ? `[${sport}] ${rideNote.trim()}`
+            : `[${sport}]`;
 
       // 7. Sortie à plusieurs (classement Peloton)
       let groupRideId: string | null = null;
@@ -469,7 +469,7 @@ export function DailyDistanceForm({
         db.updateProfile(targetUserId, { patrol_id: selectedPatrolId });
       }
 
-      const sportLabel = sport === "course" ? "Course à pied" : "Sortie vélo";
+      const sportLabel = SPORT_INFO[sport].label;
 
       // Taille de la sortie à plusieurs (seulement si le groupe a bien été créé ou rejoint)
       let groupSize: number | null = null;
@@ -494,7 +494,7 @@ export function DailyDistanceForm({
             {finalStatus === "approved" ? "validée avec succès !" : "enregistrée (en attente) !"}
           </p>
           <p className="text-xs text-muted-foreground">
-            <strong>+{kmNumber} km</strong> ({sport === "course" ? "🏃 Course" : "🚴 Vélo"})
+            <strong>+{kmNumber} km</strong> ({SPORT_INFO[sport].emoji} {SPORT_INFO[sport].short})
             attribués à la patrouille <strong>{patrolName}</strong> ({rideDate})
           </p>
           <p className="pt-1 text-sm font-bold text-foreground">{encouragement.headline}</p>
@@ -552,23 +552,25 @@ export function DailyDistanceForm({
             <span
               className={cn(
                 "grid h-10 w-10 place-items-center rounded-xl text-white shadow-sm transition-colors",
-                sport === "course" ? "bg-purple-600" : "bg-primary",
+                SPORT_COLORS[sport].solid,
               )}
             >
-              {sport === "course" ? (
-                <Footprints className="h-5 w-5" />
-              ) : (
-                <Bike className="h-5 w-5" />
-              )}
+              <SportIcon sport={sport} className="h-5 w-5" />
             </span>
             <div>
               <CardTitle className="font-display text-xl font-bold">
-                {sport === "course" ? "Enregistrer une course à pied" : title}
+                {sport === "course"
+                  ? "Enregistrer une course à pied"
+                  : sport === "marche"
+                    ? "Enregistrer une marche"
+                    : title}
               </CardTitle>
               <CardDescription className="text-xs">
                 {sport === "course"
                   ? "Indique tes kilomètres de course pour le classement course à pied de ta patrouille"
-                  : description}
+                  : sport === "marche"
+                    ? "Indique tes kilomètres de marche ou de rando pour le classement marche de ta patrouille"
+                    : description}
               </CardDescription>
             </div>
           </div>
@@ -583,36 +585,26 @@ export function DailyDistanceForm({
           )}
         </div>
 
-        {/* SELECTEUR DU MODE SPORT (VÉLO vs COURSE À PIED) */}
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-muted/60 p-1 border border-border/60">
-          <button
-            type="button"
-            onClick={() => setSport("velo")}
-            disabled={joiningGroup}
-            className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-black transition-all",
-              sport === "velo"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Bike className="h-4 w-4" />
-            <span>Mode Vélo</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSport("course")}
-            disabled={joiningGroup}
-            className={cn(
-              "flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-black transition-all",
-              sport === "course"
-                ? "bg-purple-600 text-white shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Footprints className="h-4 w-4" />
-            <span>Mode Course à pied</span>
-          </button>
+        {/* SÉLECTEUR DU SPORT (VÉLO / COURSE À PIED / MARCHE) */}
+        <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-xl bg-muted/60 p-1 border border-border/60">
+          {(["velo", "course", "marche"] as const).map((sp) => (
+            <button
+              key={sp}
+              type="button"
+              onClick={() => setSport(sp)}
+              disabled={joiningGroup}
+              aria-pressed={sport === sp}
+              className={cn(
+                "flex items-center justify-center gap-1.5 rounded-lg px-1 py-2 text-xs font-black transition-all",
+                sport === sp
+                  ? cn(SPORT_COLORS[sp].solid, "shadow-sm")
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <SportIcon sport={sp} className="h-4 w-4 shrink-0" />
+              <span>{sp === "course" ? "Course à pied" : SPORT_INFO[sp].short}</span>
+            </button>
+          ))}
         </div>
       </CardHeader>
 
@@ -712,14 +704,12 @@ export function DailyDistanceForm({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="distance-km" className="text-sm font-bold flex items-center gap-2">
-                {sport === "course" ? (
-                  <Footprints className="h-4 w-4 text-purple-600" />
-                ) : (
-                  <Bike className="h-4 w-4 text-primary" />
-                )}
+                <SportIcon sport={sport} className={cn("h-4 w-4", SPORT_COLORS[sport].text)} />
                 {sport === "course"
                   ? "Distance courue à pied (km)"
-                  : "Distance parcourue à vélo (km)"}{" "}
+                  : sport === "marche"
+                    ? "Distance marchée (km)"
+                    : "Distance parcourue à vélo (km)"}{" "}
                 <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
@@ -729,7 +719,9 @@ export function DailyDistanceForm({
                   step="0.1"
                   min="0.1"
                   max="1000"
-                  placeholder={sport === "course" ? "ex: 7.5" : "ex: 15.5"}
+                  placeholder={
+                    sport === "velo" ? "ex: 15.5" : sport === "marche" ? "ex: 6" : "ex: 7.5"
+                  }
                   value={distanceKm}
                   onChange={(e) => setDistanceKm(e.target.value)}
                   className="h-12 rounded-xl text-lg font-black pl-4 pr-12 shadow-xs"
@@ -744,30 +736,39 @@ export function DailyDistanceForm({
                 <span className="text-[10px] font-semibold text-muted-foreground mr-1">
                   Rapide :
                 </span>
-                {(sport === "course" ? PRESET_DISTANCES_COURSE : PRESET_DISTANCES_VELO).map(
-                  (preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handleSetDistance(preset)}
-                      className={cn(
-                        "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
-                        sport === "course"
-                          ? "border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-200 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
+                {(sport === "course"
+                  ? PRESET_DISTANCES_COURSE
+                  : sport === "marche"
+                    ? PRESET_DISTANCES_MARCHE
+                    : PRESET_DISTANCES_VELO
+                ).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleSetDistance(preset)}
+                    className={cn(
+                      "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
+                      sport === "course"
+                        ? "border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-200 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
+                        : sport === "marche"
+                          ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-200 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300"
                           : "border-border bg-muted/40 text-foreground hover:bg-primary/20 hover:border-primary",
-                      )}
-                    >
-                      {preset} km
-                    </button>
-                  ),
-                )}
+                    )}
+                  >
+                    {preset} km
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="ride-date" className="text-sm font-bold flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                {sport === "course" ? "Date de la course" : "Date de la sortie"}{" "}
+                {sport === "course"
+                  ? "Date de la course"
+                  : sport === "marche"
+                    ? "Date de la marche"
+                    : "Date de la sortie"}{" "}
                 <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -958,10 +959,12 @@ export function DailyDistanceForm({
             disabled={submitting}
             size="lg"
             className={cn(
-              "w-full rounded-xl font-display font-black text-base shadow-md gap-2 transition-all",
+              "h-auto min-h-11 w-full whitespace-normal rounded-xl py-3 font-display font-black text-sm sm:text-base shadow-md gap-2 transition-all",
               sport === "course"
                 ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground",
+                : sport === "marche"
+                  ? "bg-sky-600 hover:bg-sky-700 text-white"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground",
             )}
           >
             {submitting ? (
@@ -971,14 +974,10 @@ export function DailyDistanceForm({
               </>
             ) : (
               <>
-                {sport === "course" ? (
-                  <Footprints className="h-5 w-5" />
-                ) : (
-                  <Bike className="h-5 w-5" />
-                )}
-                <span>
+                <SportIcon sport={sport} className="h-5 w-5 shrink-0" />
+                <span className="text-center">
                   Ajouter {distanceKm ? `${distanceKm} km` : "mes kilomètres"} de{" "}
-                  {sport === "course" ? "course" : "vélo"} à{" "}
+                  {SPORT_INFO[sport].short.toLowerCase()} à{" "}
                   {selectedPatrolObj ? selectedPatrolObj.name : "ma patrouille"}
                 </span>
                 <ArrowRight className="h-4 w-4" />

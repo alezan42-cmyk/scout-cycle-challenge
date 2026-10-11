@@ -11,8 +11,6 @@ import {
   Crown,
   ExternalLink,
   Plus,
-  Bike,
-  Footprints,
   Calendar,
   Edit3,
   FileText,
@@ -50,6 +48,7 @@ import { CATEGORY_LABELS, type PatrolCategory, TROOP_STAFF_PATROL_NAME } from "@
 import { SeasonalThemeAdmin } from "@/components/SeasonalThemeAdmin";
 import { CleanupAdmin } from "@/components/CleanupAdmin";
 import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifAdmin";
+import { SportBadge } from "@/components/SportIcon";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -76,7 +75,6 @@ type CountdownItem = {
   target_date: string;
   is_active: boolean;
 };
-
 
 function Admin() {
   const { isAdmin, loading, user } = useAuth();
@@ -304,7 +302,10 @@ function Admin() {
       };
 
       if (cdActive) {
-        await supabase.from("countdowns").update({ is_active: false }).neq("id", editingCdId || "new");
+        await supabase
+          .from("countdowns")
+          .update({ is_active: false })
+          .neq("id", editingCdId || "new");
       }
 
       if (editingCdId) {
@@ -452,26 +453,7 @@ function Admin() {
                             <Badge variant="outline" className="text-[10px]">
                               {patrol?.name || "Sans patrouille"}
                             </Badge>
-                            <Badge
-                              variant="outline"
-                              className={
-                                getActivitySport(act) === "course"
-                                  ? "border-purple-300 bg-purple-50 text-purple-700 text-[10px] gap-1"
-                                  : "border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px] gap-1"
-                              }
-                            >
-                              {getActivitySport(act) === "course" ? (
-                                <>
-                                  <Footprints className="h-3 w-3" />
-                                  <span>Course</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Bike className="h-3 w-3" />
-                                  <span>Vélo</span>
-                                </>
-                              )}
-                            </Badge>
+                            <SportBadge sport={getActivitySport(act)} />
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Sortie du {new Date(act.ride_date).toLocaleDateString("fr-FR")} •{" "}
@@ -647,7 +629,10 @@ function Admin() {
                         Annuler
                       </Button>
                     )}
-                    <Button type="submit" className="font-bold bg-primary text-primary-foreground flex-1">
+                    <Button
+                      type="submit"
+                      className="font-bold bg-primary text-primary-foreground flex-1"
+                    >
                       {editingCdId ? "Mettre à jour" : "Créer l'élément"}
                     </Button>
                   </div>
@@ -661,7 +646,9 @@ function Admin() {
 
                 <div className="mt-4 space-y-3 max-h-[400px] overflow-y-auto pr-1">
                   {countdowns.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-6">Aucun compte à rebours configuré.</p>
+                    <p className="text-xs text-muted-foreground text-center py-6">
+                      Aucun compte à rebours configuré.
+                    </p>
                   ) : (
                     countdowns.map((item) => (
                       <div

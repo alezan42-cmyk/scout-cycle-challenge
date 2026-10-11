@@ -6,7 +6,6 @@ import { gpxDownloadUrl, gpxFileName } from "@/lib/gpxDownload";
 import {
   MapPin,
   Shield,
-  Bike,
   Plus,
   Upload,
   Trash2,
@@ -14,7 +13,6 @@ import {
   Download,
   Lock,
   LogIn,
-  Footprints,
   Eye,
   CheckCircle2,
   Sparkles,
@@ -25,7 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { getActivitySport, cleanActivityNote, type ActivitySport } from "@/lib/database";
+import {
+  getActivitySport,
+  cleanActivityNote,
+  type ActivitySport,
+  SPORT_INFO,
+} from "@/lib/database";
+import { SportBadge } from "@/components/SportIcon";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/carte")({
@@ -169,7 +173,7 @@ function MapPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<ItemGpx[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sportFilter, setSportFilter] = useState<"all" | "velo" | "course" | "proposed">("all");
+  const [sportFilter, setSportFilter] = useState<"all" | ActivitySport | "proposed">("all");
 
   // Formulaire de proposition
   const [newTitle, setNewTitle] = useState("");
@@ -200,7 +204,7 @@ function MapPage() {
           if (a.gpx_path && (a.status === "approved" || a.status === "pending")) {
             const sport = getActivitySport(a);
             const cleanNote = cleanActivityNote(a.note);
-            const sportName = sport === "course" ? "Course à pied" : "Sortie vélo";
+            const sportName = SPORT_INFO[sport].label;
             const title = cleanNote ? `${cleanNote} (${a.km} km)` : `${sportName} (${a.km} km)`;
 
             loaded.push({
@@ -210,7 +214,7 @@ function MapPage() {
               type: "activity",
               sport,
               km: Number(a.km) || 0,
-              info: `${sport === "course" ? "🏃 Course" : "🚴 Vélo"} réalisée le ${new Date(a.ride_date).toLocaleDateString("fr-FR")}`,
+              info: `${SPORT_INFO[sport].emoji} ${SPORT_INFO[sport].short} réalisée le ${new Date(a.ride_date).toLocaleDateString("fr-FR")}`,
             });
           }
         });
@@ -253,10 +257,8 @@ function MapPage() {
 
   // Filtrer les parcours selon le filtre sélectionné
   const displayedItems = useMemo(() => {
-    if (sportFilter === "velo")
-      return items.filter((i) => i.type === "activity" && i.sport === "velo");
-    if (sportFilter === "course")
-      return items.filter((i) => i.type === "activity" && i.sport === "course");
+    if (sportFilter === "velo" || sportFilter === "course" || sportFilter === "marche")
+      return items.filter((i) => i.type === "activity" && i.sport === sportFilter);
     if (sportFilter === "proposed") return items.filter((i) => i.type === "proposed");
     return items;
   }, [items, sportFilter]);
@@ -302,13 +304,15 @@ function MapPage() {
               const coords = parseXmlGpxCoords(xmlDoc);
 
               if (coords.length > 0) {
-                // Couleurs distinctes : Vert = Vélo, Violet = Course à pied, Ambre = Proposé
+                // Couleurs distinctes : Vert = Vélo, Violet = Course, Bleu = Marche, Ambre = Proposé
                 const color =
                   item.type === "proposed"
                     ? "#f59e0b"
                     : item.sport === "course"
                       ? "#8b5cf6"
-                      : "#10b981";
+                      : item.sport === "marche"
+                        ? "#0284c7"
+                        : "#10b981";
 
                 const polyline = L.polyline(coords, {
                   color,
@@ -563,6 +567,19 @@ function MapPage() {
             </button>
             <button
               type="button"
+              onClick={() => setSportFilter("marche")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
+                sportFilter === "marche"
+                  ? "bg-sky-600 text-white shadow-xs"
+                  : "bg-muted/50 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="h-2 w-2 rounded-full bg-sky-400 inline-block" />
+              <span>🥾 Zones marchées (Marche)</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setSportFilter("proposed")}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
@@ -597,6 +614,9 @@ function MapPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-[#8b5cf6]" /> Course
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-[#0284c7]" /> Marche
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-[#f59e0b]" /> Proposé
@@ -704,7 +724,6 @@ function MapPage() {
                 ) : (
                   displayedItems.map((item) => {
                     const isProposed = item.type === "proposed";
-                    const isCourse = item.sport === "course";
 
                     return (
                       <div
@@ -717,31 +736,19 @@ function MapPage() {
                             <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                               {item.title}
                             </span>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] font-bold gap-1",
-                                isProposed
-                                  ? "text-amber-600 bg-amber-500/10 border-amber-400/30"
-                                  : isCourse
-                                    ? "text-purple-600 bg-purple-500/10 border-purple-400/30"
-                                    : "text-emerald-600 bg-emerald-500/10 border-emerald-400/30",
-                              )}
-                            >
-                              {isProposed ? (
-                                "Proposition"
-                              ) : isCourse ? (
-                                <>
-                                  <Footprints className="h-2.5 w-2.5" />
-                                  Course
-                                </>
-                              ) : (
-                                <>
-                                  <Bike className="h-2.5 w-2.5" />
-                                  Vélo
-                                </>
-                              )}
-                            </Badge>
+                            {isProposed ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-bold gap-1 text-amber-600 bg-amber-500/10 border-amber-400/30"
+                              >
+                                Proposition
+                              </Badge>
+                            ) : (
+                              <SportBadge
+                                sport={item.sport ?? "velo"}
+                                iconClassName="h-2.5 w-2.5"
+                              />
+                            )}
                           </div>
                           {item.info && (
                             <p className="text-[11px] text-muted-foreground line-clamp-1">

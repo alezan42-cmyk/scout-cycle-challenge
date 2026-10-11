@@ -10,7 +10,6 @@ import {
   Activity as ActivityIcon,
   Flame,
   ArrowRight,
-  Footprints,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +28,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
 import { isStaffPatrol, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
+import { SportBadge, SPORT_COLORS } from "@/components/SportIcon";
 
 export interface RecentActivityItem {
   id: string;
@@ -382,27 +382,11 @@ export function RecentActivityFeed({
                         </Badge>
 
                         {/* Sport Badge */}
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] font-bold px-1.5 py-0 h-4.5 gap-1",
-                            getActivitySport(act) === "course"
-                              ? "border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
-                              : "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-                          )}
-                        >
-                          {getActivitySport(act) === "course" ? (
-                            <>
-                              <Footprints className="h-2.5 w-2.5" />
-                              <span>Course</span>
-                            </>
-                          ) : (
-                            <>
-                              <Bike className="h-2.5 w-2.5" />
-                              <span>Vélo</span>
-                            </>
-                          )}
-                        </Badge>
+                        <SportBadge
+                          sport={getActivitySport(act)}
+                          className="px-1.5 py-0 h-4.5"
+                          iconClassName="h-2.5 w-2.5"
+                        />
                       </div>
 
                       {/* Ride metadata & note */}
@@ -474,9 +458,7 @@ export function RecentActivityFeed({
                     <div
                       className={cn(
                         "inline-flex items-baseline gap-1 rounded-xl px-2.5 py-1 shadow-2xs border",
-                        getActivitySport(act) === "course"
-                          ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400"
-                          : "bg-primary/10 border-primary/20 text-primary",
+                        SPORT_COLORS[getActivitySport(act)].soft,
                       )}
                     >
                       <span className="font-display font-black text-sm sm:text-base">

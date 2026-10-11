@@ -36,7 +36,7 @@ type Props = {
   patrols: Patrol[];
 };
 
-type SportFilter = "all" | "velo" | "course";
+type SportFilter = "all" | "velo" | "course" | "marche";
 type StatusFilter = "approved" | "pending" | "rejected" | "all";
 
 const STATUS_LABELS: Record<StatusFilter, string> = {
@@ -50,11 +50,15 @@ const SPORT_LABELS: Record<SportFilter, string> = {
   all: "Tous sports",
   velo: "Vélo",
   course: "Course",
+  marche: "Marche",
 };
 
 /** Supabase limite chaque requête à 1000 lignes : on lit page par page. */
 async function fetchAllPages<T>(
-  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  build: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
 ): Promise<T[]> {
   const size = 1000;
   const out: T[] = [];
@@ -97,7 +101,10 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
       : `Patrouille : ${patrols.find((p) => p.id === patrolFilter)?.name ?? "?"}`;
 
   const titlePreview = useMemo(
-    () => [formatDateSlash(new Date()), TYPE_LABELS[type], customLabel.trim()].filter(Boolean).join(" - "),
+    () =>
+      [formatDateSlash(new Date()), TYPE_LABELS[type], customLabel.trim()]
+        .filter(Boolean)
+        .join(" - "),
     [type, customLabel],
   );
 
@@ -124,10 +131,7 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
 
         const rows = all.filter((r) => {
           if (patrolFilter !== "all" && r.profiles?.patrol_id !== patrolFilter) return false;
-          if (sport !== "all") {
-            const isCourse = getActivitySport(r as never) === "course";
-            if ((sport === "course") !== isCourse) return false;
-          }
+          if (sport !== "all" && getActivitySport(r as never) !== sport) return false;
           return true;
         });
 
@@ -137,9 +141,9 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
         }
 
         const period =
-  dateFrom || dateTo
-    ? `période : ${dateFrom ? `du ${formatDateSlash(dateFrom)}` : "début"} au ${formatDateSlash(dateTo || new Date())}`
-    : "toute la période";
+          dateFrom || dateTo
+            ? `période : ${dateFrom ? `du ${formatDateSlash(dateFrom)}` : "début"} au ${formatDateSlash(dateTo || new Date())}`
+            : "toute la période";
 
         const filename = await generatePdf({
           type: "sorties",
@@ -147,7 +151,9 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
           patrols,
           withPatrolRecap: withRecap,
           customLabel,
-          filtersLabel: [patrolLabel, SPORT_LABELS[sport], STATUS_LABELS[status], period].join(" · "),
+          filtersLabel: [patrolLabel, SPORT_LABELS[sport], STATUS_LABELS[status], period].join(
+            " · ",
+          ),
         });
         toast.success(`PDF téléchargé : ${filename}`);
       } else {
@@ -239,6 +245,7 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
                       <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="velo">Vélo</SelectItem>
                       <SelectItem value="course">Course</SelectItem>
+                      <SelectItem value="marche">Marche</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -312,8 +319,8 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
                 ))}
               </div>
               <p className="pt-1 text-[11px] text-muted-foreground">
-                Email et téléphone sont des données personnelles : ne diffuse pas ce PDF en dehors de
-                le staff.
+                Email et téléphone sont des données personnelles : ne diffuse pas ce PDF en dehors
+                de le staff.
               </p>
             </div>
           )}
