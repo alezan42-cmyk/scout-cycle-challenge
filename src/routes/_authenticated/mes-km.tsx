@@ -33,6 +33,7 @@ import {
 } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { SportBadge, SPORT_COLORS } from "@/components/SportIcon";
+import { CorrectionNotice } from "@/components/CorrectionNotice";
 
 export const Route = createFileRoute("/_authenticated/mes-km")({
   ssr: false,
@@ -189,6 +190,9 @@ function MesKm() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-5xl px-4 py-8 md:py-12 space-y-8">
+        {/* Corrections faites par le staff (km modifiés, sortie supprimée ou refusée) */}
+        <CorrectionNotice userId={user?.id} />
+
         {/* Profile incomplete warning */}
         {profile && (!profile.patrol_id || !profile.onboarded) && (
           <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
