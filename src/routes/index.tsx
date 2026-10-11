@@ -54,6 +54,13 @@ import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
 import { AlezanNamePoll } from "../components/AlezanNamePoll";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface LeaderboardItem {
   user_id: string;
@@ -69,6 +76,20 @@ interface LeaderboardItem {
   scout_year?: number | null;
   is_chef?: boolean;
   peloton?: PelotonUserScore | undefined;
+}
+
+interface RankedActivity {
+  user_id: string;
+  km: number;
+  elevation_m?: number | null;
+  ride_date: string;
+  note?: string | null;
+  group_ride_id?: string | null;
+}
+
+interface SelectedLeaderboardEntry {
+  title: string;
+  userIds: string[];
 }
 
 export const Route = createFileRoute("/")({
@@ -161,6 +182,7 @@ function Index() {
   const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart">("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
+  const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
 
   const range =
     period === "week"
@@ -296,6 +318,26 @@ function Index() {
         console.error("Erreur de synchronisation du classement :", error);
         throw error;
       }
+    },
+  });
+
+  const selectedUserIds = selectedEntry?.userIds ?? [];
+  const { data: entryActivities = [], isLoading: isEntryActivitiesLoading } = useQuery({
+    queryKey: ["leaderboard-entry-activities", selectedUserIds, period, sportMode],
+    enabled: !!selectedEntry && selectedUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("user_id, km, elevation_m, ride_date, note, group_ride_id")
+        .in("user_id", selectedUserIds)
+        .eq("status", "approved")
+        .order("ride_date", { ascending: false });
+      if (error) throw error;
+      return ((data as unknown as RankedActivity[]) || []).filter((activity) => {
+        if (range?.from && activity.ride_date < range.from) return false;
+        if (range?.to && activity.ride_date > range.to) return false;
+        return sportMode === "all" || getActivitySport(activity) === sportMode;
+      });
     },
   });
 
@@ -459,6 +501,22 @@ function Index() {
       };
     });
   }, [scoutRows]);
+
+  const openScoutActivities = (scout: LeaderboardItem) => {
+    setSelectedEntry({ title: scout.display_name, userIds: [scout.user_id] });
+  };
+
+  const openPatrolActivities = (patrol: (typeof rankedPatrols)[number]) => {
+    const isMainStaffPatrol =
+      isStaffPatrol(patrol) && (isTroopStaffPatrol(patrol) || patrol.id === "staff");
+    const userIds = filteredScouts
+      .filter(
+        (scout) =>
+          scout.patrol_id === patrol.id || (isMainStaffPatrol && scout.is_chef && !scout.patrol_id),
+      )
+      .map((scout) => scout.user_id);
+    setSelectedEntry({ title: patrol.name, userIds });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1012,6 +1070,7 @@ function Index() {
                   km={p.km}
                   maxKm={rankedPatrols[0]?.km || 1}
                   sportMode={sportMode}
+                  onClick={() => openPatrolActivities(p)}
                 />
               ))
             )}
@@ -1042,7 +1101,11 @@ function Index() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
                 {/* 2nd place */}
                 {scoutRows[1] && (
-                  <div className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1">
+                  <button
+                    type="button"
+                    onClick={() => openScoutActivities(scoutRows[1])}
+                    className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-200 text-slate-800 font-black text-sm">
                         2
@@ -1062,12 +1125,16 @@ function Index() {
                       <span>{scoutRows[1].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {/* 1st place */}
                 {scoutRows[0] && (
-                  <div className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2">
+                  <button
+                    type="button"
+                    onClick={() => openScoutActivities(scoutRows[0])}
+                    className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white font-black text-base shadow">
                         1
@@ -1094,12 +1161,16 @@ function Index() {
                       <span>{scoutRows[0].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {/* 3rd place */}
                 {scoutRows[2] && (
-                  <div className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3">
+                  <button
+                    type="button"
+                    onClick={() => openScoutActivities(scoutRows[2])}
+                    className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-800 text-amber-100 font-black text-sm">
                         3
@@ -1119,7 +1190,7 @@ function Index() {
                       <span>{scoutRows[2].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
             )}
@@ -1145,6 +1216,7 @@ function Index() {
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
                     sportMode={sportMode}
+                    onClick={() => openScoutActivities(s)}
                   />
                 ))
               )}
@@ -1152,6 +1224,71 @@ function Index() {
           </div>
         )}
       </main>
+      <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+        <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Sorties de {selectedEntry?.title}</DialogTitle>
+            <DialogDescription>
+              Sorties approuvées correspondant aux filtres du classement : {PERIOD_LABELS[period]} ·{" "}
+              {sportMode === "all" ? "Tout" : SPORT_INFO[sportMode].short}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+            {isEntryActivitiesLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Chargement des sorties…
+              </p>
+            ) : entryActivities.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Aucune sortie approuvée ne correspond à ces filtres.
+              </p>
+            ) : (
+              entryActivities.map((activity, index) => {
+                const member = leaderboardData.find((scout) => scout.user_id === activity.user_id);
+                const sport = getActivitySport(activity);
+                return (
+                  <div
+                    key={`${activity.user_id}-${activity.ride_date}-${index}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3"
+                  >
+                    <div className="min-w-0">
+                      {selectedEntry.userIds.length > 1 && (
+                        <p className="truncate text-xs font-semibold text-foreground">
+                          {member?.display_name ?? "Membre"}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(`${activity.ride_date}T12:00:00`).toLocaleDateString("fr-BE")} ·{" "}
+                        {SPORT_INFO[sport].label}
+                      </p>
+                      {activity.note && !activity.note.startsWith("[") && (
+                        <p className="truncate text-xs text-muted-foreground">{activity.note}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-display font-bold">{Number(activity.km).toFixed(1)} km</p>
+                      {activity.elevation_m ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {activity.elevation_m} m D+
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {entryActivities.length > 0 && (
+            <p className="border-t pt-3 text-right text-sm font-bold">
+              Total affiché :{" "}
+              {entryActivities
+                .reduce((sum, activity) => sum + Number(activity.km || 0), 0)
+                .toFixed(1)}{" "}
+              km
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1165,6 +1302,7 @@ function PatrolLeaderboardRow({
   km,
   maxKm,
   sportMode = "velo",
+  onClick,
 }: {
   rank: number;
   name: string;
@@ -1174,6 +1312,7 @@ function PatrolLeaderboardRow({
   km: number;
   maxKm: number;
   sportMode?: SportMode;
+  onClick: () => void;
 }) {
   const isRanked = km > 0 && rank > 0;
   const percentage = isRanked && maxKm > 0 ? Math.max(3, (km / maxKm) * 100) : 0;
@@ -1215,9 +1354,11 @@ function PatrolLeaderboardRow({
   };
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "group relative flex items-center gap-4 rounded-2xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md",
+        "group relative flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-md",
         rank === 1 && isRanked
           ? "border-amber-400/40 bg-gradient-to-r from-amber-500/5 via-card to-card"
           : "",
@@ -1271,7 +1412,7 @@ function PatrolLeaderboardRow({
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -1287,6 +1428,7 @@ function ScoutLeaderboardRow({
   climberJersey = false,
   maxKm,
   sportMode = "velo",
+  onClick,
 }: {
   rank: number;
   displayName: string;
@@ -1299,14 +1441,17 @@ function ScoutLeaderboardRow({
   climberJersey?: boolean;
   maxKm: number;
   sportMode?: SportMode;
+  onClick: () => void;
 }) {
   const isRanked = km > 0 && rank > 0;
   const percentage = isRanked && maxKm > 0 ? Math.max(3, (km / maxKm) * 100) : 0;
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "group relative flex items-center gap-4 rounded-2xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md",
+        "group relative flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-md",
         rank === 1 && isRanked
           ? "border-amber-400/40 bg-gradient-to-r from-amber-500/5 via-card to-card"
           : "",
@@ -1388,6 +1533,6 @@ function ScoutLeaderboardRow({
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
