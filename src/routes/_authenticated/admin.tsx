@@ -49,6 +49,7 @@ import { SeasonalThemeAdmin } from "@/components/SeasonalThemeAdmin";
 import { CleanupAdmin } from "@/components/CleanupAdmin";
 import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifAdmin";
 import { SportBadge } from "@/components/SportIcon";
+import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -536,6 +537,8 @@ function Admin() {
                 })}
               </div>
             )}
+
+            <AdminActivitiesManager reloadKey={pending.length} onChanged={load} />
           </TabsContent>
 
           {/* Tab 2: Scout sportif du mois */}
