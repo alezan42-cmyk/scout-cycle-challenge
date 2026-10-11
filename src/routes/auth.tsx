@@ -57,16 +57,63 @@ const loginSchema = z.object({
   password: z.string().min(4, "4 caractères minimum").max(72),
 });
 
-const signupSchema = z.object({
-  email: z.string().trim().email("Email invalide").max(255),
-  password: z.string().min(6, "Le mot de passe doit comporter au moins 6 caractères").max(72),
-  full_name: z.string().trim().min(2, "Nom et prénom requis").max(100),
-  totem: z.string().trim().max(60).optional(),
-  quali: z.string().trim().max(60).optional(),
-  scout_year: z.string().min(1, "Précise ton année scout ou si tu es chef"),
-  patrol_id: z.string().min(1, "Sélectionne ta patrouille"),
-  phone: z.string().trim().max(25).optional(),
-});
+const signupSchema = z
+  .object({
+    email: z.string().trim().email("Email invalide").max(255),
+    password: z.string().min(6, "Le mot de passe doit comporter au moins 6 caractères").max(72),
+    full_name: z.string().trim().min(2, "Nom et prénom requis").max(100),
+    totem: z.string().trim().max(60).optional(),
+    quali: z.string().trim().max(60).optional(),
+    scout_year: z.string().min(1, "Précise ton année scout ou si tu es chef"),
+    patrol_id: z.string().min(1, "Sélectionne ta patrouille"),
+    phone: z.string().trim().max(25).optional(),
+    birth_day: z.string(),
+    birth_month: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (Boolean(data.birth_day) !== Boolean(data.birth_month)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Anniversaire : choisis le jour et le mois (ou aucun des deux)",
+        path: [data.birth_day ? "birth_month" : "birth_day"],
+      });
+      return;
+    }
+    if (data.birth_day && data.birth_month) {
+      const day = Number(data.birth_day);
+      const month = Number(data.birth_month);
+      const maxDay = month === 2 ? 29 : [4, 6, 9, 11].includes(month) ? 30 : 31;
+      if (
+        !Number.isInteger(day) ||
+        !Number.isInteger(month) ||
+        day < 1 ||
+        day > maxDay ||
+        month < 1 ||
+        month > 12
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Date d’anniversaire invalide",
+          path: ["birth_day"],
+        });
+      }
+    }
+  });
+
+const MONTHS = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
 
 function AuthPage() {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -89,6 +136,8 @@ function AuthPage() {
     scout_year: "",
     patrol_id: "",
     phone: "",
+    birth_day: "",
+    birth_month: "",
   });
 
   // Load patrols from Supabase for the registration dropdown
@@ -254,6 +303,8 @@ function AuthPage() {
             scout_year: scoutYearNum ? String(scoutYearNum) : null,
             patrol_id: targetPatrolId,
             phone: d.phone?.trim() || null,
+            birth_day: d.birth_day ? Number(d.birth_day) : null,
+            birth_month: d.birth_month ? Number(d.birth_month) : null,
           },
         },
       });
@@ -280,6 +331,8 @@ function AuthPage() {
               scout_year: scoutYearNum,
               patrol_id: targetPatrolId && targetPatrolId.includes("-") ? targetPatrolId : null,
               phone: d.phone?.trim() || null,
+              birth_day: d.birth_day ? Number(d.birth_day) : null,
+              birth_month: d.birth_month ? Number(d.birth_month) : null,
               onboarded: true,
             },
             { onConflict: "id" },
@@ -302,6 +355,8 @@ function AuthPage() {
           scout_year: scoutYearNum,
           patrol_id: targetPatrolId,
           phone: d.phone?.trim() || null,
+          birth_day: d.birth_day ? Number(d.birth_day) : null,
+          birth_month: d.birth_month ? Number(d.birth_month) : null,
           is_chef: isStaff,
         });
       } catch {
@@ -608,6 +663,54 @@ function AuthPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">
+                      Anniversaire{" "}
+                      <span className="text-muted-foreground font-normal">(optionnel)</span>
+                    </Label>
+                    <div className="grid grid-cols-[5.5rem_1fr] gap-2">
+                      <Select
+                        value={signupForm.birth_day || "none"}
+                        onValueChange={(v) =>
+                          setSignupForm({ ...signupForm, birth_day: v === "none" ? "" : v })
+                        }
+                      >
+                        <SelectTrigger aria-label="Jour de l'anniversaire">
+                          <SelectValue placeholder="Jour" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="none">—</SelectItem>
+                          {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                            <SelectItem key={d} value={d}>
+                              {d}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={signupForm.birth_month || "none"}
+                        onValueChange={(v) =>
+                          setSignupForm({ ...signupForm, birth_month: v === "none" ? "" : v })
+                        }
+                      >
+                        <SelectTrigger aria-label="Mois de l'anniversaire">
+                          <SelectValue placeholder="Mois" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="none">—</SelectItem>
+                          {MONTHS.map((m, i) => (
+                            <SelectItem key={m} value={String(i + 1)}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Seuls le jour et le mois sont demandés, jamais l’année.
+                    </p>
                   </div>
 
                   {/* Téléphone (optionnel) */}
