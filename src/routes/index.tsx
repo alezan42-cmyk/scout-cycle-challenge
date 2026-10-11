@@ -53,8 +53,7 @@ import { PelotonPanel } from "@/components/PelotonPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
-import { AlezanMascot } from '../components/AlezanMascot';
-import { AlezanNamePoll } from '../components/AlezanNamePoll';
+import { AlezanNamePoll } from "../components/AlezanNamePoll";
 
 interface LeaderboardItem {
   user_id: string;
@@ -616,8 +615,8 @@ function Index() {
           </div>
         </div>
       </section>
-<AlezanNamePoll />
-    
+      <AlezanNamePoll />
+
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
