@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AlezanMascot } from "@/components/AlezanMascot";
 import { AuthProvider } from "@/context/AuthContext";
 import { SeasonalThemeProvider } from "@/context/SeasonalThemeContext";
 import { SeasonalDecor } from "@/components/SeasonalDecor";
@@ -162,6 +163,7 @@ function RootComponent() {
       <SeasonalThemeProvider>
         <AuthProvider>
           <SiteHeader />
+          <AlezanMascot />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <footer className="py-4 text-center text-[10px] text-muted-foreground/70">

@@ -1,42 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import { getAlezanQuote } from '../lib/alezanQuotes';
-import { useSeasonalTheme } from '../context/SeasonalThemeContext';
+import { useMemo } from "react";
+import { useLocation } from "@tanstack/react-router";
+import { getAlezanQuote, type AlezanContext } from "@/lib/alezanQuotes";
+import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 
-// Importez vos images ici (ajustez les chemins selon votre structure)
-import alezanClassique from '../assets/Perso/Alezan_Classique.png';
-import alezanHalloween from '../assets/Perso/Alezan_Halloween.png';
-import alezanNoel from '../assets/Perso/Alezan_Noel.png';
-import alezanStValentin from '../assets/Perso/Alezan_St_Valentin.png';
+import alezanClassique from "@/assets/Perso/Alezan_Classique.png";
+import alezanHalloween from "@/assets/Perso/Alezan_Halloween.png";
+import alezanNoel from "@/assets/Perso/Alezan_Noel.png";
+import alezanStValentin from "@/assets/Perso/Alezan_St_Valentin.png";
+
+const PAGE_CONTEXT: Record<string, AlezanContext> = {
+  "/": "home",
+  "/mes-km": "ride",
+  "/timeline": "timeline",
+  "/solidarite": "solidarity",
+  "/profil": "profile",
+  "/carte": "map",
+  "/admin": "admin",
+  "/auth": "welcome",
+};
 
 interface AlezanMascotProps {
-  context?: 'general' | 'post_ride' | 'leader' | 'chasing';
-  data?: any;
+  context?: AlezanContext;
 }
 
-export function AlezanMascot({ context = 'general', data }: AlezanMascotProps) {
-  const { currentTheme } = useSeasonalTheme(); // Utilise le contexte existant pour le thème
-  const [quote, setQuote] = useState('');
+/** Le compagnon de route Alezan accueille les scouts avec un mot lié à la page. */
+export function AlezanMascot({ context }: AlezanMascotProps) {
+  const { pathname } = useLocation();
+  const { currentTheme } = useSeasonalTheme();
+  const pageContext = context ?? PAGE_CONTEXT[pathname] ?? "general";
+  const quote = useMemo(() => getAlezanQuote(pageContext), [pageContext]);
 
-  useEffect(() => {
-    setQuote(getAlezanQuote(context, data));
-  }, [context, data]);
-
-  // Déterminer l'image en fonction du thème
-  let currentImage = alezanClassique;
-  if (currentTheme === 'halloween') currentImage = alezanHalloween;
-  if (currentTheme === 'noel') currentImage = alezanNoel;
-  if (currentTheme === 'valentin') currentImage = alezanStValentin;
+  const currentImage =
+    currentTheme === "halloween"
+      ? alezanHalloween
+      : currentTheme === "noel"
+        ? alezanNoel
+        : currentTheme === "valentin"
+          ? alezanStValentin
+          : alezanClassique;
 
   return (
-    <div className="flex items-end space-x-4 p-4 my-4">
-      <div className="relative w-24 h-24 flex-shrink-0">
-        <img src={currentImage} alt="Mascotte Alezan" className="w-full h-full object-contain" />
+    <aside
+      aria-label="Le mot d'Alezan"
+      className="border-b border-primary/10 bg-primary/[0.04]"
+    >
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:gap-4 sm:py-2.5">
+        <img
+          src={currentImage}
+          alt="Alezan, le compagnon de route de la troupe"
+          className="h-12 w-16 shrink-0 object-contain sm:h-14 sm:w-20"
+        />
+        <div className="min-w-0 border-l-2 border-primary/30 pl-3 sm:pl-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">
+            Le mot d'Alezan
+          </p>
+          <p role="status" className="text-xs font-medium leading-relaxed text-foreground sm:text-sm">
+            {quote}
+          </p>
+        </div>
       </div>
-      <div className="bg-white border-2 border-orange-300 rounded-2xl rounded-bl-none p-3 shadow-md relative max-w-xs">
-        <p className="text-sm font-medium text-gray-800">{quote}</p>
-        {/* Petite flèche de la bulle */}
-        <div className="absolute -left-2 bottom-0 w-4 h-4 bg-white border-b-2 border-l-2 border-orange-300 transform rotate-45 translate-y-1/2"></div>
-      </div>
-    </div>
+    </aside>
   );
 }
