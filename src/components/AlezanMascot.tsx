@@ -25,7 +25,7 @@ export function AlezanMascot({ context = 'general', data }: AlezanMascotProps) {
   let currentImage = alezanClassique;
   if (currentTheme === 'halloween') currentImage = alezanHalloween;
   if (currentTheme === 'noel') currentImage = alezanNoel;
-  if (currentTheme === 'st-valentin') currentImage = alezanStValentin;
+  if (currentTheme === 'valentin') currentImage = alezanStValentin;
 
   return (
     <div className="flex items-end space-x-4 p-4 my-4">
