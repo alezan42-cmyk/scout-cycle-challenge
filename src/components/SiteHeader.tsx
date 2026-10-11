@@ -126,7 +126,7 @@ export function SiteHeader() {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-display text-base sm:text-lg font-black tracking-wider text-white">
-                ALEZAN 42
+                ALEZAN-42
               </span>
               <span className="hidden rounded-full bg-orange-500/20 border border-orange-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 sm:inline-block">
                 Défi Vélo
