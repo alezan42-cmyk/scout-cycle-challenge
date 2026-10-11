@@ -559,6 +559,7 @@ export function DailyDistanceForm({
   const selectedPatrolObj = patrols.find((p) => p.id === selectedPatrolId);
 
   return (
+    <>
     <Card className={cn("overflow-hidden border-border/80 shadow-md", className)}>
       <CardHeader className="bg-gradient-to-r from-primary/10 via-amber-500/5 to-transparent pb-4">
         <div className="flex items-center justify-between">
@@ -1004,6 +1005,7 @@ export function DailyDistanceForm({
       </CardContent>
     </Card>
     <AlezanNamePoll />
+    </>
   );
 }
 
