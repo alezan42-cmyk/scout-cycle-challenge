@@ -80,15 +80,15 @@ function getWeekBoundaries(offsetWeeks: number = 0): { from: string; to: string 
 
   const monday = new Date(now);
   monday.setDate(now.getDate() + diffToMonday + offsetWeeks * 7);
-  monday.setHours(0, 0, 0, 0);
-
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+
+  const formatLocalDate = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
   return {
-    from: monday.toISOString().split("T")[0],
-    to: sunday.toISOString().split("T")[0],
+    from: formatLocalDate(monday),
+    to: formatLocalDate(sunday),
   };
 }
 
@@ -115,9 +115,9 @@ export function PatrolsList({
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   const fetchData = useCallback(
-    async (isManualRefresh = false) => {
+    async (isManualRefresh = false, isBackgroundRefresh = false) => {
       if (isManualRefresh) setRefreshing(true);
-      else setLoading(true);
+      else if (!isBackgroundRefresh) setLoading(true);
       setError(null);
 
       try {
@@ -269,7 +269,16 @@ export function PatrolsList({
   );
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
+    const refreshInBackground = () => {
+      if (document.visibilityState === "visible") void fetchData(false, true);
+    };
+    const interval = window.setInterval(refreshInBackground, 30_000);
+    document.addEventListener("visibilitychange", refreshInBackground);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshInBackground);
+    };
   }, [fetchData]);
 
   // Calcul des statistiques agrégées et du classement des patrouilles
