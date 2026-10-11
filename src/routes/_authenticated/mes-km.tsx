@@ -12,6 +12,7 @@ import {
   Flame,
   Award,
   Footprints,
+  PersonStanding,
   MapPin,
   Users,
 } from "lucide-react";
@@ -28,8 +29,10 @@ import {
   getActivitySport,
   cleanActivityNote,
   type ActivitySport,
+  SPORT_INFO,
 } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { SportBadge, SPORT_COLORS } from "@/components/SportIcon";
 
 export const Route = createFileRoute("/_authenticated/mes-km")({
   ssr: false,
@@ -38,12 +41,13 @@ export const Route = createFileRoute("/_authenticated/mes-km")({
       { title: "Mes kilomètres — ALEZAN 42" },
       {
         name: "description",
-        content: "Enregistre tes sorties vélo ou course à pied avec capture, Strava ou GPX.",
+        content:
+          "Enregistre tes sorties vélo, course à pied ou marche avec capture, Strava ou GPX.",
       },
       { property: "og:title", content: "Mes kilomètres — ALEZAN 42" },
       {
         property: "og:description",
-        content: "Ajoute tes km de vélo et course à pied pour ta patrouille.",
+        content: "Ajoute tes km de vélo, course à pied et marche pour ta patrouille.",
       },
     ],
   }),
@@ -76,7 +80,7 @@ function MesKm() {
   const [acts, setActs] = useState<Act[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [patrolMap, setPatrolMap] = useState<Record<string, string>>({});
-  const [sportFilter, setSportFilter] = useState<"all" | "velo" | "course">("all");
+  const [sportFilter, setSportFilter] = useState<"all" | ActivitySport>("all");
   const [pelotonSizes, setPelotonSizes] = useState<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
@@ -171,11 +175,14 @@ function MesKm() {
 
   const totalVeloKm = veloApprovedActs.reduce((s, a) => s + Number(a.km || 0), 0);
   const totalCourseKm = courseApprovedActs.reduce((s, a) => s + Number(a.km || 0), 0);
+  const totalMarcheKm = approvedActs
+    .filter((a) => getActivitySport(a) === "marche")
+    .reduce((s, a) => s + Number(a.km || 0), 0);
   const totalKm = approvedActs.reduce((s, a) => s + Number(a.km || 0), 0);
 
   const filteredActs = useMemo(() => {
     if (sportFilter === "velo") return acts.filter((a) => getActivitySport(a) === "velo");
-    if (sportFilter === "course") return acts.filter((a) => getActivitySport(a) === "course");
+    if (sportFilter !== "all") return acts.filter((a) => getActivitySport(a) === sportFilter);
     return acts;
   }, [acts, sportFilter]);
 
@@ -246,6 +253,19 @@ function MesKm() {
                   Course validée
                 </div>
               </div>
+
+              {totalMarcheKm > 0 && (
+                <div className="rounded-xl border border-sky-400/20 bg-sky-950/40 px-3.5 py-2 text-center backdrop-blur">
+                  <div className="font-display text-xl font-black text-sky-300 flex items-center justify-center gap-1">
+                    <PersonStanding className="h-4 w-4" />
+                    <span>{totalMarcheKm.toFixed(1)}</span>
+                    <span className="text-xs text-sky-200/70">km</span>
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-sky-200/75">
+                    Marche validée
+                  </div>
+                </div>
+              )}
 
               {pendingActs.length > 0 && (
                 <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-center backdrop-blur">
@@ -320,6 +340,21 @@ function MesKm() {
                     Course ({acts.filter((a) => getActivitySport(a) === "course").length})
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSportFilter("marche")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1",
+                    sportFilter === "marche"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <PersonStanding className="h-3 w-3 text-sky-600" />
+                  <span>
+                    Marche ({acts.filter((a) => getActivitySport(a) === "marche").length})
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -336,9 +371,8 @@ function MesKm() {
             ) : (
               <div className="space-y-3">
                 {filteredActs.map((a) => {
-                  const isCourse = getActivitySport(a) === "course";
-                  const displayNote =
-                    cleanActivityNote(a.note) || (isCourse ? "Course à pied" : "Sortie vélo");
+                  const sport = getActivitySport(a);
+                  const displayNote = cleanActivityNote(a.note) || SPORT_INFO[sport].label;
 
                   return (
                     <div
@@ -349,9 +383,7 @@ function MesKm() {
                         <span
                           className={cn(
                             "grid h-12 w-12 shrink-0 place-items-center rounded-xl font-display text-lg font-black",
-                            isCourse
-                              ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                              : "bg-primary/10 text-primary",
+                            SPORT_COLORS[sport].soft,
                           )}
                         >
                           {Number(a.km).toFixed(1)}
@@ -369,27 +401,7 @@ function MesKm() {
                             )}
 
                             {/* Badge Sport */}
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "gap-1 text-[10px] font-bold",
-                                isCourse
-                                  ? "border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
-                                  : "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-                              )}
-                            >
-                              {isCourse ? (
-                                <>
-                                  <Footprints className="h-3 w-3" />
-                                  <span>Course</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Bike className="h-3 w-3" />
-                                  <span>Vélo</span>
-                                </>
-                              )}
-                            </Badge>
+                            <SportBadge sport={sport} />
 
                             {a.group_ride_id && (
                               <Badge

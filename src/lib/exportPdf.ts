@@ -1,5 +1,5 @@
 import type { Activity, Patrol } from "@/lib/database";
-import { getActivitySport } from "@/lib/database";
+import { getActivitySport, SPORT_INFO } from "@/lib/database";
 
 /* -------------------------------------------------------------------------- */
 /*  Types d'export                                                            */
@@ -159,7 +159,11 @@ export async function generatePdf(report: Report): Promise<string> {
   const title = [formatDateSlash(now), typeLabel, custom].filter(Boolean).join(" - ");
 
   const wide = report.type === "profils" && report.fields.length > 5;
-  const doc: any = new jsPDF({ orientation: wide ? "landscape" : "portrait", unit: "mm", format: "a4" });
+  const doc: any = new jsPDF({
+    orientation: wide ? "landscape" : "portrait",
+    unit: "mm",
+    format: "a4",
+  });
   const pageW: number = doc.internal.pageSize.getWidth();
   const pageH: number = doc.internal.pageSize.getHeight();
   const marginX = 14;
@@ -192,7 +196,10 @@ export async function generatePdf(report: Report): Promise<string> {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(100, 100, 100);
-  const filterLines: string[] = doc.splitTextToSize(`Filtres : ${report.filtersLabel}`, pageW - marginX * 2);
+  const filterLines: string[] = doc.splitTextToSize(
+    `Filtres : ${report.filtersLabel}`,
+    pageW - marginX * 2,
+  );
   doc.text(filterLines, marginX, 43.5);
   const startY = 43.5 + filterLines.length * 4 + 3;
 
@@ -215,13 +222,27 @@ export async function generatePdf(report: Report): Promise<string> {
       head: [["Date", "Scout", "Patrouille", "Sport", "Distance"]],
       body: report.rows.map((r) => {
         const p = r.profiles;
-        const scout = p?.full_name ? (p.totem ? `${p.full_name} (${p.totem})` : p.full_name) : "Inconnu";
-        const sport = getActivitySport(r as unknown as Activity) === "course" ? "Course" : "Vélo";
-        return [formatDateSlash(r.ride_date), scout, patrolName(p?.patrol_id), sport, `${fmtKm(Number(r.km))} km`];
+        const scout = p?.full_name
+          ? p.totem
+            ? `${p.full_name} (${p.totem})`
+            : p.full_name
+          : "Inconnu";
+        const sport = SPORT_INFO[getActivitySport(r as unknown as Activity)].short;
+        return [
+          formatDateSlash(r.ride_date),
+          scout,
+          patrolName(p?.patrol_id),
+          sport,
+          `${fmtKm(Number(r.km))} km`,
+        ];
       }),
       foot: [["", "", "", "Total", `${fmtKm(total)} km`]],
       showFoot: "lastPage",
-      columnStyles: { 0: { cellWidth: 28 }, 3: { cellWidth: 22 }, 4: { halign: "right", cellWidth: 28, fontStyle: "bold" } },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        3: { cellWidth: 22 },
+        4: { halign: "right", cellWidth: 28, fontStyle: "bold" },
+      },
       didParseCell: (data: any) => {
         if (data.section === "foot" && data.column.index === 4) data.cell.styles.halign = "right";
         if (data.section === "head" && data.column.index === 4) data.cell.styles.halign = "right";
@@ -254,8 +275,17 @@ export async function generatePdf(report: Report): Promise<string> {
         ...tableBase,
         startY: y + 3,
         head: [["Rang", "Patrouille", "Sorties", "Distance"]],
-        body: recap.map(([name, v], i) => [String(i + 1), name, String(v.count), `${fmtKm(v.km)} km`]),
-        columnStyles: { 0: { cellWidth: 16 }, 2: { cellWidth: 24 }, 3: { halign: "right", cellWidth: 32, fontStyle: "bold" } },
+        body: recap.map(([name, v], i) => [
+          String(i + 1),
+          name,
+          String(v.count),
+          `${fmtKm(v.km)} km`,
+        ]),
+        columnStyles: {
+          0: { cellWidth: 16 },
+          2: { cellWidth: 24 },
+          3: { halign: "right", cellWidth: 32, fontStyle: "bold" },
+        },
         didParseCell: (data: any) => {
           if (data.section === "head" && data.column.index === 3) data.cell.styles.halign = "right";
         },
@@ -282,7 +312,9 @@ export async function generatePdf(report: Report): Promise<string> {
           return p.strava_url || "-";
       }
     };
-    const sorted = [...report.rows].sort((a, b) => (a.full_name ?? "").localeCompare(b.full_name ?? "", "fr"));
+    const sorted = [...report.rows].sort((a, b) =>
+      (a.full_name ?? "").localeCompare(b.full_name ?? "", "fr"),
+    );
 
     doc.autoTable({
       ...tableBase,

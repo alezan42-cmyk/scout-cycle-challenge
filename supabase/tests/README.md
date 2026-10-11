@@ -22,4 +22,5 @@ psql -d test_alezan -f supabase/tests/test_themes_calendrier_fonds.sql # doit fi
 # (le test ci-dessus s'exécute avant la migration 20261009200000 ; appliquer ensuite cette migration, puis :)
 psql -d test_alezan -f supabase/tests/test_themes_hiver_carnaval_sports.sql # doit finir par "TOUS LES TESTS THÈMES HIVER CARNAVAL SPORTS SONT PASSÉS"
 psql -d test_alezan -f supabase/tests/test_menage_automatique.sql # doit finir par "TOUS LES TESTS MÉNAGE SONT PASSÉS"
+psql -d test_alezan -f supabase/tests/test_marche.sql          # doit finir par "TOUS LES TESTS MARCHE SONT PASSÉS"
 ```

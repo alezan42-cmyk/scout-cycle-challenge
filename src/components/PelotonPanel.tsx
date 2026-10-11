@@ -45,7 +45,7 @@ export function PelotonPanel({
 }: {
   scouts: ScoutRow[];
   patrols: PatrolRow[];
-  sportMode: "velo" | "course" | "all";
+  sportMode: "velo" | "course" | "marche" | "all";
 }) {
   const [tab, setTab] = useState<"scouts" | "patrols">("scouts");
 
@@ -58,7 +58,14 @@ export function PelotonPanel({
   const max =
     tab === "scouts" ? rankedScouts[0]?.peloton?.points || 1 : rankedPatrols[0]?.pelotonPoints || 1;
 
-  const verb = sportMode === "course" ? "couru" : sportMode === "velo" ? "roulé" : "roulé ou couru";
+  const verb =
+    sportMode === "course"
+      ? "couru"
+      : sportMode === "velo"
+        ? "roulé"
+        : sportMode === "marche"
+          ? "marché"
+          : "roulé, couru ou marché";
 
   return (
     <div className="space-y-4">

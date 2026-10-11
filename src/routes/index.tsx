@@ -20,6 +20,7 @@ import {
   Search,
   Footprints,
   Clock,
+  PersonStanding,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
 import { CountdownBanner } from "@/components/CountdownBanner";
@@ -29,7 +30,15 @@ import { CollectiveRouteMap } from "@/components/CollectiveRouteMap";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { weekRange, monthRange, useAuth } from "@/lib/useAuth";
-import { db, type Patrol, getActivitySport, type ActivitySport, getPatrolEmblem } from "@/lib/database";
+import {
+  db,
+  type Patrol,
+  getActivitySport,
+  type ActivitySport,
+  getPatrolEmblem,
+  SPORT_INFO,
+} from "@/lib/database";
+import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
 import { cn } from "@/lib/utils";
 import {
   isStaffPatrol,
@@ -89,7 +98,21 @@ const PERIOD_LABELS: Record<Period, string> = {
 };
 type GenderCat = "all" | "homme" | "femme";
 type ScoutYearFilter = "all" | "1" | "2" | "3" | "4" | "chef";
-type SportMode = "velo" | "course" | "all";
+type SportMode = "velo" | "course" | "marche" | "all";
+
+/** Icône du mode de classement (Tous = vélo). */
+function ModeIcon({
+  mode,
+  className,
+  colored,
+}: {
+  mode: SportMode;
+  className?: string;
+  colored?: boolean;
+}) {
+  const sport = mode === "all" ? "velo" : mode;
+  return <SportIcon sport={sport} className={cn(className, colored && SPORT_COLORS[sport].text)} />;
+}
 
 function FilterPill({
   active,
@@ -195,8 +218,7 @@ function Index() {
           if (range?.from && a.ride_date < range.from) return false;
           if (range?.to && a.ride_date > range.to) return false;
           const sport = getActivitySport(a);
-          if (sportMode === "velo" && sport !== "velo") return false;
-          if (sportMode === "course" && sport !== "course") return false;
+          if (sportMode !== "all" && sport !== sportMode) return false;
           return true;
         });
         const sumPending = pendingForSport.reduce((acc, curr) => acc + Number(curr.km || 0), 0);
@@ -208,8 +230,7 @@ function Index() {
             if (range?.from && a.ride_date < range.from) return false;
             if (range?.to && a.ride_date > range.to) return false;
             const sport = getActivitySport(a);
-            if (sportMode === "velo" && sport !== "velo") return false;
-            if (sportMode === "course" && sport !== "course") return false;
+            if (sportMode !== "all" && sport !== sportMode) return false;
             return true;
           }),
         );
@@ -229,8 +250,7 @@ function Index() {
 
               // Filtre selon le Mode Sport sélectionné (Vélo vs Course à pied vs Tous)
               const sport = getActivitySport(a);
-              if (sportMode === "velo" && sport !== "velo") return false;
-              if (sportMode === "course" && sport !== "course") return false;
+              if (sportMode !== "all" && sport !== sportMode) return false;
 
               return true;
             });
@@ -453,28 +473,34 @@ function Index() {
         <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">
-              {sportMode === "course" ? (
-                <Footprints className="h-4 w-4" />
+              {sportMode === "course" || sportMode === "marche" ? (
+                <ModeIcon mode={sportMode} className="h-4 w-4" />
               ) : (
                 <Tent className="h-4 w-4" />
               )}
               <span>
                 {sportMode === "course"
                   ? "ALEZAN 42 — Défi Course à Pied Inter-Patrouilles 🏃"
-                  : sportMode === "all"
-                    ? "ALEZAN 42 — Défi Combiné (Vélo & Course) 🏆"
-                    : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
+                  : sportMode === "marche"
+                    ? "ALEZAN 42 — Défi Marche Inter-Patrouilles 🥾"
+                    : sportMode === "all"
+                      ? "ALEZAN 42 — Défi Combiné (Vélo, Course & Marche) 🏆"
+                      : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
               </span>
             </div>
             <h1 className="mt-4 font-display text-4xl font-black leading-tight text-white md:text-6xl">
               {sportMode === "course"
                 ? "Qui courra le plus loin cette semaine ?"
-                : "Qui pédalera le plus loin cette semaine ?"}
+                : sportMode === "marche"
+                  ? "Qui marchera le plus loin cette semaine ?"
+                  : "Qui pédalera le plus loin cette semaine ?"}
             </h1>
             <p className="mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
               {sportMode === "course"
                 ? "Chaque foulée compte pour ta patrouille ! Enregistre tes sorties de course à pied avec Strava ou photo de chrono, grimpe au classement dédié et fais briller tes couleurs."
-                : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
+                : sportMode === "marche"
+                  ? "Chaque pas compte pour ta patrouille ! Enregistre tes marches et randos avec Strava ou une capture de ton appli, grimpe au classement dédié et fais briller tes couleurs."
+                  : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
             </p>
 
             {/* Scout Identity Bandeau (Visible when logged in) */}
@@ -551,15 +577,13 @@ function Index() {
                 className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
               >
                 <Link to="/mes-km">
-                  {sportMode === "course" ? (
-                    <Footprints className="mr-2 h-5 w-5" />
-                  ) : (
-                    <Bike className="mr-2 h-5 w-5" />
-                  )}
+                  <ModeIcon mode={sportMode} className="mr-2 h-5 w-5" />
                   <span>
                     {sportMode === "course"
                       ? "Enregistrer ma course à pied"
-                      : "Enregistrer mes kilomètres"}
+                      : sportMode === "marche"
+                        ? "Enregistrer ma marche"
+                        : "Enregistrer mes kilomètres"}
                   </span>
                 </Link>
               </Button>
@@ -599,18 +623,18 @@ function Index() {
         {/* Anniversaires : membres connectés uniquement */}
         <BirthdayBanner userId={user?.id} />
 
-        {/* SELECTEUR DU MODE SPORT (VÉLO vs COURSE À PIED vs COMBINÉ) */}
+        {/* SÉLECTEUR DU SPORT (VÉLO / COURSE À PIED / MARCHE / COMBINÉ) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card p-3 shadow-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="text-xs font-black uppercase tracking-wider text-muted-foreground mr-1">
               Discipline :
             </span>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <button
                 type="button"
                 onClick={() => setSportMode("velo")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "velo"
                     ? "bg-primary text-primary-foreground shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -624,7 +648,7 @@ function Index() {
                 type="button"
                 onClick={() => setSportMode("course")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "course"
                     ? "bg-purple-600 text-white shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -636,9 +660,23 @@ function Index() {
 
               <button
                 type="button"
+                onClick={() => setSportMode("marche")}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
+                  sportMode === "marche"
+                    ? "bg-sky-600 text-white shadow-sm scale-102"
+                    : "bg-muted/50 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <PersonStanding className="h-4 w-4" />
+                <span>Mode Marche 🥾</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setSportMode("all")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "all"
                     ? "bg-amber-600 text-white shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -654,7 +692,11 @@ function Index() {
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             <span>
               Classement dédié{" "}
-              {sportMode === "course" ? "Course à pied" : sportMode === "velo" ? "Vélo" : "Général"}
+              {sportMode === "all"
+                ? "Général"
+                : sportMode === "course"
+                  ? "Course à pied"
+                  : SPORT_INFO[sportMode].short}
             </span>
           </div>
         </div>
@@ -668,20 +710,24 @@ function Index() {
                   ? "Total couru à pied"
                   : sportMode === "velo"
                     ? "Total parcouru à vélo"
-                    : "Total cumulé"}
+                    : sportMode === "marche"
+                      ? "Total marché"
+                      : "Total cumulé"}
               </span>
               <span
                 className={cn(
                   "rounded-lg p-2",
                   sportMode === "course"
                     ? "bg-purple-500/10 text-purple-600"
-                    : "bg-primary/10 text-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-500/10 text-sky-600"
+                      : "bg-primary/10 text-primary",
                 )}
               >
-                {sportMode === "course" ? (
-                  <Footprints className="h-5 w-5" />
-                ) : (
+                {sportMode === "velo" || sportMode === "all" ? (
                   <Flame className="h-5 w-5" />
+                ) : (
+                  <ModeIcon mode={sportMode} className="h-5 w-5" />
                 )}
               </span>
             </div>
@@ -721,7 +767,7 @@ function Index() {
             </div>
             <p className="mt-1 truncate text-xs text-muted-foreground">
               {topPatrol
-                ? `${topPatrol.km.toFixed(1)} km (${sportMode === "course" ? "course" : "vélo"})`
+                ? `${topPatrol.km.toFixed(1)} km (${sportMode === "all" ? "tous sports" : SPORT_INFO[sportMode].short.toLowerCase()})`
                 : "En attente de sorties"}
             </p>
           </div>
@@ -733,7 +779,9 @@ function Index() {
                   ? "Premier Coureur"
                   : sportMode === "velo"
                     ? "Premier Cycliste"
-                    : "Premier Scout"}
+                    : sportMode === "marche"
+                      ? "Premier Marcheur"
+                      : "Premier Scout"}
               </span>
               <span className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600">
                 <Trophy className="h-5 w-5" />
@@ -850,15 +898,11 @@ function Index() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {sportMode === "course" ? (
-                <Footprints className="h-4 w-4 text-purple-600" />
-              ) : (
-                <Bike className="h-4 w-4 text-primary" />
-              )}
+              <ModeIcon mode={sportMode} className="h-4 w-4" colored />
               <span>
                 Classement Patrouilles{" "}
                 <span className="text-xs font-normal opacity-80">
-                  ({sportMode === "course" ? "Course" : sportMode === "velo" ? "Vélo" : "Tous"})
+                  ({sportMode === "all" ? "Tous" : SPORT_INFO[sportMode].short})
                 </span>{" "}
                 ({patrolRows.length})
               </span>
@@ -876,7 +920,7 @@ function Index() {
               <span>
                 Classement Individuel{" "}
                 <span className="text-xs font-normal opacity-80">
-                  ({sportMode === "course" ? "Course" : sportMode === "velo" ? "Vélo" : "Tous"})
+                  ({sportMode === "all" ? "Tous" : SPORT_INFO[sportMode].short})
                 </span>{" "}
                 ({scoutRows.length})
               </span>
@@ -1000,11 +1044,7 @@ function Index() {
                       </p>
                     </div>
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-4 w-4 text-purple-600" />
-                      ) : (
-                        <Bike className="h-4 w-4 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[1].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
@@ -1022,7 +1062,11 @@ function Index() {
                     </div>
                     <div className="mt-4">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                        {sportMode === "course" ? "🏃 Meilleur Coureur" : "🚴 Maillot Jaune"}
+                        {sportMode === "course"
+                          ? "🏃 Meilleur Coureur"
+                          : sportMode === "marche"
+                            ? "🥾 Meilleur Marcheur"
+                            : "🚴 Maillot Jaune"}
                       </span>
                       <h4 className="font-display font-black text-lg text-foreground truncate">
                         {scoutRows[0].display_name}
@@ -1032,11 +1076,7 @@ function Index() {
                       </p>
                     </div>
                     <div className="mt-4 pt-2 border-t font-display font-black text-2xl text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-5 w-5 text-purple-600" />
-                      ) : (
-                        <Bike className="h-5 w-5 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-5 w-5" colored />
                       <span>{scoutRows[0].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
@@ -1061,11 +1101,7 @@ function Index() {
                       </p>
                     </div>
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-4 w-4 text-purple-600" />
-                      ) : (
-                        <Bike className="h-4 w-4 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[2].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
@@ -1193,11 +1229,7 @@ function PatrolLeaderboardRow({
             )}
           </div>
           <div className="font-display text-xl font-black text-foreground flex items-center gap-1">
-            {sportMode === "course" ? (
-              <Footprints className="h-4 w-4 text-purple-600" />
-            ) : (
-              <Bike className="h-4 w-4 text-primary" />
-            )}
+            <ModeIcon mode={sportMode} className="h-4 w-4" colored />
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
@@ -1213,7 +1245,9 @@ function PatrolLeaderboardRow({
                   ? "bg-gradient-to-r from-amber-500 to-primary"
                   : sportMode === "course"
                     ? "bg-purple-600"
-                    : "bg-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-600"
+                      : "bg-primary",
               )}
               style={{ width: `${percentage}%` }}
             />
@@ -1311,11 +1345,7 @@ function ScoutLeaderboardRow({
             )}
           </div>
           <div className="font-display text-lg font-black text-foreground flex items-center gap-1">
-            {sportMode === "course" ? (
-              <Footprints className="h-4 w-4 text-purple-600" />
-            ) : (
-              <Bike className="h-4 w-4 text-primary" />
-            )}
+            <ModeIcon mode={sportMode} className="h-4 w-4" colored />
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
@@ -1330,7 +1360,9 @@ function ScoutLeaderboardRow({
                   ? "bg-gradient-to-r from-amber-500 to-primary"
                   : sportMode === "course"
                     ? "bg-purple-600"
-                    : "bg-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-600"
+                      : "bg-primary",
               )}
               style={{ width: `${percentage}%` }}
             />

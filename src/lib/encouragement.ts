@@ -9,7 +9,7 @@ import type { SeasonalThemeId } from "@/lib/seasonalTheme";
 
 export interface EncouragementInput {
   km: number;
-  sport: "velo" | "course";
+  sport: "velo" | "course" | "marche";
   /** dénivelé positif en mètres, si renseigné */
   elevation?: number | null;
   /** statut de la sortie (le message ne change pas, il est gardé pour de futurs usages) */
