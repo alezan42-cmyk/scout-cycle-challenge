@@ -104,6 +104,8 @@ export interface Profile {
   quali: string | null;
   scout_year: number | null; // 1 to 4, or null for Chefs
   phone: string | null;
+  birth_day?: number | null;
+  birth_month?: number | null;
   strava_url: string | null;
   patrol_id: string | null;
   is_chef?: boolean | undefined;
@@ -522,6 +524,8 @@ class StandaloneDatabase {
       scout_year?: number | null;
       patrol_id?: string | null;
       phone?: string | null;
+      birth_day?: number | null;
+      birth_month?: number | null;
       is_chef?: boolean;
     },
   ) {
@@ -545,6 +549,8 @@ class StandaloneDatabase {
         quali: metadata.quali || null,
         scout_year: metadata.scout_year ?? null,
         phone: metadata.phone || null,
+        birth_day: metadata.birth_day ?? null,
+        birth_month: metadata.birth_month ?? null,
         strava_url: null,
         patrol_id: metadata.patrol_id || (isGauthier ? "patrol-staff" : null),
         is_chef: metadata.is_chef ?? isGauthier,
