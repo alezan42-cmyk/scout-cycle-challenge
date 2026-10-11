@@ -154,8 +154,8 @@ function FilterPill({
 function Index() {
   const { user, profile, isAdmin } = useAuth();
   const { background: themeBackground } = useSeasonalTheme();
-  const [sportMode, setSportMode] = useState<SportMode>("velo");
-  const [period, setPeriod] = useState<Period>("week");
+  const [sportMode, setSportMode] = useState<SportMode>("all");
+  const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");
   const [scoutYear, setScoutYear] = useState<ScoutYearFilter>("all");
   const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart">("patrols");
