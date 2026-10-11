@@ -26,7 +26,7 @@ interface AlezanMascotProps {
 /** Le compagnon de route Alezan accueille les scouts avec un mot lié à la page. */
 export function AlezanMascot({ context }: AlezanMascotProps) {
   const { pathname } = useLocation();
-  const { currentTheme } = useSeasonalTheme();
+  const { theme: currentTheme } = useSeasonalTheme();
   const pageContext = context ?? PAGE_CONTEXT[pathname] ?? "general";
   const quote = useMemo(() => getAlezanQuote(pageContext), [pageContext]);
 
@@ -42,23 +42,24 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
   return (
     <aside
       aria-label="Le mot d'Alezan"
-      className="border-b border-primary/10 bg-primary/[0.04]"
+      className="pointer-events-none fixed bottom-4 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3"
     >
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:gap-4 sm:py-2.5">
-        <img
-          src={currentImage}
-          alt="Alezan, le compagnon de route de la troupe"
-          className="h-12 w-16 shrink-0 object-contain sm:h-14 sm:w-20"
-        />
-        <div className="min-w-0 border-l-2 border-primary/30 pl-3 sm:pl-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">
-            Le mot d'Alezan
-          </p>
-          <p role="status" className="text-xs font-medium leading-relaxed text-foreground sm:text-sm">
-            {quote}
-          </p>
-        </div>
+      <div className="relative mb-2 max-w-[min(13rem,calc(100vw-6rem))] rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-lg shadow-black/10 backdrop-blur-sm after:absolute after:-bottom-1 after:right-5 after:h-3 after:w-3 after:rotate-45 after:border-b after:border-r after:border-border/80 after:bg-card">
+        <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+          Alezan te glisse un mot
+        </p>
+        <p
+          role="status"
+          className="text-[11px] font-medium leading-snug text-foreground sm:text-xs"
+        >
+          {quote}
+        </p>
       </div>
+      <img
+        src={currentImage}
+        alt="Alezan, le compagnon de route de la troupe"
+        className="h-[4.5rem] w-[4.5rem] shrink-0 object-contain drop-shadow-md sm:h-24 sm:w-24"
+      />
     </aside>
   );
 }
