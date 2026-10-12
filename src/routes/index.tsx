@@ -566,7 +566,7 @@ function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="mobile-home-page min-h-screen bg-background">
       {/* Hero Section */}
       <section className="mobile-home-hero relative overflow-hidden bg-bark text-bark-foreground">
         <img
