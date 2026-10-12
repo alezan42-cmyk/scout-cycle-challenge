@@ -17,6 +17,7 @@ import { Route as SolidariteRouteImport } from './routes/solidarite'
 import { Route as TimelineRouteImport } from './routes/timeline'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCarteRouteImport } from './routes/_authenticated/carte'
+import { Route as AuthenticatedDefisRouteImport } from './routes/_authenticated/defis'
 import { Route as AuthenticatedMesKmRouteImport } from './routes/_authenticated/mes-km'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 
@@ -59,6 +60,11 @@ const AuthenticatedCarteRoute = AuthenticatedCarteRouteImport.update({
   path: '/carte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDefisRoute = AuthenticatedDefisRouteImport.update({
+  id: '/defis',
+  path: '/defis',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMesKmRoute = AuthenticatedMesKmRouteImport.update({
   id: '/mes-km',
   path: '/mes-km',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/timeline': typeof TimelineRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/carte': typeof AuthenticatedCarteRoute
+  '/defis': typeof AuthenticatedDefisRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
 }
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/timeline': typeof TimelineRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/carte': typeof AuthenticatedCarteRoute
+  '/defis': typeof AuthenticatedDefisRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/timeline': typeof TimelineRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/carte': typeof AuthenticatedCarteRoute
+  '/_authenticated/defis': typeof AuthenticatedDefisRoute
   '/_authenticated/mes-km': typeof AuthenticatedMesKmRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
 }
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/admin'
     | '/carte'
+    | '/defis'
     | '/mes-km'
     | '/profil'
   fileRoutesByTo: FileRoutesByTo
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/admin'
     | '/carte'
+    | '/defis'
     | '/mes-km'
     | '/profil'
   id:
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/_authenticated/admin'
     | '/_authenticated/carte'
+    | '/_authenticated/defis'
     | '/_authenticated/mes-km'
     | '/_authenticated/profil'
   fileRoutesById: FileRoutesById
@@ -209,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCarteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/defis': {
+      id: '/_authenticated/defis'
+      path: '/defis'
+      fullPath: '/defis'
+      preLoaderRoute: typeof AuthenticatedDefisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mes-km': {
       id: '/_authenticated/mes-km'
       path: '/mes-km'
@@ -229,6 +248,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCarteRoute: typeof AuthenticatedCarteRoute
+  AuthenticatedDefisRoute: typeof AuthenticatedDefisRoute
   AuthenticatedMesKmRoute: typeof AuthenticatedMesKmRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
 }
@@ -236,6 +256,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCarteRoute: AuthenticatedCarteRoute,
+  AuthenticatedDefisRoute: AuthenticatedDefisRoute,
   AuthenticatedMesKmRoute: AuthenticatedMesKmRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
 }
@@ -254,13 +275,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

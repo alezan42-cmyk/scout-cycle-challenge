@@ -203,6 +203,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      scout_challenges: {
+        Row: {
+          accepted_at: string | null;
+          awarded_points: number | null;
+          challenged_id: string;
+          challenger_id: string;
+          completion_note: string | null;
+          created_at: string;
+          description: string;
+          id: string;
+          proposed_points: number;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: "pending" | "accepted" | "declined" | "submitted" | "approved" | "rejected";
+          submitted_at: string | null;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          awarded_points?: number | null;
+          challenged_id: string;
+          challenger_id: string;
+          completion_note?: string | null;
+          created_at?: string;
+          description: string;
+          id?: string;
+          proposed_points: number;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: "pending" | "accepted" | "declined" | "submitted" | "approved" | "rejected";
+          submitted_at?: string | null;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          awarded_points?: number | null;
+          challenged_id?: string;
+          challenger_id?: string;
+          completion_note?: string | null;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          proposed_points?: number;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: "pending" | "accepted" | "declined" | "submitted" | "approved" | "rejected";
+          submitted_at?: string | null;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       weekly_badges: {
         Row: {
           awarded_date: string;
@@ -326,6 +380,31 @@ export type Database = {
           patrol_name: string;
           user_id: string;
         }[];
+      };
+      create_scout_challenge: {
+        Args: {
+          _challenged_id: string;
+          _description: string;
+          _proposed_points: number;
+          _title: string;
+        };
+        Returns: string;
+      };
+      respond_scout_challenge: {
+        Args: { _accept: boolean; _challenge_id: string };
+        Returns: undefined;
+      };
+      submit_scout_challenge: {
+        Args: { _challenge_id: string; _completion_note: string | null };
+        Returns: undefined;
+      };
+      review_scout_challenge: {
+        Args: { _approve: boolean; _awarded_points?: number | null; _challenge_id: string };
+        Returns: undefined;
+      };
+      scout_challenge_leaderboard: {
+        Args: Record<PropertyKey, never>;
+        Returns: { points: number; user_id: string }[];
       };
       set_admin_by_email: {
         Args: { _email: string; _make_admin: boolean };

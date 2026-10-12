@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Flag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -82,6 +83,13 @@ export function SiteHeader() {
       label: "Mes km",
       description: "Enregistrer une sortie vélo ou course à pied",
       icon: Bike,
+    },
+    {
+      to: "/defis",
+      label: "Défis",
+      description: "Lance ou relève un défi entre scouts et gagne des points",
+      icon: Flag,
+      requiresAuth: true,
     },
     {
       to: "/profil",

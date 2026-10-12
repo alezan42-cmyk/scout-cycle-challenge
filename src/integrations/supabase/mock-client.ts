@@ -241,9 +241,12 @@ export function createMockSupabaseClient() {
       return new MockQueryBuilder(table);
     },
 
-    async rpc(name: string, params?: { _from?: string | null; _to?: string | null }) {
+    async rpc(name: string, params?: Record<string, unknown>) {
       if (name === "leaderboard") {
-        const rows = db.getLeaderboard(params?._from, params?._to);
+        const rows = db.getLeaderboard(
+          params?._from as string | null,
+          params?._to as string | null,
+        );
         return { data: rows, error: null };
       }
       return { data: [], error: null };
