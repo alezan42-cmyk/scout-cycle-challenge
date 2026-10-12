@@ -119,9 +119,6 @@ export function SiteHeader() {
   const mobileItems = user
     ? visibleItems.filter((item) => ["/", "/mes-km", "/carte", "/profil"].includes(item.to))
     : visibleItems.filter((item) => ["/", "/timeline", "/solidarite"].includes(item.to));
-  const secondaryItems = visibleItems.filter(
-    (item) => !mobileItems.some((mobileItem) => mobileItem.to === item.to),
-  );
   const mobileItemIcons: Record<string, React.ComponentType<{ className?: string }>> = {
     "/": House,
     "/mes-km": Bike,
@@ -170,7 +167,7 @@ export function SiteHeader() {
           {/* ============================================================== */}
           <nav className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              {secondaryItems.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.to;
 
