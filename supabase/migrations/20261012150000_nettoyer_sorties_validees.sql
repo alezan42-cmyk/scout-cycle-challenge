@@ -3,6 +3,27 @@
 -- 60 j., groupes vides à 30 j.) n'est pas modifié.
 -- Les kilomètres, D+, dates, statuts et marqueurs de sport sont conservés.
 
+-- Laisser le ménage service_role effacer le lien d'une sortie validée.
+-- Les comptes membres restent soumis au verrou habituel.
+create or replace function public.lock_validated_activity()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if old.status = 'approved'
+     and coalesce(auth.jwt() ->> 'role', '') <> 'service_role'
+     and not (auth.uid() is not null and public.has_role(auth.uid(), 'admin')) then
+    new.km := old.km;
+    new.elevation_m := old.elevation_m;
+    new.ride_date := old.ride_date;
+    new.strava_link := old.strava_link;
+    if public.activity_sport(new.note) <> public.activity_sport(old.note) then
+      new.note := old.note;
+    end if;
+  end if;
+  return new;
+end; $$;
+
+revoke execute on function public.lock_validated_activity() from public, anon, authenticated;
+
 create or replace function public.cleanup_database(_dry boolean default false)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
