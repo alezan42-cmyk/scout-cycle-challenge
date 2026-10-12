@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, ChevronRight, CircleHelp, Loader2, Send, Sparkles, Trophy } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  Loader2,
+  Send,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
@@ -22,6 +31,9 @@ export function AlezanNamePoll() {
   const [newSuggestion, setNewSuggestion] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
   const [myVote, setMyVote] = useState<string | null>(null);
+  const [expandedSuggestionId, setExpandedSuggestionId] = useState<string | null>(null);
+  const [votersBySuggestion, setVotersBySuggestion] = useState<Record<string, string[]>>({});
+  const [loadingVoters, setLoadingVoters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +95,7 @@ export function AlezanNamePoll() {
     if (!user || myVote === suggestionId || busyId) return;
     setBusyId(suggestionId);
     setError("");
+    setMessage("");
     const voteRequest = myVote
       ? pollDb
           .from("alezan_name_votes")
@@ -109,6 +122,33 @@ export function AlezanNamePoll() {
       await fetchSuggestions();
     }
     setBusyId(null);
+  };
+
+  const toggleVoters = async (suggestionId: string) => {
+    if (expandedSuggestionId === suggestionId) {
+      setExpandedSuggestionId(null);
+      return;
+    }
+
+    setExpandedSuggestionId(suggestionId);
+    if (!user || votersBySuggestion[suggestionId]) return;
+
+    setLoadingVoters(true);
+    setError("");
+    const { data, error: votersError } = await pollDb.rpc("alezan_name_vote_members");
+    if (votersError) {
+      setError("Impossible de charger les personnes qui ont voté. Réessaie plus tard.");
+    } else {
+      const names = ((data ?? []) as { suggestion_id: string; voter_name: string }[]).reduce<
+        Record<string, string[]>
+      >((groups, vote) => {
+        groups[vote.suggestion_id] ??= [];
+        groups[vote.suggestion_id].push(vote.voter_name);
+        return groups;
+      }, {});
+      setVotersBySuggestion(names);
+    }
+    setLoadingVoters(false);
   };
 
   const handleSuggest = async (event: FormEvent<HTMLFormElement>) => {
@@ -213,9 +253,19 @@ export function AlezanNamePoll() {
                             )}
                           </span>
                           <span className="truncate text-sm font-bold">{suggestion.name}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <button
+                            type="button"
+                            className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-expanded={expandedSuggestionId === suggestion.id}
+                            aria-label={`Voir qui a voté pour ${suggestion.name} (${votes} voix)`}
+                            onClick={() => void toggleVoters(suggestion.id)}
+                          >
                             {votes} voix
-                          </span>
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 transition-transform ${expandedSuggestionId === suggestion.id ? "rotate-180" : ""}`}
+                              aria-hidden="true"
+                            />
+                          </button>
                         </div>
                         {user && myVote !== suggestion.id && (
                           <Button
@@ -244,6 +294,33 @@ export function AlezanNamePoll() {
                         )}
                       </div>
                     </div>
+                    {expandedSuggestionId === suggestion.id && (
+                      <div className="mt-1 rounded-xl border border-orange-100 bg-white/80 px-3 py-2.5 text-xs dark:border-orange-900/50 dark:bg-background/70">
+                        <p className="mb-1 font-semibold text-foreground">
+                          Qui a voté pour {suggestion.name} ?
+                        </p>
+                        {!user ? (
+                          <p className="text-muted-foreground">
+                            Connecte-toi pour voir les membres qui ont voté.
+                          </p>
+                        ) : loadingVoters ? (
+                          <p
+                            className="flex items-center gap-1.5 text-muted-foreground"
+                            role="status"
+                          >
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Chargement…
+                          </p>
+                        ) : (votersBySuggestion[suggestion.id] ?? []).length > 0 ? (
+                          <p className="text-muted-foreground">
+                            {votersBySuggestion[suggestion.id].join(", ")}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">
+                            Personne n’a encore voté pour ce nom.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -256,7 +333,7 @@ export function AlezanNamePoll() {
             </div>
           )}
 
-          {hasVoted && (
+          {hasVoted && !error && (
             <p className="mt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
               {message || "Merci, ton vote est enregistré ! Tu peux encore le modifier."}
             </p>
