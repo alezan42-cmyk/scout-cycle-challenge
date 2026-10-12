@@ -91,7 +91,7 @@ export function ChallengesPanel() {
   const [description, setDescription] = useState("");
   const [sport, setSport] = useState<ActivitySport>("velo");
   const [targetKm, setTargetKm] = useState("");
-  const [exactDistance, setExactDistance] = useState(false);
+  const [distanceRule, setDistanceRule] = useState<"" | "min" | "exact">("");
   const [targetElevation, setTargetElevation] = useState("");
   const [points, setPoints] = useState("5");
   const [gpxMode, setGpxMode] = useState(false);
@@ -174,6 +174,10 @@ export function ChallengesPanel() {
       toast.error("Indique une distance, un D+ ou les deux.");
       return;
     }
+    if (!gpxMode && km !== null && !distanceRule) {
+      toast.error("Précise si la distance est à réaliser au moins ou tout pile.");
+      return;
+    }
     if (gpxMode && !description.trim()) {
       toast.error("Décris le parcours demandé (ex. : réalise un parcours en forme de cœur).");
       return;
@@ -197,7 +201,7 @@ export function ChallengesPanel() {
       _proposed_points: n,
       _sport: sport,
       _target_km: gpxMode ? null : km,
-      _exact_distance: gpxMode ? false : km !== null && exactDistance,
+      _exact_distance: gpxMode ? false : km !== null && distanceRule === "exact",
       _target_elevation: gpxMode ? null : elevation,
       _gpx_template_path: null,
       _participant_ids: selectedScouts,
@@ -217,7 +221,7 @@ export function ChallengesPanel() {
     setPoints("5");
     setTargetKm("");
     setTargetElevation("");
-    setExactDistance(false);
+    setDistanceRule("");
     setGpxMode(false);
     await load();
   };
@@ -412,20 +416,23 @@ export function ChallengesPanel() {
                       max="1000"
                       step="0.1"
                       value={targetKm}
-                      onChange={(e) => setTargetKm(e.target.value)}
+                      onChange={(e) => {
+                        setTargetKm(e.target.value);
+                        if (!e.target.value) setDistanceRule("");
+                      }}
                       placeholder="ex. 20 km"
                     />
                     {targetKm && (
                       <Select
-                        value={exactDistance ? "exact" : "min"}
-                        onValueChange={(v) => setExactDistance(v === "exact")}
+                        value={distanceRule}
+                        onValueChange={(v) => setDistanceRule(v as "min" | "exact")}
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Choisir au moins ou tout pile" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="min">Au moins cette distance</SelectItem>
-                          <SelectItem value="exact">Exactement cette distance</SelectItem>
+                          <SelectItem value="min">Au moins {targetKm} km</SelectItem>
+                          <SelectItem value="exact">Tout pile {targetKm} km</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
