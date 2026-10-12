@@ -173,7 +173,7 @@ function ScoutProfilePage() {
   return (
     <main className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:py-12">
       <Button asChild variant="ghost" size="sm" className="-ml-2 gap-2">
-        <Link to="/classement">
+        <Link to="/">
           <ArrowLeft className="h-4 w-4" />
           Retour au classement
         </Link>

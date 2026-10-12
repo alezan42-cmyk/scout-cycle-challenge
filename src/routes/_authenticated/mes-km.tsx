@@ -293,24 +293,20 @@ function MesKm() {
           </div>
         </div>
 
-        <div id="trophees" className="scroll-mt-24">
-          <DistanceTrophyCollection activities={approvedActs} />
-        </div>
+        <DistanceTrophyCollection activities={approvedActs} />
 
         {/* Two Columns: Form + Ride History */}
         <div className="grid gap-8 lg:grid-cols-[1.1fr_1.2fr]">
           {/* Add Activity Form with Patrol Dropdown Selector */}
-          <div id="enregistrer" className="scroll-mt-24">
-            <DailyDistanceForm
-              defaultPatrolId={profile?.patrol_id || undefined}
-              onSuccess={load}
-              title="Enregistrer une sortie"
-              description="Lien Strava, photo de compteur ou fichier GPX"
-            />
-          </div>
+          <DailyDistanceForm
+            defaultPatrolId={profile?.patrol_id || undefined}
+            onSuccess={load}
+            title="Enregistrer une sortie"
+            description="Lien Strava, photo de compteur ou fichier GPX"
+          />
 
           {/* Ride History */}
-          <section id="historique" className="scroll-mt-24 space-y-4">
+          <section className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="font-display text-xl font-bold text-foreground">
                 Mon historique ({acts.length})
