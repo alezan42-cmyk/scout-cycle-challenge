@@ -21,6 +21,7 @@ import {
   Footprints,
   Clock,
   PersonStanding,
+  ExternalLink,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
 import { CountdownBanner } from "@/components/CountdownBanner";
@@ -583,6 +584,22 @@ function Index() {
                   ? "Chaque pas compte pour ta patrouille ! Enregistre tes marches et randos avec Strava ou une capture de ton appli, grimpe au classement dédié et fais briller tes couleurs."
                   : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
             </p>
+
+            <a
+              href="https://www.strava.com/clubs/Troupe-Alezan42"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fc4c02] text-lg font-black">
+                S
+              </span>
+              <span className="text-left">
+                <span className="block text-sm font-bold">Retrouve-nous sur Strava</span>
+                <span className="block text-xs text-white/80">Rejoins le club Troupe de l’Alezan</span>
+              </span>
+              <ExternalLink className="ml-1 h-4 w-4 shrink-0 text-white/80" />
+            </a>
 
             {/* Scout Identity Bandeau (Visible when logged in) */}
             {user && (
