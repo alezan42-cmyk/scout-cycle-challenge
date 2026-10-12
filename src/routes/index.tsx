@@ -64,7 +64,7 @@ function Home() {
       </section>
 
       {user ? (
-        <section aria-label="Défis en cours">
+        <section id="defis" aria-label="Défis en cours" className="scroll-mt-20">
           <ChallengesBanner />
         </section>
       ) : (

@@ -796,6 +796,10 @@ body {
 }
 
 @media (max-width: 767px) {
+  .site-header {
+    display: none;
+  }
+
   html {
     scroll-padding-top: 4.5rem;
     scroll-padding-bottom: 5.5rem;
@@ -826,6 +830,7 @@ body {
   }
 
   .mobile-tab {
+    position: relative;
     display: flex;
     min-width: 0;
     min-height: 3.1rem;
@@ -840,6 +845,8 @@ body {
     font-weight: 600;
     line-height: 1;
     text-decoration: none;
+    border: 0;
+    background: transparent;
     -webkit-tap-highlight-color: transparent;
   }
 

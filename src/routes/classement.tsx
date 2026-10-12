@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Trophy,
   Flame,
@@ -180,6 +180,7 @@ function FilterPill({
 function Index() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { background: themeBackground } = useSeasonalTheme();
   const [sportMode, setSportMode] = useState<SportMode>("all");
   const [period, setPeriod] = useState<Period>("all");
@@ -191,6 +192,11 @@ function Index() {
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
+
+  useEffect(() => {
+    if (location.hash === "#defis") setView("challenges");
+    else if (location.hash === "#classements") setView("patrols");
+  }, [location.hash]);
 
   const { data: myApprovedActivities = [] } = useQuery<DistanceActivity[]>({
     queryKey: ["my-approved-activities-for-trophies", user?.id],
@@ -789,7 +795,9 @@ function Index() {
         </div>
 
         {/* Live Recent Activity Feed */}
-        <RecentActivityFeed limit={5} />
+        <section id="dernieres-sorties" className="scroll-mt-20">
+          <RecentActivityFeed limit={5} />
+        </section>
 
         {/* Filter Controls Bar */}
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm space-y-4">
@@ -850,13 +858,18 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
-        <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        <section id="maillots" className="scroll-mt-20">
+          <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        </section>
 
         {/* Scout sportif du mois (affiché dès qu'un premier lauréat est désigné) */}
         <ScoutSportifCard />
 
         {/* View Switcher: Patrouilles vs Individuel vs Tendances Graphique */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3">
+        <div
+          id="classements"
+          className="scroll-mt-20 flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3"
+        >
           <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto">
             <button
               onClick={() => setView("patrols")}
