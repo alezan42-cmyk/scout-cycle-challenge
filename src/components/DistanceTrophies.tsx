@@ -8,6 +8,12 @@ import {
   getNextDistanceTrophy,
   type DistanceActivity,
 } from "@/lib/distanceTrophies";
+import {
+  CUMULATIVE_DISTANCE_LEVELS,
+  type CumulativeDistanceActivity,
+  getCumulativeDistanceTotals,
+  getDistanceLevel,
+} from "@/lib/distanceLevels";
 
 const icons = { velo: Bike, course: Footprints, marche: PersonStanding };
 const colors: Record<ActivitySport, string> = {
@@ -111,5 +117,92 @@ export function DistanceTrophyCollection({ activities }: { activities: DistanceA
         })}
       </CardContent>
     </Card>
+  );
+}
+
+export function CumulativeDistanceLevels({
+  activities,
+  compact = false,
+}: {
+  activities: CumulativeDistanceActivity[];
+  compact?: boolean;
+}) {
+  const totals = getCumulativeDistanceTotals(activities);
+  return (
+    <Card>
+      {!compact && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Medal className="h-5 w-5 text-primary" /> Paliers de distance cumulée
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Les kilomètres de toutes les sorties validées s’additionnent séparément pour chaque
+            discipline.
+          </p>
+        </CardHeader>
+      )}
+      <CardContent className={compact ? "space-y-3 p-3" : "space-y-4"}>
+        {(Object.keys(CUMULATIVE_DISTANCE_LEVELS) as ActivitySport[]).map((sport) => {
+          const Icon = icons[sport];
+          const total = totals[sport];
+          const { level, nextThreshold, progress } = getDistanceLevel(total, sport);
+          return (
+            <div key={sport} className="rounded-xl border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Icon className="h-4 w-4" />
+                <span className="text-sm font-bold">{SPORT_INFO[sport].label}</span>
+                <Badge variant={level > 0 ? "default" : "outline"} className="ml-auto">
+                  {level > 0 ? `Palier ${level}` : "Départ"}
+                </Badge>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {total.toLocaleString("fr-BE", { maximumFractionDigits: 1 })} km cumulés
+                </span>
+              </div>
+              {nextThreshold ? (
+                <>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {total.toLocaleString("fr-BE", { maximumFractionDigits: 1 })} / {nextThreshold}{" "}
+                    km · encore{" "}
+                    {Math.max(0, nextThreshold - total).toLocaleString("fr-BE", {
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    km
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-xs font-semibold text-primary">
+                  Palier maximum atteint ({CUMULATIVE_DISTANCE_LEVELS[sport].at(-1)} km)
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function CumulativeDistanceBadges({ totals }: { totals: Record<ActivitySport, number> }) {
+  const sports = (Object.keys(CUMULATIVE_DISTANCE_LEVELS) as ActivitySport[]).filter(
+    (sport) => totals[sport] > 0,
+  );
+  if (!sports.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5" aria-label="Paliers de distance cumulée">
+      {sports.map((sport) => {
+        const { level } = getDistanceLevel(totals[sport], sport);
+        return (
+          <Badge key={sport} variant="outline" className="text-[10px]">
+            {SPORT_INFO[sport].short} · {level > 0 ? `Palier ${level}` : "En progression"}
+          </Badge>
+        );
+      })}
+    </div>
   );
 }

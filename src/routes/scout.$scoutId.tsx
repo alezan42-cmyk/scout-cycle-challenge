@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SportBadge } from "@/components/SportIcon";
+import { CumulativeDistanceLevels } from "@/components/DistanceTrophies";
 import { supabase } from "@/integrations/supabase/client";
 import { SPORT_INFO, getActivitySport, type ActivitySport } from "@/lib/database";
 import { DISTANCE_TROPHIES, getBestSingleActivityDistances } from "@/lib/distanceTrophies";
@@ -30,7 +31,6 @@ export const Route = createFileRoute("/scout/$scoutId")({
 
 type ScoutProfile = {
   id: string;
-  full_name: string | null;
   totem: string | null;
   quali: string | null;
   scout_year: number | null;
@@ -44,6 +44,7 @@ type ScoutActivity = {
   elevation_m: number | null;
   ride_date: string | null;
   note: string | null;
+  status: string | null;
 };
 
 type Patrol = { id: string; name: string };
@@ -79,7 +80,7 @@ function ScoutProfilePage() {
       const [profileResult, activityResult] = (await Promise.all([
         supabase
           .from("profiles_public")
-          .select("id,full_name,totem,quali,scout_year,patrol_id")
+          .select("id,totem,quali,scout_year,patrol_id")
           .eq("id", scoutId)
           .maybeSingle(),
         supabase
@@ -140,7 +141,7 @@ function ScoutProfilePage() {
 
   const displayName = profile?.totem
     ? `${profile.totem}${profile.quali ? ` ${profile.quali}` : ""}`
-    : profile?.full_name || "Scout";
+    : "Scout";
 
   if (loading) {
     return (
@@ -183,9 +184,6 @@ function ScoutProfilePage() {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl font-black sm:text-3xl">{displayName}</h1>
-            {profile.totem && profile.full_name && (
-              <p className="mt-1 text-sm text-muted-foreground">{profile.full_name}</p>
-            )}
             <div className="mt-3 flex flex-wrap gap-2">
               {patrolName && <Badge variant="outline">Patrouille {patrolName}</Badge>}
               {patrolMemberCount !== null && patrolName && (
@@ -238,6 +236,8 @@ function ScoutProfilePage() {
           </p>
         </CardContent>
       </Card>
+
+      <CumulativeDistanceLevels activities={activities} />
 
       <Card>
         <CardHeader>
