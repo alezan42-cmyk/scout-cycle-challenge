@@ -19,6 +19,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedCarteRouteImport } from './routes/_authenticated/carte'
 import { Route as AuthenticatedMesKmRouteImport } from './routes/_authenticated/mes-km'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
+import { Route as AuthenticatedScoutScoutIdRouteImport } from './routes/_authenticated/scout.$scoutId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -69,6 +70,12 @@ const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   path: '/profil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedScoutScoutIdRoute =
+  AuthenticatedScoutScoutIdRouteImport.update({
+    id: '/scout/$scoutId',
+    path: '/scout/$scoutId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/carte': typeof AuthenticatedCarteRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/scout/$scoutId': typeof AuthenticatedScoutScoutIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,6 +99,7 @@ export interface FileRoutesByTo {
   '/carte': typeof AuthenticatedCarteRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/scout/$scoutId': typeof AuthenticatedScoutScoutIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +113,7 @@ export interface FileRoutesById {
   '/_authenticated/carte': typeof AuthenticatedCarteRoute
   '/_authenticated/mes-km': typeof AuthenticatedMesKmRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
+  '/_authenticated/scout/$scoutId': typeof AuthenticatedScoutScoutIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/carte'
     | '/mes-km'
     | '/profil'
+    | '/scout/$scoutId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/carte'
     | '/mes-km'
     | '/profil'
+    | '/scout/$scoutId'
   id:
     | '__root__'
     | '/'
@@ -140,6 +152,7 @@ export interface FileRouteTypes {
     | '/_authenticated/carte'
     | '/_authenticated/mes-km'
     | '/_authenticated/profil'
+    | '/_authenticated/scout/$scoutId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/scout/$scoutId': {
+      id: '/_authenticated/scout/$scoutId'
+      path: '/scout/$scoutId'
+      fullPath: '/scout/$scoutId'
+      preLoaderRoute: typeof AuthenticatedScoutScoutIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -231,6 +251,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCarteRoute: typeof AuthenticatedCarteRoute
   AuthenticatedMesKmRoute: typeof AuthenticatedMesKmRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
+  AuthenticatedScoutScoutIdRoute: typeof AuthenticatedScoutScoutIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -238,6 +259,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCarteRoute: AuthenticatedCarteRoute,
   AuthenticatedMesKmRoute: AuthenticatedMesKmRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
+  AuthenticatedScoutScoutIdRoute: AuthenticatedScoutScoutIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
