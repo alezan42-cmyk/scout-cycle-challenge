@@ -21,6 +21,7 @@ export function AlezanNamePoll() {
   const [suggestions, setSuggestions] = useState<NameSuggestion[]>([]);
   const [newSuggestion, setNewSuggestion] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
+  const [myVote, setMyVote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,7 +54,7 @@ export function AlezanNamePoll() {
       const [{ data, error: fetchError }, voteResult] = await Promise.all([
         pollDb.from("alezan_name_suggestions").select("id, name, alezan_name_votes(count)"),
         user
-          ? pollDb.from("alezan_name_votes").select("id").eq("user_id", user.id).limit(1)
+          ? pollDb.from("alezan_name_votes").select("suggestion_id").eq("user_id", user.id).limit(1)
           : Promise.resolve({ data: [], error: null }),
       ]);
 
@@ -66,7 +67,9 @@ export function AlezanNamePoll() {
         setSuggestions(sorted);
       }
       if (voteResult.error) setError("Impossible de vérifier ton vote pour le moment.");
-      setHasVoted(Boolean(voteResult.data?.length));
+      const savedVote = voteResult.data?.[0] as { suggestion_id?: string } | undefined;
+      setMyVote(savedVote?.suggestion_id ?? null);
+      setHasVoted(Boolean(savedVote));
       setLoading(false);
     };
 
@@ -77,18 +80,32 @@ export function AlezanNamePoll() {
   }, [user]);
 
   const handleVote = async (suggestionId: string) => {
-    if (!user || hasVoted || busyId) return;
+    if (!user || myVote === suggestionId || busyId) return;
     setBusyId(suggestionId);
     setError("");
-    const { error: voteError } = await pollDb
-      .from("alezan_name_votes")
-      .insert({ suggestion_id: suggestionId, user_id: user.id });
+    const voteRequest = myVote
+      ? pollDb
+          .from("alezan_name_votes")
+          .update({ suggestion_id: suggestionId })
+          .eq("user_id", user.id)
+          .select("suggestion_id")
+          .maybeSingle()
+      : pollDb
+          .from("alezan_name_votes")
+          .insert({ suggestion_id: suggestionId, user_id: user.id })
+          .select("suggestion_id")
+          .maybeSingle();
+    const { data: savedVote, error: voteError } = await voteRequest;
 
-    if (voteError) {
+    if (voteError || !savedVote) {
       setError("Ton vote n’a pas pu être enregistré. Vérifie ta connexion et réessaie.");
     } else {
+      const previousVote = myVote;
+      setMyVote(suggestionId);
       setHasVoted(true);
-      setMessage("Ton vote est dans la course, merci !");
+      setMessage(
+        previousVote ? "Ton vote a bien été modifié !" : "Ton vote est dans la course, merci !",
+      );
       await fetchSuggestions();
     }
     setBusyId(null);
@@ -200,7 +217,7 @@ export function AlezanNamePoll() {
                             {votes} voix
                           </span>
                         </div>
-                        {user && !hasVoted && (
+                        {user && myVote !== suggestion.id && (
                           <Button
                             type="button"
                             size="sm"
@@ -212,15 +229,17 @@ export function AlezanNamePoll() {
                           >
                             {busyId === suggestion.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : myVote ? (
+                              "Changer"
                             ) : (
                               "Je vote"
                             )}
                           </Button>
                         )}
-                        {hasVoted && (
+                        {myVote === suggestion.id && (
                           <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                             <Check className="h-3.5 w-3.5" />
-                            <span className="sr-only">Vote enregistré</span>
+                            <span>Ton choix</span>
                           </span>
                         )}
                       </div>
@@ -239,7 +258,7 @@ export function AlezanNamePoll() {
 
           {hasVoted && (
             <p className="mt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-              {message || "Merci, ton vote est enregistré !"}
+              {message || "Merci, ton vote est enregistré ! Tu peux encore le modifier."}
             </p>
           )}
 
@@ -284,7 +303,7 @@ export function AlezanNamePoll() {
             </p>
           )}
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Un vote par personne. Les résultats évoluent avec chaque voix.
+            Un vote par personne. Tu peux changer ton choix quand tu le souhaites.
           </p>
         </div>
       </div>
