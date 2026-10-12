@@ -286,12 +286,21 @@ function Profil() {
                 </p>
               </div>
             </div>
-            <Link
-              to="/"
-              className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-            >
-              ← Retour à l'accueil
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/scout/$scoutId"
+                params={{ scoutId: user.id }}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Voir mon profil
+              </Link>
+              <Link
+                to="/"
+                className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                ← Retour à l'accueil
+              </Link>
+            </div>
           </div>
         </div>
 
