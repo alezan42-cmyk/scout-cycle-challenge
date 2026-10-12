@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
 import logoAlezan from "@/assets/logo-alezan.png";
 import { HeaderTrim } from "@/components/SeasonalDecor";
+import { PwaInstallButton } from "@/components/PwaInstallButton";
 
 interface NavItem {
   to: string;
@@ -208,6 +209,8 @@ export function SiteHeader() {
             )}
           </div>
         </nav>
+
+        <PwaInstallButton />
 
         {/* ============================================================== */}
         {/* MOBILE HAMBURGER BUTTON (< md) */}
