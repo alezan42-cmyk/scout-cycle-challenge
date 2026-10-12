@@ -568,7 +568,7 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-bark text-bark-foreground">
+      <section className="mobile-home-hero relative overflow-hidden bg-bark text-bark-foreground">
         <img
           src={themeBackground ?? hero}
           alt={
@@ -609,7 +609,7 @@ function Index() {
                   ? "Qui marchera le plus loin cette semaine ?"
                   : "Qui pédalera le plus loin cette semaine ?"}
             </h1>
-            <p className="mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
+            <p className="mobile-hero-description mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
               {sportMode === "course"
                 ? "Chaque foulée compte pour ta patrouille ! Enregistre tes sorties de course à pied avec Strava ou photo de chrono, grimpe au classement dédié et fais briller tes couleurs."
                 : sportMode === "marche"
@@ -621,7 +621,7 @@ function Index() {
               href="https://www.strava.com/clubs/Troupe-Alezan42"
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+              className="mobile-hero-secondary mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fc4c02] text-lg font-black">
                 S
