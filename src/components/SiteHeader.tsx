@@ -66,7 +66,13 @@ export function SiteHeader() {
     {
       to: "/",
       label: "Accueil",
-      description: "Classement hebdomadaire des patrouilles et des scouts",
+      description: "Défis et raccourcis personnels",
+      icon: House,
+    },
+    {
+      to: "/classement",
+      label: "Classement",
+      description: "Classements des patrouilles, scouts et défis",
       icon: Trophy,
     },
     {
@@ -117,13 +123,15 @@ export function SiteHeader() {
   });
 
   const mobileItems = user
-    ? visibleItems.filter((item) => ["/", "/mes-km", "/carte", "/profil"].includes(item.to))
-    : visibleItems.filter((item) => ["/", "/timeline", "/solidarite"].includes(item.to));
+    ? visibleItems.filter((item) => ["/", "/classement", "/mes-km"].includes(item.to))
+    : visibleItems.filter((item) => ["/", "/classement", "/solidarite"].includes(item.to));
   const secondaryItems = visibleItems.filter(
     (item) => !mobileItems.some((mobileItem) => mobileItem.to === item.to),
   );
+  const desktopItems = visibleItems.filter((item) => item.to !== "/");
   const mobileItemIcons: Record<string, React.ComponentType<{ className?: string }>> = {
     "/": House,
+    "/classement": Trophy,
     "/mes-km": Bike,
     "/carte": MapPinned,
     "/profil": CircleUserRound,
@@ -170,7 +178,7 @@ export function SiteHeader() {
           {/* ============================================================== */}
           <nav className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              {secondaryItems.map((item) => {
+              {desktopItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.to;
 
@@ -323,44 +331,80 @@ export function SiteHeader() {
 
             {/* Navigation Links List */}
             <div className="max-h-[55vh] overflow-y-auto p-3 space-y-1">
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.to;
-
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl p-2.5 transition-all",
-                      isActive
-                        ? "bg-white/15 text-white shadow-xs font-bold"
-                        : "text-white/80 hover:bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "grid h-9 w-9 shrink-0 place-items-center rounded-lg border",
-                          isActive
-                            ? "border-transparent bg-[var(--nav-active)] text-[var(--nav-active-foreground)]"
-                            : "border-white/10 bg-[var(--nav-hover)] text-[var(--nav-icon)]",
-                        )}
-                      >
-                        <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              {user && (
+                <details className="group rounded-xl border border-white/10 bg-white/[0.04] open:bg-white/[0.08]">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-2.5 text-white marker:hidden [&::-webkit-details-marker]:hidden">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-[var(--nav-hover)] text-[var(--nav-icon)]">
+                      <Bike className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold leading-tight">Mes kilomètres</span>
+                      <span className="mt-0.5 block text-[11px] leading-tight text-white/50">
+                        Trophées, sorties et saisie
                       </span>
-                      <div>
-                        <p className="text-sm font-bold leading-tight">{item.label}</p>
-                        <p className="text-[11px] text-white/50 leading-tight mt-0.5">
-                          {item.description}
-                        </p>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-white/40 transition-transform group-open:rotate-90" />
+                  </summary>
+                  <div className="space-y-1 px-3 pb-3 pl-[3.75rem]">
+                    {[
+                      { hash: "trophees", label: "Mes trophées" },
+                      { hash: "historique", label: "Mes kilomètres" },
+                      { hash: "enregistrer", label: "Enregistrer mes kilomètres" },
+                    ].map((section) => (
+                      <Link
+                        key={section.hash}
+                        to="/mes-km"
+                        hash={section.hash}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+                      >
+                        {section.label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {secondaryItems
+                .filter((item) => item.to !== "/mes-km")
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.to;
+
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl p-2.5 transition-all",
+                        isActive
+                          ? "bg-white/15 text-white shadow-xs font-bold"
+                          : "text-white/80 hover:bg-white/10 hover:text-white",
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "grid h-9 w-9 shrink-0 place-items-center rounded-lg border",
+                            isActive
+                              ? "border-transparent bg-[var(--nav-active)] text-[var(--nav-active-foreground)]"
+                              : "border-white/10 bg-[var(--nav-hover)] text-[var(--nav-icon)]",
+                          )}
+                        >
+                          <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold leading-tight">{item.label}</p>
+                          <p className="text-[11px] text-white/50 leading-tight mt-0.5">
+                            {item.description}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-white/40 shrink-0" />
-                  </Link>
-                );
-              })}
+                      <ChevronRight className="h-4 w-4 text-white/40 shrink-0" />
+                    </Link>
+                  );
+                })}
 
               {/* Logout / Login button at bottom of mobile menu */}
               <div className="pt-2 mt-2 border-t border-white/10">
