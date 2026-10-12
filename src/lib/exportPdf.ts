@@ -17,6 +17,7 @@ export const TYPE_LABELS: Record<ExportType, string> = {
 export const PROFILE_FIELDS = [
   { key: "nom", label: "Nom" },
   { key: "totem", label: "Totem" },
+  { key: "dateNaissance", label: "Date de naissance" },
   { key: "email", label: "Email" },
   { key: "telephone", label: "Téléphone" },
   { key: "patrouille", label: "Patrouille" },
@@ -35,6 +36,8 @@ type ProfileLike = {
   strava_url?: string | null;
   scout_year?: number | null;
   patrol_id?: string | null;
+  birth_day?: number | null;
+  birth_month?: number | null;
 };
 
 export type ActivityRow = {
@@ -300,6 +303,8 @@ export async function generatePdf(report: Report): Promise<string> {
           return p.full_name || "-";
         case "totem":
           return p.totem || "-";
+        case "dateNaissance":
+          return p.birth_day && p.birth_month ? `${pad(p.birth_day)}/${pad(p.birth_month)}` : "-";
         case "email":
           return p.email || "-";
         case "telephone":
