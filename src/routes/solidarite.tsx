@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import {
   Heart,
   Bike,
@@ -11,11 +11,50 @@ import {
   Target,
   Gift,
   Footprints,
+  Edit,
+  Plus,
+  Save,
+  Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/database";
+import { useAuth } from "@/lib/useAuth";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+type GoalIcon = "bike" | "walk" | "target";
+
+interface SolidarityGoal {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  description: string;
+  goal_km: number;
+  icon: GoalIcon;
+  sort_order: number;
+}
+
+const solidarityDb = supabase as unknown as SupabaseClient;
+const goalIconComponents = { bike: Bike, walk: Footprints, target: Target };
+const goalAccentClasses: Record<GoalIcon, { icon: string; progress: string; percent: string }> = {
+  bike: {
+    icon: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    progress: "[&>div]:bg-orange-500",
+    percent: "text-orange-400",
+  },
+  walk: {
+    icon: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    progress: "[&>div]:bg-emerald-500",
+    percent: "text-emerald-500",
+  },
+  target: {
+    icon: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    progress: "[&>div]:bg-rose-500",
+    percent: "text-rose-500",
+  },
+};
 
 export const Route = createFileRoute("/solidarite")({
   ssr: false,
@@ -39,7 +78,36 @@ export const Route = createFileRoute("/solidarite")({
 });
 
 function SolidarityPage() {
+  const { isAdmin } = useAuth();
   const [totalKm, setTotalKm] = useState<number>(0);
+  const [goals, setGoals] = useState<SolidarityGoal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const [goalsError, setGoalsError] = useState("");
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalFormOpen, setGoalFormOpen] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [goalTitle, setGoalTitle] = useState("");
+  const [goalSubtitle, setGoalSubtitle] = useState("");
+  const [goalDescription, setGoalDescription] = useState("");
+  const [goalKm, setGoalKm] = useState("500");
+  const [goalIcon, setGoalIcon] = useState<GoalIcon>("target");
+
+  const loadGoals = useCallback(async () => {
+    setGoalsLoading(true);
+    const { data, error } = await solidarityDb
+      .from("solidarity_goals")
+      .select("id, title, subtitle, description, goal_km, icon, sort_order")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setGoalsError("Les objectifs solidaires n’ont pas pu être chargés.");
+    } else {
+      setGoals((data ?? []) as SolidarityGoal[]);
+      setGoalsError("");
+    }
+    setGoalsLoading(false);
+  }, []);
 
   // Récupération des kilomètres collectifs (identique à ton composant CollectiveRouteMap)
   const loadCollectiveDistance = useCallback(async () => {
@@ -63,12 +131,79 @@ function SolidarityPage() {
     return db.subscribe(() => loadCollectiveDistance());
   }, [loadCollectiveDistance]);
 
-  // Définition des objectifs en kilomètres
-  const goal24h = 1000; // Objectif de km pour les 24h
-  const goalMarche = 500; // Objectif de km pour la marche parrainée
+  useEffect(() => {
+    void loadGoals();
+  }, [loadGoals]);
 
-  const progress24h = Math.min(100, Math.round((totalKm / goal24h) * 100));
-  const progressMarche = Math.min(100, Math.round((totalKm / goalMarche) * 100));
+  const resetGoalForm = () => {
+    setEditingGoalId(null);
+    setGoalTitle("");
+    setGoalSubtitle("");
+    setGoalDescription("");
+    setGoalKm("500");
+    setGoalIcon("target");
+    setGoalFormOpen(false);
+  };
+
+  const openGoalForm = (goal?: SolidarityGoal) => {
+    if (goal) {
+      setEditingGoalId(goal.id);
+      setGoalTitle(goal.title);
+      setGoalSubtitle(goal.subtitle ?? "");
+      setGoalDescription(goal.description);
+      setGoalKm(String(goal.goal_km));
+      setGoalIcon(goal.icon);
+    } else {
+      setEditingGoalId(null);
+      setGoalTitle("");
+      setGoalSubtitle("");
+      setGoalDescription("");
+      setGoalKm("500");
+      setGoalIcon("target");
+    }
+    setGoalsError("");
+    setGoalFormOpen(true);
+  };
+
+  const handleSaveGoal = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!goalTitle.trim() || Number(goalKm) <= 0 || savingGoal) return;
+
+    setSavingGoal(true);
+    setGoalsError("");
+    const payload = {
+      title: goalTitle.trim(),
+      subtitle: goalSubtitle.trim() || null,
+      description: goalDescription.trim(),
+      goal_km: Number(goalKm),
+      icon: goalIcon,
+      sort_order: editingGoalId
+        ? (goals.find((goal) => goal.id === editingGoalId)?.sort_order ?? goals.length)
+        : goals.length,
+    };
+    const result = editingGoalId
+      ? await solidarityDb.from("solidarity_goals").update(payload).eq("id", editingGoalId)
+      : await solidarityDb.from("solidarity_goals").insert(payload);
+
+    if (result.error) {
+      setGoalsError("L’objectif n’a pas pu être enregistré. Réessaie.");
+    } else {
+      resetGoalForm();
+      await loadGoals();
+    }
+    setSavingGoal(false);
+  };
+
+  const handleDeleteGoal = async (goal: SolidarityGoal) => {
+    if (!window.confirm(`Supprimer l’objectif « ${goal.title} » ?`)) return;
+    setGoalsError("");
+    const { error } = await solidarityDb.from("solidarity_goals").delete().eq("id", goal.id);
+    if (error) {
+      setGoalsError("L’objectif n’a pas pu être supprimé. Réessaie.");
+    } else {
+      await loadGoals();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,66 +243,181 @@ function SolidarityPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">
-        {/* Section Objectifs de km (24h & Marche Parrainée) */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Objectif 24h */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                  <Target className="h-5 w-5" />
-                </span>
-                <div>
-                  <h3 className="font-display font-bold text-foreground">Défi des 24h</h3>
-                  <p className="text-xs text-muted-foreground">Objectif de dons & kilomètres</p>
-                </div>
+        {/* Objectifs solidaires gérés depuis Supabase */}
+        {isAdmin && (
+          <section className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display font-bold text-foreground">Gérer les objectifs</h2>
+                <p className="text-xs text-muted-foreground">
+                  Les changements sont enregistrés et visibles par toute la troupe.
+                </p>
               </div>
-              <span className="font-mono font-black text-sm text-orange-400">
-                {totalKm} / {goal24h} km
-              </span>
+              {!goalFormOpen && (
+                <Button type="button" size="sm" onClick={() => openGoalForm()}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Ajouter un objectif
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Cumulons un maximum de kilomètres lors des 24h pour déclencher un don exceptionnel au
-              profit de l'ASBL Profitivisme !
-            </p>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-muted-foreground">Progression</span>
-                <span className="text-primary">{progress24h}%</span>
-              </div>
-              <Progress value={progress24h} className="h-2.5 rounded-full" />
-            </div>
-          </div>
 
-          {/* Objectif Marche Parrainée */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <Footprints className="h-5 w-5" />
-                </span>
-                <div>
-                  <h3 className="font-display font-bold text-foreground">Marche Parrainée</h3>
-                  <p className="text-xs text-muted-foreground">Effort collectif & parrainage</p>
+            {goalFormOpen && (
+              <form
+                onSubmit={(event) => void handleSaveGoal(event)}
+                className="grid gap-3 sm:grid-cols-2"
+              >
+                <label className="space-y-1 text-xs font-semibold text-foreground">
+                  Nom de l’objectif
+                  <input
+                    required
+                    maxLength={80}
+                    value={goalTitle}
+                    onChange={(event) => setGoalTitle(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal"
+                  />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-foreground">
+                  Sous-titre
+                  <input
+                    maxLength={100}
+                    value={goalSubtitle}
+                    onChange={(event) => setGoalSubtitle(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal"
+                  />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-foreground">
+                  Objectif en kilomètres
+                  <input
+                    required
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={goalKm}
+                    onChange={(event) => setGoalKm(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal"
+                  />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-foreground">
+                  Icône
+                  <select
+                    value={goalIcon}
+                    onChange={(event) => setGoalIcon(event.target.value as GoalIcon)}
+                    className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal"
+                  >
+                    <option value="target">Objectif</option>
+                    <option value="bike">Vélo</option>
+                    <option value="walk">Marche</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-foreground sm:col-span-2">
+                  Description
+                  <textarea
+                    rows={3}
+                    maxLength={500}
+                    value={goalDescription}
+                    onChange={(event) => setGoalDescription(event.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-normal"
+                  />
+                </label>
+                <div className="flex gap-2 sm:col-span-2">
+                  <Button type="submit" disabled={savingGoal}>
+                    <Save className="mr-1.5 h-4 w-4" />
+                    {savingGoal ? "Enregistrement…" : editingGoalId ? "Enregistrer" : "Ajouter"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={resetGoalForm}>
+                    <X className="mr-1.5 h-4 w-4" /> Annuler
+                  </Button>
                 </div>
-              </div>
-              <span className="font-mono font-black text-sm text-emerald-400">
-                {totalKm} / {goalMarche} km
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Chaque entraînement et chaque kilomètre validé sur la plateforme renforce l'impact de
-              notre marche parrainée.
-            </p>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-muted-foreground">Progression</span>
-                <span className="text-emerald-500">{progressMarche}%</span>
-              </div>
-              <Progress value={progressMarche} className="h-2.5 rounded-full" />
-            </div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {goalsError && (
+          <p
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            {goalsError}
+          </p>
+        )}
+
+        {goalsLoading ? (
+          <p role="status" className="py-8 text-center text-sm text-muted-foreground">
+            Chargement des objectifs solidaires…
+          </p>
+        ) : goals.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            {goals.map((goal) => {
+              const Icon = goalIconComponents[goal.icon] ?? Target;
+              const accent = goalAccentClasses[goal.icon] ?? goalAccentClasses.target;
+              const progress = Math.min(100, Math.round((totalKm / Number(goal.goal_km)) * 100));
+              return (
+                <article
+                  key={goal.id}
+                  className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${accent.icon}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="truncate font-display font-bold text-foreground">
+                          {goal.title}
+                        </h3>
+                        {goal.subtitle && (
+                          <p className="text-xs text-muted-foreground">{goal.subtitle}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-mono text-sm font-black text-foreground">
+                      {totalKm} / {goal.goal_km} km
+                    </span>
+                  </div>
+                  {goal.description && (
+                    <p className="text-xs text-muted-foreground">{goal.description}</p>
+                  )}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-muted-foreground">Progression</span>
+                      <span className={accent.percent}>{progress}%</span>
+                    </div>
+                    <Progress
+                      value={progress}
+                      className={`h-2.5 rounded-full ${accent.progress}`}
+                    />
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2 border-t border-border/70 pt-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openGoalForm(goal)}
+                      >
+                        <Edit className="mr-1.5 h-3.5 w-3.5" /> Modifier
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void handleDeleteGoal(goal)}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Supprimer
+                      </Button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
-        </div>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Aucun objectif solidaire n’est disponible pour le moment.
+          </p>
+        )}
 
         {/* Section Histoire / Profitivisme */}
         <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm space-y-6">
