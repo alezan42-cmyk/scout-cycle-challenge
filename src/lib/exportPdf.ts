@@ -317,15 +317,11 @@ export async function generatePdf(report: Report): Promise<string> {
           return p.strava_url || "-";
       }
     };
-    const sorted = [...report.rows].sort((a, b) =>
-      (a.full_name ?? "").localeCompare(b.full_name ?? "", "fr"),
-    );
-
     doc.autoTable({
       ...tableBase,
       startY,
       head: [cols.map((c) => c.label)],
-      body: sorted.map((p) => cols.map((c) => value(p, c.key))),
+      body: report.rows.map((p) => cols.map((c) => value(p, c.key))),
     });
   }
 

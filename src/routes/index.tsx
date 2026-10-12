@@ -184,6 +184,20 @@ function Index() {
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
 
+  const { data: globalActivityCount = 0 } = useQuery<number>({
+    queryKey: ["global-approved-activity-count"],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("activities_public")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const range =
     period === "week"
       ? weekRange(0)
@@ -770,7 +784,22 @@ function Index() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sorties validées
+              </span>
+              <span className="rounded-lg bg-primary/10 p-2 text-primary">
+                <Bike className="h-5 w-5" />
+              </span>
+            </div>
+            <div className="mt-2 font-display text-2xl font-black text-foreground sm:text-3xl">
+              {globalActivityCount.toLocaleString("fr-BE")}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">tous sports, depuis le début</p>
+          </div>
+
           <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
