@@ -68,6 +68,9 @@ const MONTHS = [
   "décembre",
 ];
 
+// La liaison OAuth reste masquée tant que le backend Strava n'est pas activé.
+const STRAVA_OAUTH_ENABLED = import.meta.env.VITE_STRAVA_OAUTH_ENABLED === "true";
+
 /** Nombre de jours max d'un mois (29 en février : anniversaire du 29/02 accepté). */
 function daysInMonth(month: number): number {
   return month === 2 ? 29 : [4, 6, 9, 11].includes(month) ? 30 : 31;
@@ -461,22 +464,24 @@ function Profil() {
               />
             </div>
 
-            <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/20">
-              <p className="text-sm font-semibold">Synchronise tes sorties Strava</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Associe ton compte pour importer automatiquement tes nouvelles sorties visibles par l’application.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={connectStrava}
-                disabled={connectingStrava}
-                className="mt-3 rounded-lg border-[#fc4c02]/40 font-bold text-[#d74300] hover:bg-orange-100"
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                {connectingStrava ? "Connexion…" : "Associer mon compte Strava"}
-              </Button>
-            </div>
+            {STRAVA_OAUTH_ENABLED && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/20">
+                <p className="text-sm font-semibold">Synchronise tes sorties Strava</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Associe ton compte pour importer automatiquement tes nouvelles sorties visibles par l’application.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={connectStrava}
+                  disabled={connectingStrava}
+                  className="mt-3 rounded-lg border-[#fc4c02]/40 font-bold text-[#d74300] hover:bg-orange-100"
+                >
+                  <Link2 className="mr-2 h-4 w-4" />
+                  {connectingStrava ? "Connexion…" : "Associer mon compte Strava"}
+                </Button>
+              </div>
+            )}
 
             <Button
               type="submit"
