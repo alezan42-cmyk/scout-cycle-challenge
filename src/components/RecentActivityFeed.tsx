@@ -362,9 +362,13 @@ export function RecentActivityFeed({
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-display font-bold text-sm text-foreground truncate">
+                        <Link
+                          to="/scout/$scoutId"
+                          params={{ scoutId: act.userId }}
+                          className="font-display font-bold text-sm text-foreground truncate hover:text-primary hover:underline"
+                        >
                           {act.scoutName}
-                        </span>
+                        </Link>
 
                         {/* Patrol Badge */}
                         <Badge

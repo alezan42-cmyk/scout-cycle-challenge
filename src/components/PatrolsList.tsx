@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Trophy,
   Medal,
@@ -775,9 +776,13 @@ export function PatrolsList({
                               <span className="text-[10px] font-mono text-muted-foreground w-4 text-center">
                                 {mIdx + 1}.
                               </span>
-                              <span className="font-medium text-foreground">
+                              <Link
+                                to="/scout/$scoutId"
+                                params={{ scoutId: member.userId }}
+                                className="font-medium text-foreground hover:text-primary hover:underline"
+                              >
                                 {member.displayName}
-                              </span>
+                              </Link>
                               {mIdx === 0 && member.km > 0 && (
                                 <span className="text-[10px] bg-amber-400/20 text-amber-700 dark:text-amber-300 font-bold px-1.5 py-0.2 rounded-full">
                                   Top

@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SportBadge } from "@/components/SportIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { SPORT_INFO, getActivitySport, type ActivitySport } from "@/lib/database";
-import { DISTANCE_TROPHIES, getDistanceTotals } from "@/lib/distanceTrophies";
+import { DISTANCE_TROPHIES, getBestSingleActivityDistances } from "@/lib/distanceTrophies";
 
 export const Route = createFileRoute("/scout/$scoutId")({
   ssr: false,
@@ -66,6 +66,7 @@ function ScoutProfilePage() {
   const { scoutId } = Route.useParams();
   const [profile, setProfile] = useState<ScoutProfile | null>(null);
   const [patrolName, setPatrolName] = useState<string | null>(null);
+  const [patrolMemberCount, setPatrolMemberCount] = useState<number | null>(null);
   const [activities, setActivities] = useState<ScoutActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,12 +110,17 @@ function ScoutProfilePage() {
       setActivities((activityResult.data || []) as unknown as ScoutActivity[]);
 
       if (scout.patrol_id) {
-        const { data: patrol } = (await supabase
-          .from("patrols")
-          .select("id,name")
-          .eq("id", scout.patrol_id)
-          .maybeSingle()) as unknown as { data: Patrol | null };
-        if (active) setPatrolName(patrol?.name ?? null);
+        const [{ data: patrol }, { count }] = (await Promise.all([
+          supabase.from("patrols").select("id,name").eq("id", scout.patrol_id).maybeSingle(),
+          supabase
+            .from("profiles_public")
+            .select("id", { count: "exact", head: true })
+            .eq("patrol_id", scout.patrol_id),
+        ])) as unknown as [{ data: Patrol | null }, { count: number | null }];
+        if (active) {
+          setPatrolName(patrol?.name ?? null);
+          setPatrolMemberCount(count);
+        }
       }
       if (active) setLoading(false);
     }
@@ -126,9 +132,9 @@ function ScoutProfilePage() {
   }, [scoutId]);
 
   const earnedBadges = useMemo(() => {
-    const totals = getDistanceTotals(activities);
+    const best = getBestSingleActivityDistances(activities);
     return (Object.keys(DISTANCE_TROPHIES) as ActivitySport[]).flatMap((sport) =>
-      DISTANCE_TROPHIES[sport].filter((km) => totals[sport] >= km).map((km) => ({ sport, km })),
+      DISTANCE_TROPHIES[sport].filter((km) => best[sport] >= km).map((km) => ({ sport, km })),
     );
   }, [activities]);
 
@@ -182,6 +188,11 @@ function ScoutProfilePage() {
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {patrolName && <Badge variant="outline">Patrouille {patrolName}</Badge>}
+              {patrolMemberCount !== null && patrolName && (
+                <Badge variant="secondary">
+                  {patrolMemberCount} personne{patrolMemberCount > 1 ? "s" : ""} dans la branche
+                </Badge>
+              )}
               {profile.scout_year && <Badge variant="secondary">{profile.scout_year}e année</Badge>}
               {profile.quali && !profile.totem && <Badge variant="outline">{profile.quali}</Badge>}
             </div>
@@ -222,7 +233,7 @@ function ScoutProfilePage() {
             </div>
           )}
           <p className="mt-4 text-xs text-muted-foreground">
-            Chaque trophée se débloque quand le total des kilomètres validés atteint le palier de sa
+            Chaque trophée se débloque quand une seule sortie validée atteint le palier de sa
             discipline.
           </p>
         </CardContent>

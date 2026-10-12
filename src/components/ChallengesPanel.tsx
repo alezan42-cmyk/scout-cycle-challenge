@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Award, Bike, Info, Mountain, Send, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,7 +248,14 @@ export function ChallengesPanel() {
               className="flex items-center justify-between rounded-xl border p-3"
             >
               <span className="font-semibold">
-                {i + 1}. {r.display_name}
+                {i + 1}.{" "}
+                <Link
+                  to="/scout/$scoutId"
+                  params={{ scoutId: r.user_id }}
+                  className="hover:text-primary hover:underline"
+                >
+                  {r.display_name}
+                </Link>
                 <span className="ml-2 text-xs text-muted-foreground">{r.patrol_name}</span>
               </span>
               <span className="font-bold text-amber-600">{r.points} pts</span>
@@ -280,7 +288,14 @@ export function ChallengesPanel() {
                       <p className="text-sm text-muted-foreground">
                         {c.proposed_points} pts proposés
                         {c.awarded_points !== null ? ` · ${c.awarded_points} pts attribués` : ""} ·
-                        lancé par {name(c.challenger_id)}
+                        lancé par{" "}
+                        <Link
+                          to="/scout/$scoutId"
+                          params={{ scoutId: c.challenger_id }}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {name(c.challenger_id)}
+                        </Link>
                       </p>
                       {mine && (
                         <p className="text-sm">
@@ -290,12 +305,19 @@ export function ChallengesPanel() {
                       {c.description && <p className="text-sm">{c.description}</p>}
                       <p className="mt-1 text-xs text-muted-foreground">
                         Participants :{" "}
-                        {entries
-                          .map(
-                            (p) =>
-                              `${name(p.user_id)} (${participantLabels[p.status] || p.status})`,
-                          )
-                          .join(", ")}
+                        {entries.map((p, index) => (
+                          <span key={p.user_id}>
+                            {index > 0 ? ", " : ""}
+                            <Link
+                              to="/scout/$scoutId"
+                              params={{ scoutId: p.user_id }}
+                              className="hover:text-primary hover:underline"
+                            >
+                              {name(p.user_id)}
+                            </Link>{" "}
+                            ({participantLabels[p.status] || p.status})
+                          </span>
+                        ))}
                       </p>
                     </div>
                   );
