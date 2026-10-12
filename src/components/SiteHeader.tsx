@@ -10,10 +10,11 @@ import {
   LogIn,
   HandHeart,
   MapPinned,
-  X,
   ChevronRight,
   House,
-  MoreHorizontal,
+  ChevronDown,
+  Award,
+  Medal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -31,11 +32,20 @@ interface NavItem {
   requiresAdmin?: boolean;
 }
 
+interface MobileMenuLink {
+  to: "/" | "/classement" | "/mes-km" | "/auth";
+  hash?: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}
+
 export function SiteHeader() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuSection, setMobileMenuSection] = useState<"home" | "km">("home");
   // La page est pré-rendue sur « / » : on ne marque la page active qu'une fois
   // dans le navigateur, sinon « Classement » resterait surligné partout.
   const [mounted, setMounted] = useState(false);
@@ -66,7 +76,13 @@ export function SiteHeader() {
     {
       to: "/",
       label: "Accueil",
-      description: "Classement hebdomadaire des patrouilles et des scouts",
+      description: "Défis et raccourcis personnels",
+      icon: House,
+    },
+    {
+      to: "/classement",
+      label: "Classement",
+      description: "Classements des patrouilles, scouts et défis",
       icon: Trophy,
     },
     {
@@ -116,24 +132,75 @@ export function SiteHeader() {
     return true;
   });
 
-  const mobileItems = user
-    ? visibleItems.filter((item) => ["/", "/mes-km", "/carte", "/profil"].includes(item.to))
-    : visibleItems.filter((item) => ["/", "/timeline", "/solidarite"].includes(item.to));
-  const secondaryItems = visibleItems.filter(
-    (item) => !mobileItems.some((mobileItem) => mobileItem.to === item.to),
-  );
-  const mobileItemIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-    "/": House,
-    "/mes-km": Bike,
-    "/carte": MapPinned,
-    "/profil": CircleUserRound,
-    "/timeline": History,
-    "/solidarite": HandHeart,
-  };
+  const desktopItems = visibleItems.filter((item) => item.to !== "/");
+  const mobileMenuLinks: MobileMenuLink[] =
+    mobileMenuSection === "home"
+      ? [
+          {
+            to: "/",
+            hash: "defis",
+            label: "Défis en cours",
+            icon: Award,
+            description: "Tes défis à relever",
+          },
+          {
+            to: "/classement",
+            hash: "dernieres-sorties",
+            label: "Dernières sorties",
+            icon: History,
+            description: "Les activités récentes",
+          },
+          {
+            to: "/classement",
+            hash: "maillots",
+            label: "Maillots",
+            icon: Trophy,
+            description: "Jaune et à pois",
+          },
+          {
+            to: "/classement",
+            hash: "classements",
+            label: "Classements",
+            icon: Medal,
+            description: "Patrouilles et scouts",
+          },
+        ]
+      : user
+        ? [
+            {
+              to: "/mes-km",
+              hash: "trophees",
+              label: "Mes trophées",
+              icon: Award,
+              description: "Récompenses par sortie",
+            },
+            {
+              to: "/mes-km",
+              hash: "enregistrer",
+              label: "Enregistrer mes kms",
+              icon: Bike,
+              description: "Ajouter une activité",
+            },
+            {
+              to: "/mes-km",
+              hash: "historique",
+              label: "Mes kms",
+              icon: History,
+              description: "Mon historique de sorties",
+            },
+          ]
+        : [
+            {
+              to: "/auth",
+              label: "Me connecter",
+              icon: LogIn,
+              description: "Pour enregistrer mes kilomètres",
+            },
+          ];
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[var(--header)]/95 text-white shadow-lg backdrop-blur-md">
+      <header className="site-header sticky top-0 z-50 w-full border-b border-white/10 bg-[var(--header)]/95 text-white shadow-lg backdrop-blur-md">
         <HeaderTrim />
         {/* Main Bar */}
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2 sm:px-4 sm:py-3">
@@ -170,7 +237,7 @@ export function SiteHeader() {
           {/* ============================================================== */}
           <nav className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              {secondaryItems.map((item) => {
+              {desktopItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.to;
 
@@ -251,35 +318,42 @@ export function SiteHeader() {
         </div>
       </header>
 
-      <nav aria-label="Navigation principale" className="mobile-tabbar md:hidden">
-        {mobileItems.map((item) => {
-          const Icon = mobileItemIcons[item.to] || item.icon;
-          const active =
-            location.pathname === item.to ||
-            (item.to !== "/" && location.pathname.startsWith(`${item.to}/`));
+      <nav aria-label="Navigation de l’application" className="mobile-tabbar md:hidden">
+        {(
+          [
+            { id: "home", label: "Accueil", icon: House },
+            { id: "km" as const, label: "Mes kms", icon: Bike },
+          ] as const
+        ).map((item) => {
+          const Icon = item.icon;
+          const isOpen = mobileMenuOpen && mobileMenuSection === item.id;
+          const isActive =
+            item.id === "home"
+              ? location.pathname === "/"
+              : location.pathname.startsWith("/mes-km");
           return (
-            <Link
-              key={item.to}
-              to={item.to}
-              aria-current={active ? "page" : undefined}
-              className={cn("mobile-tab", active && "mobile-tab-active")}
-              onClick={() => setMobileMenuOpen(false)}
+            <button
+              key={item.id}
+              type="button"
+              className={cn("mobile-tab", (isActive || isOpen) && "mobile-tab-active")}
+              onClick={() => {
+                setMobileMenuSection(item.id);
+                setMobileMenuOpen((open) => !(open && mobileMenuSection === item.id));
+              }}
+              aria-expanded={isOpen}
+              aria-controls="mobile-app-menu"
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.3 : 1.8} />
-              <span>{item.to === "/mes-km" ? "Mes km" : item.label}</span>
-            </Link>
+              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.3 : 1.8} />
+              <span>{item.label}</span>
+              <ChevronDown
+                className={cn(
+                  "absolute right-3 h-3.5 w-3.5 transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </button>
           );
         })}
-        <button
-          type="button"
-          className={cn("mobile-tab", mobileMenuOpen && "mobile-tab-active")}
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          aria-expanded={mobileMenuOpen}
-          aria-controls="mobile-more-menu"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
-          <span>Plus</span>
-        </button>
       </nav>
 
       {mobileMenuOpen && (
@@ -290,10 +364,10 @@ export function SiteHeader() {
             onClick={() => setMobileMenuOpen(false)}
           />
           <div
-            id="mobile-more-menu"
+            id="mobile-app-menu"
             className="mobile-menu-sheet md:hidden"
             role="region"
-            aria-label="Autres pages"
+            aria-label={mobileMenuSection === "home" ? "Menu Accueil" : "Menu Mes kilomètres"}
           >
             {/* User profile summary if logged in */}
             {user && (
@@ -323,36 +397,29 @@ export function SiteHeader() {
 
             {/* Navigation Links List */}
             <div className="max-h-[55vh] overflow-y-auto p-3 space-y-1">
-              {visibleItems.map((item) => {
+              {mobileMenuLinks.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.to;
 
                 return (
                   <Link
-                    key={item.to}
+                    key={item.label}
                     to={item.to}
+                    hash={item.hash}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl p-2.5 transition-all",
-                      isActive
-                        ? "bg-white/15 text-white shadow-xs font-bold"
-                        : "text-white/80 hover:bg-white/10 hover:text-white",
-                    )}
+                    className="flex min-h-14 items-center justify-between rounded-xl p-2.5 text-white/85 transition-all hover:bg-white/10 hover:text-white"
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className={cn(
                           "grid h-9 w-9 shrink-0 place-items-center rounded-lg border",
-                          isActive
-                            ? "border-transparent bg-[var(--nav-active)] text-[var(--nav-active-foreground)]"
-                            : "border-white/10 bg-[var(--nav-hover)] text-[var(--nav-icon)]",
+                          "border-white/10 bg-[var(--nav-hover)] text-[var(--nav-icon)]",
                         )}
                       >
                         <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                       </span>
                       <div>
                         <p className="text-sm font-bold leading-tight">{item.label}</p>
-                        <p className="text-[11px] text-white/50 leading-tight mt-0.5">
+                        <p className="mt-0.5 text-[11px] leading-tight text-white/50">
                           {item.description}
                         </p>
                       </div>
@@ -361,6 +428,29 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
+
+              {mobileMenuSection === "home" && (
+                <details className="group mt-2 rounded-xl border border-white/10 bg-white/[0.04]">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-3 text-sm font-semibold text-white/70 [&::-webkit-details-marker]:hidden">
+                    Autres pages{" "}
+                    <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+                  </summary>
+                  <div className="grid grid-cols-2 gap-1 px-2 pb-2">
+                    {visibleItems
+                      .filter((item) => !["/", "/classement", "/mes-km"].includes(item.to))
+                      .map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="rounded-lg px-2 py-2 text-xs font-medium text-white/75 hover:bg-white/10"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                  </div>
+                </details>
+              )}
 
               {/* Logout / Login button at bottom of mobile menu */}
               <div className="pt-2 mt-2 border-t border-white/10">

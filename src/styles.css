@@ -796,6 +796,10 @@ body {
 }
 
 @media (max-width: 767px) {
+  .site-header {
+    display: none;
+  }
+
   html {
     scroll-padding-top: 4.5rem;
     scroll-padding-bottom: 5.5rem;
@@ -805,24 +809,6 @@ body {
     min-height: 100dvh;
     overflow-x: hidden;
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
-  }
-
-  .mobile-home-page {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .mobile-home-page > .mobile-home-hero {
-    order: 0;
-  }
-
-  .mobile-home-page > main {
-    order: 1;
-    width: 100%;
-  }
-
-  .mobile-home-page > :nth-child(2) {
-    order: 2;
   }
 
   .mobile-tabbar {
@@ -844,6 +830,7 @@ body {
   }
 
   .mobile-tab {
+    position: relative;
     display: flex;
     min-width: 0;
     min-height: 3.1rem;
@@ -858,6 +845,8 @@ body {
     font-weight: 600;
     line-height: 1;
     text-decoration: none;
+    border: 0;
+    background: transparent;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -939,82 +928,6 @@ body {
 
   main .grid.gap-8 {
     gap: 1rem;
-  }
-
-  .mobile-home-hero > div.relative {
-    padding: 1.5rem 0.8rem;
-  }
-
-  .mobile-home-hero h1 {
-    max-width: 24rem;
-    margin-top: 0.75rem;
-    font-size: clamp(1.6rem, 7vw, 2.15rem);
-    line-height: 1.12;
-  }
-
-  .mobile-home-hero .mobile-hero-description {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    margin-top: 0.6rem;
-    font-size: 0.82rem;
-    line-height: 1.35;
-  }
-
-  .mobile-home-hero .mobile-hero-secondary {
-    margin-top: 0.65rem;
-    gap: 0.55rem;
-    border-radius: 0.85rem;
-    padding: 0.45rem 0.65rem;
-  }
-
-  .mobile-home-hero .mobile-hero-secondary > span:first-child {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.55rem;
-    font-size: 0.9rem;
-  }
-
-  .mobile-home-hero .mobile-hero-secondary > span:nth-child(2) > span:last-child {
-    display: none;
-  }
-
-  .mobile-home-hero .mt-8.flex {
-    margin-top: 1rem;
-    gap: 0.5rem;
-  }
-
-  .mobile-home-hero .mt-8.flex > a {
-    min-height: 2.9rem;
-    flex: 1 1 100%;
-    justify-content: center;
-    font-size: 0.85rem;
-  }
-
-  .mobile-home-hero .mt-8.flex > a:last-child {
-    display: none;
-  }
-
-  .mobile-home-hero .mt-6.rounded-2xl {
-    margin-top: 1rem;
-    padding: 0.75rem;
-  }
-
-  .mobile-home-hero .mt-6.rounded-2xl > div > div:last-child {
-    width: 100%;
-  }
-
-  .mobile-home-hero .mt-6.rounded-2xl > div > div:last-child a {
-    min-height: 2.6rem;
-    flex: 1;
-    justify-content: center;
-    font-size: 0.75rem;
-  }
-
-  .mobile-home-hero .mt-6.rounded-2xl > div > div:last-child a:first-child,
-  .mobile-home-hero .mt-6.rounded-2xl p.text-xs {
-    display: none;
   }
 
   .min-h-screen > section:first-of-type:not(.mobile-home-hero) {

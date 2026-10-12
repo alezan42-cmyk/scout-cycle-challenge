@@ -588,7 +588,7 @@ export function ChallengesBanner() {
             </Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            {items.map(({ challenge, status }) => (
+            {items.slice(0, 2).map(({ challenge, status }) => (
               <div key={challenge.id} className="rounded-xl border bg-card p-3">
                 <div className="font-semibold">{challenge.title}</div>
                 <p className="text-xs text-muted-foreground">
@@ -616,6 +616,11 @@ export function ChallengesBanner() {
               </div>
             ))}
           </div>
+          {items.length > 2 && (
+            <Button asChild variant="link" size="sm" className="mt-2 h-auto px-0">
+              <Link to="/classement">Voir tous les défis ({items.length})</Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
