@@ -11,6 +11,7 @@ alter table public.scout_challenges
   add column if not exists target_elevation integer,
   add column if not exists gpx_template_path text,
   add column if not exists manual_validation boolean not null default false,
+  add column if not exists route_validation boolean not null default false,
   add column if not exists winner_id uuid references auth.users(id) on delete set null;
 
 create table public.scout_challenge_participants (
@@ -117,7 +118,7 @@ begin
        or right(_gpx_template_path, 4) <> '.gpx' then
       raise exception 'Défi GPX invalide';
     end if;
-  elsif (_target_km is null and _target_elevation is null)
+  elsif (_target_km is null and _target_elevation is null and nullif(trim(coalesce(_description,'')), '') is null)
      or (_target_km is not null and (_target_km <= 0 or _target_km > 1000))
      or (_target_elevation is not null and (_target_elevation <= 0 or _target_elevation > 20000))
      or (_target_km is null and coalesce(_exact_distance,false)) then
@@ -125,9 +126,11 @@ begin
   end if;
 
   insert into public.scout_challenges(challenger_id, challenged_id, title, description, proposed_points, status,
-    sport, target_km, exact_distance, target_elevation, gpx_template_path, manual_validation)
+    sport, target_km, exact_distance, target_elevation, gpx_template_path, manual_validation, route_validation)
   values (v_user, null, trim(_title), nullif(trim(coalesce(_description,'')),''), _proposed_points, 'open',
-    _sport, _target_km, coalesce(_exact_distance,false), _target_elevation, _gpx_template_path, _gpx_template_path is not null)
+    _sport, _target_km, coalesce(_exact_distance,false), _target_elevation, _gpx_template_path,
+    _gpx_template_path is not null or (_target_km is null and _target_elevation is null),
+    _gpx_template_path is null and _target_km is null and _target_elevation is null)
   returning id into v_id;
 
   insert into public.scout_challenge_participants(challenge_id, user_id)
@@ -137,6 +140,59 @@ end;
 $$;
 revoke execute on function public.create_scout_challenge(text,text,integer,text,numeric,boolean,integer,text,uuid[]) from public, anon;
 grant execute on function public.create_scout_challenge(text,text,integer,text,numeric,boolean,integer,text,uuid[]) to authenticated;
+
+create or replace function public.admin_update_scout_challenge(
+  _challenge_id uuid, _title text, _description text, _proposed_points integer,
+  _sport text, _target_km numeric, _exact_distance boolean, _target_elevation integer,
+  _route_validation boolean
+)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_challenge public.scout_challenges;
+begin
+  if auth.uid() is null or not public.has_role(auth.uid(), 'admin') then raise exception 'Réservé au staff'; end if;
+  select * into v_challenge from public.scout_challenges where id = _challenge_id for update;
+  if not found or v_challenge.status <> 'open' then raise exception 'Seuls les défis en cours peuvent être modifiés'; end if;
+  if exists (select 1 from public.scout_challenge_participants p where p.challenge_id = _challenge_id and p.status = 'submitted') then
+    raise exception 'Une sortie est en cours de vérification : le défi ne peut pas être modifié';
+  end if;
+  if char_length(trim(coalesce(_title,''))) not between 3 and 120 then raise exception 'Titre invalide'; end if;
+  if _proposed_points not between 1 and 1000 then raise exception 'Points invalides'; end if;
+  if _sport not in ('velo','course','marche') then raise exception 'Type d’activité invalide'; end if;
+  if _target_km is not null and (_target_km <= 0 or _target_km > 1000) then raise exception 'Distance invalide'; end if;
+  if _target_elevation is not null and (_target_elevation <= 0 or _target_elevation > 20000) then raise exception 'D+ invalide'; end if;
+  if v_challenge.gpx_template_path is null then
+    if _route_validation then
+      if _target_km is not null or _target_elevation is not null or nullif(trim(coalesce(_description,'')), '') is null then
+        raise exception 'Une consigne de parcours est requise et ne se combine pas aux critères de distance/D+';
+      end if;
+    elsif _target_km is null and _target_elevation is null and not v_challenge.manual_validation then
+      raise exception 'Indique une distance, un D+ ou choisis un parcours à tracer';
+    end if;
+    if _target_km is null and coalesce(_exact_distance,false) then raise exception 'La distance exacte est absente'; end if;
+  end if;
+  update public.scout_challenges set title=trim(_title), description=nullif(trim(coalesce(_description,'')),''),
+    proposed_points=_proposed_points, sport=_sport, target_km=_target_km,
+    exact_distance=coalesce(_exact_distance,false), target_elevation=_target_elevation,
+    route_validation=case when gpx_template_path is null then _route_validation else false end,
+    manual_validation=case when gpx_template_path is not null then true
+      when _route_validation then true
+      when _target_km is null and _target_elevation is null then manual_validation else false end
+  where id=_challenge_id;
+end;
+$$;
+revoke execute on function public.admin_update_scout_challenge(uuid,text,text,integer,text,numeric,boolean,integer,boolean) from public, anon;
+grant execute on function public.admin_update_scout_challenge(uuid,text,text,integer,text,numeric,boolean,integer,boolean) to authenticated;
+
+create or replace function public.admin_delete_scout_challenge(_challenge_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or not public.has_role(auth.uid(), 'admin') then raise exception 'Réservé au staff'; end if;
+  delete from public.scout_challenges where id=_challenge_id and status='open';
+  if not found then raise exception 'Seuls les défis en cours peuvent être supprimés'; end if;
+end;
+$$;
+revoke execute on function public.admin_delete_scout_challenge(uuid) from public, anon;
+grant execute on function public.admin_delete_scout_challenge(uuid) to authenticated;
 
 create or replace function public.link_scout_challenge_to_activity()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -162,7 +218,7 @@ begin
   v_sport := case when coalesce(new.note,'') ~* '^\[(course|course_a_pied|run|running)\]' then 'course'
                   when coalesce(new.note,'') ~* '^\[(marche|walk|rando)\]' then 'marche' else 'velo' end;
   if v_sport <> v_challenge.sport then raise exception 'Le type d’activité ne correspond pas au défi'; end if;
-  if v_challenge.gpx_template_path is not null then
+  if v_challenge.gpx_template_path is not null or v_challenge.route_validation then
     if new.gpx_path is null then raise exception 'Ajoute le tracé GPX pour ce défi'; end if;
   else
     if v_challenge.target_km is not null and
