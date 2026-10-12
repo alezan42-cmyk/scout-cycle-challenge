@@ -51,7 +51,7 @@ import { computeJerseys } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
-import { NearestDistanceTrophy } from "@/components/DistanceTrophies";
+import { CumulativeDistanceBadges, NearestDistanceTrophy } from "@/components/DistanceTrophies";
 import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
@@ -77,6 +77,7 @@ interface LeaderboardItem {
   category: string;
   km: number;
   dplus: number;
+  distanceTotals: Record<ActivitySport, number>;
   scout_year?: number | null;
   is_chef?: boolean;
   peloton?: PelotonUserScore | undefined;
@@ -325,6 +326,16 @@ function Index() {
               (acc, curr) => acc + Number(curr.elevation_m || 0),
               0,
             );
+            const distanceTotals: Record<ActivitySport, number> = {
+              velo: 0,
+              course: 0,
+              marche: 0,
+            };
+            acts
+              .filter((activity) => activity.user_id === p.id && activity.status === "approved")
+              .forEach((activity) => {
+                distanceTotals[getActivitySport(activity)] += Number(activity.km || 0);
+              });
             const displayName = p.totem
               ? `${p.totem}${p.quali ? ` ${p.quali}` : ""}`
               : p.full_name || "Scout";
@@ -341,6 +352,7 @@ function Index() {
               category: isStaffOrChef ? "staff" : (pt?.category as "homme" | "femme") || "homme",
               km: Number(totalKm.toFixed(1)),
               dplus: Math.round(totalDplus),
+              distanceTotals,
               scout_year: p.scout_year ?? undefined,
               is_chef: isStaffOrChef,
               peloton: peloton.get(p.id),
@@ -1176,7 +1188,7 @@ function Index() {
                   type="text"
                   value={scoutSearch}
                   onChange={(e) => setScoutSearch(e.target.value)}
-                  placeholder="Rechercher par totem, qualificatif, nom ou patrouille..."
+                  placeholder="Rechercher par totem, qualificatif ou patrouille..."
                   className="w-full bg-background rounded-xl pl-9 pr-4 py-2 text-sm border border-input focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -1211,6 +1223,7 @@ function Index() {
                         {scoutRows[1].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[1].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[1].km.toFixed(1)}</span>
@@ -1247,6 +1260,7 @@ function Index() {
                         {scoutRows[0].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[0].distanceTotals} />
                     <div className="mt-4 pt-2 border-t font-display font-black text-2xl text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-5 w-5" colored />
                       <span>{scoutRows[0].km.toFixed(1)}</span>
@@ -1276,6 +1290,7 @@ function Index() {
                         {scoutRows[2].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[2].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[2].km.toFixed(1)}</span>
@@ -1303,6 +1318,7 @@ function Index() {
                     isChef={s.is_chef}
                     km={s.km}
                     dplus={s.dplus}
+                    distanceTotals={s.distanceTotals}
                     yellowJersey={jerseyHolderIds.yellow.has(s.user_id)}
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
@@ -1515,6 +1531,7 @@ function ScoutLeaderboardRow({
   isChef,
   km,
   dplus = 0,
+  distanceTotals,
   yellowJersey = false,
   climberJersey = false,
   maxKm,
@@ -1528,6 +1545,7 @@ function ScoutLeaderboardRow({
   isChef?: boolean;
   km: number;
   dplus?: number;
+  distanceTotals: Record<ActivitySport, number>;
   yellowJersey?: boolean;
   climberJersey?: boolean;
   maxKm: number;
@@ -1599,6 +1617,10 @@ function ScoutLeaderboardRow({
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
+        </div>
+
+        <div className="mt-2">
+          <CumulativeDistanceBadges totals={distanceTotals} />
         </div>
 
         <div className="mt-2 flex items-center gap-3">
