@@ -807,6 +807,24 @@ body {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
 
+  .mobile-home-page {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-home-page > .mobile-home-hero {
+    order: 0;
+  }
+
+  .mobile-home-page > main {
+    order: 1;
+    width: 100%;
+  }
+
+  .mobile-home-page > :nth-child(2) {
+    order: 2;
+  }
+
   .mobile-tabbar {
     position: fixed;
     z-index: 70;
@@ -892,6 +910,21 @@ body {
     overscroll-behavior: contain;
   }
 
+  .mobile-mascot {
+    right: 0.25rem;
+    bottom: calc(4.1rem + env(safe-area-inset-bottom));
+    gap: 0;
+  }
+
+  .mobile-mascot > div {
+    display: none;
+  }
+
+  .mobile-mascot img {
+    width: 4rem;
+    height: 4rem;
+  }
+
   .min-h-screen > main {
     padding: 1rem 0.8rem;
   }
@@ -945,10 +978,6 @@ body {
 
   .mobile-home-hero .mobile-hero-secondary > span:nth-child(2) > span:last-child {
     display: none;
-  }
-
-  .mobile-home-hero > section {
-    padding-block: 1.5rem;
   }
 
   .mobile-home-hero .mt-8.flex {
