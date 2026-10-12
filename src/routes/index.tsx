@@ -51,6 +51,7 @@ import { computeJerseys } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
+import { ChallengesPanel } from "@/components/ChallengesPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
@@ -180,7 +181,7 @@ function Index() {
   const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");
   const [scoutYear, setScoutYear] = useState<ScoutYearFilter>("all");
-  const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart">("patrols");
+  const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges">("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
@@ -1040,6 +1041,16 @@ function Index() {
               </span>
             </button>
             <button
+              onClick={() => setView("challenges")}
+              className={cn(
+                "relative pb-3 font-display text-base sm:text-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5",
+                view === "challenges" ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:rounded-full after:bg-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Award className="h-4 w-4 text-amber-500" />
+              <span>Défis</span>
+            </button>
+            <button
               onClick={() => setView("peloton")}
               className={cn(
                 "relative pb-3 font-display text-base sm:text-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5",
@@ -1083,7 +1094,9 @@ function Index() {
         </div>
 
         {/* View Content */}
-        {view === "map" ? (
+        {view === "challenges" ? (
+          <ChallengesPanel />
+        ) : view === "map" ? (
           <CollectiveRouteMap />
         ) : view === "chart" ? (
           <PatrolDailyContributionChart />

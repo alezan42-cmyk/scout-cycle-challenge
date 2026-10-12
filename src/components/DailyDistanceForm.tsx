@@ -145,6 +145,8 @@ export function DailyDistanceForm({
   const [elevationM, setElevationM] = useState("");
   const [rideDate, setRideDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedPatrolId, setSelectedPatrolId] = useState<string>(defaultPatrolId || "");
+  const [openChallenges, setOpenChallenges] = useState<Array<{ id: string; title: string; proposed_points: number }>>([]);
+  const [selectedChallengeId, setSelectedChallengeId] = useState("");
   const [stravaUrl, setStravaUrl] = useState("");
   const [rideNote, setRideNote] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -207,6 +209,13 @@ export function DailyDistanceForm({
   useEffect(() => {
     loadPatrols();
   }, [loadPatrols]);
+
+  useEffect(() => {
+    if (!user) { setOpenChallenges([]); return; }
+    (supabase as any).from("scout_challenges").select("id,title,proposed_points")
+      .eq("challenged_id", user.id).eq("status", "open").order("created_at", { ascending: false })
+      .then(({ data }: { data: Array<{ id: string; title: string; proposed_points: number }> | null }) => setOpenChallenges(data || []));
+  }, [user]);
 
   // 2. Pre-select patrol based on scout profile or default prop
   useEffect(() => {
@@ -434,6 +443,7 @@ export function DailyDistanceForm({
         note: finalNote,
         status: activityStatus,
         group_ride_id: groupRideId,
+        challenge_id: selectedChallengeId || null,
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -530,6 +540,10 @@ export function DailyDistanceForm({
       setElevationM("");
       setStravaUrl("");
       setRideNote("");
+      if (selectedChallengeId) {
+        setOpenChallenges((current) => current.filter((challenge) => challenge.id !== selectedChallengeId));
+        setSelectedChallengeId("");
+      }
       setProofFile(null);
       setProofPreview(null);
       setGpxFile(null);
@@ -831,6 +845,15 @@ export function DailyDistanceForm({
               maillot à pois.
             </p>
           </div>
+
+          {openChallenges.length > 0 && <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <Label className="font-bold">Cette sortie réalise un défi ?</Label>
+            <Select value={selectedChallengeId || "none"} onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Choisir un défi (facultatif)" /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Aucun défi</SelectItem>{openChallenges.map((c) => <SelectItem key={c.id} value={c.id}>{c.title} · {c.proposed_points} pts proposés</SelectItem>)}</SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Le staff attribuera les points après vérification de la sortie.</p>
+          </div>}
 
           <GroupRidePicker
             key={pickerKey}
