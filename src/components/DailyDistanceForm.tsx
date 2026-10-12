@@ -39,7 +39,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { isStaffPatrol, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
 import { CHALLENGE_START, CHALLENGE_START_LABEL } from "@/lib/challengeStart";
-import { AlezanNamePoll } from '../components/AlezanNamePoll';
+import { AlezanNamePoll } from "../components/AlezanNamePoll";
 
 export interface DailyDistanceFormProps {
   /** Callback fired after a successful submission */
@@ -77,6 +77,8 @@ type OpenChallengeRow = {
     exact_distance: boolean;
     target_elevation: number | null;
     gpx_template_path: string | null;
+    route_validation: boolean;
+    manual_validation: boolean;
     status: string;
   };
 };
@@ -170,6 +172,8 @@ export function DailyDistanceForm({
       exact_distance: boolean;
       target_elevation: number | null;
       gpx_template_path: string | null;
+      route_validation: boolean;
+      manual_validation: boolean;
     }>
   >([]);
   const [selectedChallengeId, setSelectedChallengeId] = useState("");
@@ -245,7 +249,7 @@ export function DailyDistanceForm({
     (supabase as any)
       .from("scout_challenge_participants")
       .select(
-        "status,scout_challenges(id,title,proposed_points,sport,target_km,exact_distance,target_elevation,gpx_template_path,status)",
+        "status,scout_challenges(id,title,proposed_points,sport,target_km,exact_distance,target_elevation,gpx_template_path,route_validation,manual_validation,status)",
       )
       .eq("user_id", user.id)
       .eq("status", "open")
@@ -264,6 +268,9 @@ export function DailyDistanceForm({
       setSelectedChallengeId("");
     }
   }, [openChallenges, selectedChallengeId, sport]);
+  const selectedChallengeForForm = openChallenges.find(
+    (challenge) => challenge.id === selectedChallengeId,
+  );
 
   // 2. Pre-select patrol based on scout profile or default prop
   useEffect(() => {
@@ -361,7 +368,7 @@ export function DailyDistanceForm({
         toast.error("Le D+ est inférieur au minimum demandé pour ce défi.");
         return;
       }
-      if (selectedChallenge.gpx_template_path && !gpxFile) {
+      if ((selectedChallenge.gpx_template_path || selectedChallenge.route_validation) && !gpxFile) {
         toast.error("Ajoute le tracé GPX de ta sortie pour ce défi.");
         return;
       }
@@ -464,9 +471,18 @@ export function DailyDistanceForm({
           if (!gpxUploadError) {
             const { data: gpxUrlData } = supabase.storage.from("proofs").getPublicUrl(gpxFileName);
             gpxPublicUrl = gpxUrlData.publicUrl;
+          } else if (selectedChallenge?.route_validation || selectedChallenge?.gpx_template_path) {
+            toast.error("Impossible d’envoyer le GPX requis pour ce défi.");
+            setSubmitting(false);
+            return;
           }
         } catch (err) {
           console.warn("Erreur lors du traitement GPX :", err);
+          if (selectedChallenge?.route_validation || selectedChallenge?.gpx_template_path) {
+            toast.error("Impossible de préparer le GPX requis pour ce défi.");
+            setSubmitting(false);
+            return;
+          }
         }
       }
 
@@ -623,7 +639,9 @@ export function DailyDistanceForm({
       setStravaUrl("");
       setRideNote("");
       if (selectedChallengeId) {
-        setOpenChallenges((current) => current.filter((challenge) => challenge.id !== selectedChallengeId));
+        setOpenChallenges((current) =>
+          current.filter((challenge) => challenge.id !== selectedChallengeId),
+        );
         setSelectedChallengeId("");
       }
       setProofFile(null);
@@ -655,488 +673,503 @@ export function DailyDistanceForm({
 
   return (
     <>
-    <Card className={cn("overflow-hidden border-border/80 shadow-md", className)}>
-      <CardHeader className="bg-gradient-to-r from-primary/10 via-amber-500/5 to-transparent pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span
-              className={cn(
-                "grid h-10 w-10 place-items-center rounded-xl text-white shadow-sm transition-colors",
-                SPORT_COLORS[sport].solid,
-              )}
-            >
-              <SportIcon sport={sport} className="h-5 w-5" />
-            </span>
-            <div>
-              <CardTitle className="font-display text-xl font-bold">
-                {sport === "course"
-                  ? "Enregistrer une course à pied"
-                  : sport === "marche"
-                    ? "Enregistrer une marche"
-                    : title}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {sport === "course"
-                  ? "Indique tes kilomètres de course pour le classement course à pied de ta patrouille"
-                  : sport === "marche"
-                    ? "Indique tes kilomètres de marche ou de rando pour le classement marche de ta patrouille"
-                    : description}
-              </CardDescription>
-            </div>
-          </div>
-          {selectedPatrolObj && (
-            <Badge
-              variant="outline"
-              className="hidden sm:inline-flex gap-1.5 py-1 px-2.5 font-bold"
-            >
-              <span>{getPatrolEmblem(selectedPatrolObj.name)}</span>
-              <span>{selectedPatrolObj.name}</span>
-            </Badge>
-          )}
-        </div>
-
-        {/* SÉLECTEUR DU SPORT (VÉLO / COURSE À PIED / MARCHE) */}
-        <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-xl bg-muted/60 p-1 border border-border/60">
-          {(["velo", "course", "marche"] as const).map((sp) => (
-            <button
-              key={sp}
-              type="button"
-              onClick={() => setSport(sp)}
-              disabled={joiningGroup}
-              aria-pressed={sport === sp}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-lg px-1 py-2 text-xs font-black transition-all",
-                sport === sp
-                  ? cn(SPORT_COLORS[sp].solid, "shadow-sm")
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <SportIcon sport={sp} className="h-4 w-4 shrink-0" />
-              <span>{sp === "course" ? "Course à pied" : SPORT_INFO[sp].short}</span>
-            </button>
-          ))}
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-6">
-        {!user && (
-          <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 text-amber-900 font-medium">
-              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-              <span>
-                Tu n'es pas connecté. Connecte-toi ou crée ton compte scout pour que tes sorties
-                soient enregistrées dans Supabase !
-              </span>
-            </div>
-            <Button size="sm" asChild className="shrink-0 font-bold text-xs">
-              <Link to="/auth">Connexion / Inscription</Link>
-            </Button>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="patrol-select" className="text-sm font-bold flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
-                Patrouille associée <span className="text-destructive">*</span>
-              </Label>
-              <span className="text-[11px] text-muted-foreground">
-                Les kilomètres compteront pour cette patrouille
-              </span>
-            </div>
-
-            <Select
-              value={selectedPatrolId}
-              onValueChange={(val) => setSelectedPatrolId(val)}
-              disabled={loadingPatrols || submitting}
-            >
-              <SelectTrigger
-                id="patrol-select"
-                className="h-12 w-full rounded-xl border-input bg-card px-4 text-sm font-semibold shadow-xs hover:border-primary/60 transition-colors"
+      <Card className={cn("overflow-hidden border-border/80 shadow-md", className)}>
+        <CardHeader className="bg-gradient-to-r from-primary/10 via-amber-500/5 to-transparent pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={cn(
+                  "grid h-10 w-10 place-items-center rounded-xl text-white shadow-sm transition-colors",
+                  SPORT_COLORS[sport].solid,
+                )}
               >
-                <SelectValue
-                  placeholder={
-                    loadingPatrols
-                      ? "Chargement des patrouilles..."
-                      : "Sélectionner une patrouille..."
-                  }
-                />
-              </SelectTrigger>
-
-              <SelectContent className="max-h-80 rounded-xl">
-                {patrols.map((p) => {
-                  const emblem = getPatrolEmblem(p.name);
-                  const isStaff = isStaffPatrol(p);
-                  return (
-                    <SelectItem
-                      key={p.id}
-                      value={p.id}
-                      className="cursor-pointer py-2.5 pl-3 pr-2 text-sm font-medium focus:bg-accent focus:text-accent-foreground"
-                    >
-                      <div className="flex items-center justify-between w-full gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-lg leading-none">{emblem}</span>
-                          <span className="font-bold text-foreground">{p.name}</span>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] uppercase font-bold px-1.5 py-0",
-                            isStaff
-                              ? "border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300"
-                              : p.category === "femme"
-                                ? "border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-300"
-                                : "border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300",
-                          )}
-                        >
-                          {isStaff ? "Staff" : p.category === "femme" ? "Filles" : "Garçons"}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-
+                <SportIcon sport={sport} className="h-5 w-5" />
+              </span>
+              <div>
+                <CardTitle className="font-display text-xl font-bold">
+                  {sport === "course"
+                    ? "Enregistrer une course à pied"
+                    : sport === "marche"
+                      ? "Enregistrer une marche"
+                      : title}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {sport === "course"
+                    ? "Indique tes kilomètres de course pour le classement course à pied de ta patrouille"
+                    : sport === "marche"
+                      ? "Indique tes kilomètres de marche ou de rando pour le classement marche de ta patrouille"
+                      : description}
+                </CardDescription>
+              </div>
+            </div>
             {selectedPatrolObj && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                <span>
-                  Cette sortie sera créditée au compteur des{" "}
-                  <strong className="text-foreground">{selectedPatrolObj.name}</strong> au
-                  classement général.
-                </span>
-              </p>
+              <Badge
+                variant="outline"
+                className="hidden sm:inline-flex gap-1.5 py-1 px-2.5 font-bold"
+              >
+                <span>{getPatrolEmblem(selectedPatrolObj.name)}</span>
+                <span>{selectedPatrolObj.name}</span>
+              </Badge>
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="distance-km" className="text-sm font-bold flex items-center gap-2">
-                <SportIcon sport={sport} className={cn("h-4 w-4", SPORT_COLORS[sport].text)} />
-                {sport === "course"
-                  ? "Distance courue à pied (km)"
-                  : sport === "marche"
-                    ? "Distance marchée (km)"
-                    : "Distance parcourue à vélo (km)"}{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="distance-km"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="1000"
-                  placeholder={
-                    sport === "velo" ? "ex: 15.5" : sport === "marche" ? "ex: 6" : "ex: 7.5"
-                  }
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  className="h-12 rounded-xl text-lg font-black pl-4 pr-12 shadow-xs"
-                  required
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                  KM
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[10px] font-semibold text-muted-foreground mr-1">
-                  Rapide :
-                </span>
-                {(sport === "course"
-                  ? PRESET_DISTANCES_COURSE
-                  : sport === "marche"
-                    ? PRESET_DISTANCES_MARCHE
-                    : PRESET_DISTANCES_VELO
-                ).map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => handleSetDistance(preset)}
-                    className={cn(
-                      "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
-                      sport === "course"
-                        ? "border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-200 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
-                        : sport === "marche"
-                          ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-200 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300"
-                          : "border-border bg-muted/40 text-foreground hover:bg-primary/20 hover:border-primary",
-                    )}
-                  >
-                    {preset} km
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ride-date" className="text-sm font-bold flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                {sport === "course"
-                  ? "Date de la course"
-                  : sport === "marche"
-                    ? "Date de la marche"
-                    : "Date de la sortie"}{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="ride-date"
-                type="date"
-                value={rideDate}
-                onChange={(e) => setRideDate(e.target.value)}
+          {/* SÉLECTEUR DU SPORT (VÉLO / COURSE À PIED / MARCHE) */}
+          <div className="mt-4 grid grid-cols-3 gap-1.5 rounded-xl bg-muted/60 p-1 border border-border/60">
+            {(["velo", "course", "marche"] as const).map((sp) => (
+              <button
+                key={sp}
+                type="button"
+                onClick={() => setSport(sp)}
                 disabled={joiningGroup}
-                className="h-12 rounded-xl shadow-xs"
-                min={CHALLENGE_START}
-                max={new Date().toISOString().slice(0, 10)}
-                required
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Par défaut : aujourd&apos;hui (modifiable si la sortie date d&apos;hier). Seules les
-                sorties depuis le {CHALLENGE_START_LABEL} comptent.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="elevation-m" className="text-sm font-bold flex items-center gap-2">
-              <Mountain className="h-4 w-4 text-red-600" />
-              Dénivelé positif (D+){" "}
-              <span className="text-xs font-normal text-muted-foreground">facultatif</span>
-            </Label>
-            <div className="relative sm:max-w-[calc(50%-0.5rem)]">
-              <Input
-                id="elevation-m"
-                type="number"
-                inputMode="numeric"
-                step="1"
-                min="0"
-                max="20000"
-                placeholder="ex: 350"
-                value={elevationM}
-                onChange={(e) => setElevationM(e.target.value)}
-                className="h-12 rounded-xl text-lg font-bold pl-4 pr-12 shadow-xs"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                M
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Visible sur Strava ou ta montre (« dénivelé » / « elevation gain »). Compte pour le
-              maillot à pois.
-            </p>
-          </div>
-
-          {openChallenges.filter((c) => c.sport === sport).length > 0 && (
-            <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <Label className="font-bold">Cette sortie réalise un défi ?</Label>
-              <Select
-                value={selectedChallengeId || "none"}
-                onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}
+                aria-pressed={sport === sp}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg px-1 py-2 text-xs font-black transition-all",
+                  sport === sp
+                    ? cn(SPORT_COLORS[sp].solid, "shadow-sm")
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir un défi (facultatif)" />
+                <SportIcon sport={sp} className="h-4 w-4 shrink-0" />
+                <span>{sp === "course" ? "Course à pied" : SPORT_INFO[sp].short}</span>
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-6">
+          {!user && (
+            <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-amber-900 font-medium">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+                <span>
+                  Tu n'es pas connecté. Connecte-toi ou crée ton compte scout pour que tes sorties
+                  soient enregistrées dans Supabase !
+                </span>
+              </div>
+              <Button size="sm" asChild className="shrink-0 font-bold text-xs">
+                <Link to="/auth">Connexion / Inscription</Link>
+              </Button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="patrol-select"
+                  className="text-sm font-bold flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4 text-primary" />
+                  Patrouille associée <span className="text-destructive">*</span>
+                </Label>
+                <span className="text-[11px] text-muted-foreground">
+                  Les kilomètres compteront pour cette patrouille
+                </span>
+              </div>
+
+              <Select
+                value={selectedPatrolId}
+                onValueChange={(val) => setSelectedPatrolId(val)}
+                disabled={loadingPatrols || submitting}
+              >
+                <SelectTrigger
+                  id="patrol-select"
+                  className="h-12 w-full rounded-xl border-input bg-card px-4 text-sm font-semibold shadow-xs hover:border-primary/60 transition-colors"
+                >
+                  <SelectValue
+                    placeholder={
+                      loadingPatrols
+                        ? "Chargement des patrouilles..."
+                        : "Sélectionner une patrouille..."
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun défi</SelectItem>
-                  {openChallenges
-                    .filter((c) => c.sport === sport)
-                    .map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.title} · {c.proposed_points} pts · {c.gpx_template_path
-                          ? "tracé GPX"
-                          : [
-                              c.target_km !== null
-                                ? `${c.exact_distance ? "exactement" : "≥"} ${c.target_km} km`
-                                : null,
-                              c.target_elevation !== null ? `≥ ${c.target_elevation} m D+` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" + ")}
+
+                <SelectContent className="max-h-80 rounded-xl">
+                  {patrols.map((p) => {
+                    const emblem = getPatrolEmblem(p.name);
+                    const isStaff = isStaffPatrol(p);
+                    return (
+                      <SelectItem
+                        key={p.id}
+                        value={p.id}
+                        className="cursor-pointer py-2.5 pl-3 pr-2 text-sm font-medium focus:bg-accent focus:text-accent-foreground"
+                      >
+                        <div className="flex items-center justify-between w-full gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-lg leading-none">{emblem}</span>
+                            <span className="font-bold text-foreground">{p.name}</span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] uppercase font-bold px-1.5 py-0",
+                              isStaff
+                                ? "border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300"
+                                : p.category === "femme"
+                                  ? "border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-300"
+                                  : "border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300",
+                            )}
+                          >
+                            {isStaff ? "Staff" : p.category === "femme" ? "Filles" : "Garçons"}
+                          </Badge>
+                        </div>
                       </SelectItem>
-                    ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Les critères sont vérifiés à l’enregistrement. Les points sont attribués au
-                premier scout dont la sortie est validée. Le staff valide les défis GPX.
-              </p>
-            </div>
-          )}
 
-          <GroupRidePicker
-            key={pickerKey}
-            userId={user?.id}
-            value={groupChoice}
-            onChange={handleGroupChoice}
-          />
-
-          <div className="space-y-3 rounded-xl border border-border/70 bg-card/60 p-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                Preuve de la sortie
-              </Label>
-              <div className="flex rounded-lg bg-muted p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("strava")}
-                  className={cn(
-                    "rounded-md px-3 py-1 font-semibold transition-all",
-                    activeTab === "strava"
-                      ? "bg-card text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Lien Strava
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("photo")}
-                  className={cn(
-                    "rounded-md px-3 py-1 font-semibold transition-all",
-                    activeTab === "photo"
-                      ? "bg-card text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Photo compteur
-                </button>
-              </div>
-            </div>
-
-            {activeTab === "strava" ? (
-              <div className="space-y-1.5">
-                <div className="relative">
-                  <ExternalLink className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-500" />
-                  <Input
-                    placeholder="https://www.strava.com/activities/123456789..."
-                    value={stravaUrl}
-                    onChange={(e) => setStravaUrl(e.target.value)}
-                    className="h-10 pl-10 text-xs rounded-lg"
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                  Les sorties certifiées Strava sont <strong>validées automatiquement</strong>.
+              {selectedPatrolObj && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span>
+                    Cette sortie sera créditée au compteur des{" "}
+                    <strong className="text-foreground">{selectedPatrolObj.name}</strong> au
+                    classement général.
+                  </span>
                 </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
-                    <Upload className="h-4 w-4 text-primary" />
-                    <span>
-                      {proofFile
-                        ? proofFile.name
-                        : "Importer une photo de compteur / capture d'appli"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                  {proofPreview && (
-                    <img
-                      src={proofPreview}
-                      alt="Aperçu justificatif"
-                      className="h-12 w-12 rounded-lg object-cover border border-border shrink-0 shadow-xs"
-                    />
-                  )}
-                </div>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-amber-500 shrink-0" />
-                  Les photos sont soumises à une rapide validation par le staff.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* CHAMP OPTIONNEL GPX POUR LA CARTE DE LA TROUPE */}
-          <div className="space-y-2 rounded-xl border border-border/70 bg-card/60 p-4">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-primary" />
-              Fichier GPX du parcours (Optionnel pour la carte de la troupe)
-            </Label>
-            <div className="flex items-center gap-3">
-              <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
-                <Upload className="h-4 w-4 text-primary" />
-                <span>{gpxFile ? gpxFile.name : "Ajouter un fichier .gpx (optionnel)"}</span>
-                <input
-                  type="file"
-                  accept=".gpx,application/gpx+xml"
-                  className="hidden"
-                  onChange={handleGpxChange}
-                />
-              </label>
-              {gpxFile && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setGpxFile(null)}
-                  className="text-xs text-destructive hover:bg-destructive/10"
-                >
-                  Retirer
-                </Button>
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              🔒 <strong>Vie privée :</strong> Les 200 premiers et derniers mètres de ton tracé GPX
-              seront automatiquement rognés pour masquer ton départ et ton arrivée.
-            </p>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="ride-note" className="text-xs font-semibold text-muted-foreground">
-              Commentaire ou parcours (optionnel)
-            </Label>
-            <Input
-              id="ride-note"
-              placeholder="Ex: Aller-retour forêt du Pilat, vent de face..."
-              value={rideNote}
-              onChange={(e) => setRideNote(e.target.value)}
-              className="h-10 text-xs rounded-lg"
-            />
-          </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="distance-km" className="text-sm font-bold flex items-center gap-2">
+                  <SportIcon sport={sport} className={cn("h-4 w-4", SPORT_COLORS[sport].text)} />
+                  {sport === "course"
+                    ? "Distance courue à pied (km)"
+                    : sport === "marche"
+                      ? "Distance marchée (km)"
+                      : "Distance parcourue à vélo (km)"}{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="distance-km"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    max="1000"
+                    placeholder={
+                      sport === "velo" ? "ex: 15.5" : sport === "marche" ? "ex: 6" : "ex: 7.5"
+                    }
+                    value={distanceKm}
+                    onChange={(e) => setDistanceKm(e.target.value)}
+                    className="h-12 rounded-xl text-lg font-black pl-4 pr-12 shadow-xs"
+                    required
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    KM
+                  </span>
+                </div>
 
-          <Button
-            type="submit"
-            disabled={submitting}
-            size="lg"
-            className={cn(
-              "h-auto min-h-11 w-full whitespace-normal rounded-xl py-3 font-display font-black text-sm sm:text-base shadow-md gap-2 transition-all",
-              sport === "course"
-                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : sport === "marche"
-                  ? "bg-sky-600 hover:bg-sky-700 text-white"
-                  : "bg-primary hover:bg-primary/90 text-primary-foreground",
-            )}
-          >
-            {submitting ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Enregistrement en cours...</span>
-              </>
-            ) : (
-              <>
-                <SportIcon sport={sport} className="h-5 w-5 shrink-0" />
-                <span className="text-center">
-                  Ajouter {distanceKm ? `${distanceKm} km` : "mes kilomètres"} de{" "}
-                  {SPORT_INFO[sport].short.toLowerCase()} à{" "}
-                  {selectedPatrolObj ? selectedPatrolObj.name : "ma patrouille"}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground mr-1">
+                    Rapide :
+                  </span>
+                  {(sport === "course"
+                    ? PRESET_DISTANCES_COURSE
+                    : sport === "marche"
+                      ? PRESET_DISTANCES_MARCHE
+                      : PRESET_DISTANCES_VELO
+                  ).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handleSetDistance(preset)}
+                      className={cn(
+                        "rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors",
+                        sport === "course"
+                          ? "border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-200 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300"
+                          : sport === "marche"
+                            ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-200 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300"
+                            : "border-border bg-muted/40 text-foreground hover:bg-primary/20 hover:border-primary",
+                      )}
+                    >
+                      {preset} km
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ride-date" className="text-sm font-bold flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  {sport === "course"
+                    ? "Date de la course"
+                    : sport === "marche"
+                      ? "Date de la marche"
+                      : "Date de la sortie"}{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="ride-date"
+                  type="date"
+                  value={rideDate}
+                  onChange={(e) => setRideDate(e.target.value)}
+                  disabled={joiningGroup}
+                  className="h-12 rounded-xl shadow-xs"
+                  min={CHALLENGE_START}
+                  max={new Date().toISOString().slice(0, 10)}
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Par défaut : aujourd&apos;hui (modifiable si la sortie date d&apos;hier). Seules
+                  les sorties depuis le {CHALLENGE_START_LABEL} comptent.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="elevation-m" className="text-sm font-bold flex items-center gap-2">
+                <Mountain className="h-4 w-4 text-red-600" />
+                Dénivelé positif (D+){" "}
+                <span className="text-xs font-normal text-muted-foreground">facultatif</span>
+              </Label>
+              <div className="relative sm:max-w-[calc(50%-0.5rem)]">
+                <Input
+                  id="elevation-m"
+                  type="number"
+                  inputMode="numeric"
+                  step="1"
+                  min="0"
+                  max="20000"
+                  placeholder="ex: 350"
+                  value={elevationM}
+                  onChange={(e) => setElevationM(e.target.value)}
+                  className="h-12 rounded-xl text-lg font-bold pl-4 pr-12 shadow-xs"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                  M
                 </span>
-                <ArrowRight className="h-4 w-4" />
-              </>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Visible sur Strava ou ta montre (« dénivelé » / « elevation gain »). Compte pour le
+                maillot à pois.
+              </p>
+            </div>
+
+            {openChallenges.filter((c) => c.sport === sport).length > 0 && (
+              <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <Label className="font-bold">Cette sortie réalise un défi ?</Label>
+                <Select
+                  value={selectedChallengeId || "none"}
+                  onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un défi (facultatif)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun défi</SelectItem>
+                    {openChallenges
+                      .filter((c) => c.sport === sport)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title} · {c.proposed_points} pts ·{" "}
+                          {c.gpx_template_path || c.route_validation
+                            ? "parcours à tracer"
+                            : [
+                                c.target_km !== null
+                                  ? `${c.exact_distance ? "exactement" : "≥"} ${c.target_km} km`
+                                  : null,
+                                c.target_elevation !== null ? `≥ ${c.target_elevation} m D+` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" + ")}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Les critères sont vérifiés à l’enregistrement. Les points sont attribués au
+                  premier scout dont la sortie est validée. Pour les défis de parcours, joins le GPX
+                  de ta sortie : le staff vérifie la consigne.
+                </p>
+              </div>
             )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-    <AlezanNamePoll />
+
+            <GroupRidePicker
+              key={pickerKey}
+              userId={user?.id}
+              value={groupChoice}
+              onChange={handleGroupChoice}
+            />
+
+            <div className="space-y-3 rounded-xl border border-border/70 bg-card/60 p-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  Preuve de la sortie
+                </Label>
+                <div className="flex rounded-lg bg-muted p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("strava")}
+                    className={cn(
+                      "rounded-md px-3 py-1 font-semibold transition-all",
+                      activeTab === "strava"
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Lien Strava
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("photo")}
+                    className={cn(
+                      "rounded-md px-3 py-1 font-semibold transition-all",
+                      activeTab === "photo"
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Photo compteur
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "strava" ? (
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <ExternalLink className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-500" />
+                    <Input
+                      placeholder="https://www.strava.com/activities/123456789..."
+                      value={stravaUrl}
+                      onChange={(e) => setStravaUrl(e.target.value)}
+                      className="h-10 pl-10 text-xs rounded-lg"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                    Les sorties certifiées Strava sont <strong>validées automatiquement</strong>.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
+                      <Upload className="h-4 w-4 text-primary" />
+                      <span>
+                        {proofFile
+                          ? proofFile.name
+                          : "Importer une photo de compteur / capture d'appli"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    {proofPreview && (
+                      <img
+                        src={proofPreview}
+                        alt="Aperçu justificatif"
+                        className="h-12 w-12 rounded-lg object-cover border border-border shrink-0 shadow-xs"
+                      />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                    Les photos sont soumises à une rapide validation par le staff.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* CHAMP OPTIONNEL GPX POUR LA CARTE DE LA TROUPE */}
+            <div className="space-y-2 rounded-xl border border-border/70 bg-card/60 p-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-primary" />
+                {selectedChallengeForForm?.route_validation ||
+                selectedChallengeForForm?.gpx_template_path
+                  ? "Fichier GPX requis pour ce défi"
+                  : "Fichier GPX du parcours (optionnel pour la carte de la troupe)"}
+              </Label>
+              <div className="flex items-center gap-3">
+                <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
+                  <Upload className="h-4 w-4 text-primary" />
+                  <span>
+                    {gpxFile
+                      ? gpxFile.name
+                      : selectedChallengeForForm?.route_validation ||
+                          selectedChallengeForForm?.gpx_template_path
+                        ? "Ajouter le GPX de ta sortie"
+                        : "Ajouter un fichier .gpx (optionnel)"}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".gpx,application/gpx+xml"
+                    className="hidden"
+                    onChange={handleGpxChange}
+                  />
+                </label>
+                {gpxFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setGpxFile(null)}
+                    className="text-xs text-destructive hover:bg-destructive/10"
+                  >
+                    Retirer
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                🔒 <strong>Vie privée :</strong> Les 200 premiers et derniers mètres de ton tracé
+                GPX seront automatiquement rognés pour masquer ton départ et ton arrivée.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ride-note" className="text-xs font-semibold text-muted-foreground">
+                Commentaire ou parcours (optionnel)
+              </Label>
+              <Input
+                id="ride-note"
+                placeholder="Ex: Aller-retour forêt du Pilat, vent de face..."
+                value={rideNote}
+                onChange={(e) => setRideNote(e.target.value)}
+                className="h-10 text-xs rounded-lg"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              size="lg"
+              className={cn(
+                "h-auto min-h-11 w-full whitespace-normal rounded-xl py-3 font-display font-black text-sm sm:text-base shadow-md gap-2 transition-all",
+                sport === "course"
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : sport === "marche"
+                    ? "bg-sky-600 hover:bg-sky-700 text-white"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground",
+              )}
+            >
+              {submitting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Enregistrement en cours...</span>
+                </>
+              ) : (
+                <>
+                  <SportIcon sport={sport} className="h-5 w-5 shrink-0" />
+                  <span className="text-center">
+                    Ajouter {distanceKm ? `${distanceKm} km` : "mes kilomètres"} de{" "}
+                    {SPORT_INFO[sport].short.toLowerCase()} à{" "}
+                    {selectedPatrolObj ? selectedPatrolObj.name : "ma patrouille"}
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      <AlezanNamePoll />
     </>
   );
 }

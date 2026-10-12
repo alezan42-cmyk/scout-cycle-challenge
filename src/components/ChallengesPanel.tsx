@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Award, Bike, Info, Mountain, Send, Trophy, Upload } from "lucide-react";
+import { Award, Bike, Info, Mountain, Send, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/useAuth";
@@ -24,7 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { ActivitySport } from "@/lib/database";
-import { processAndCropGpx } from "@/lib/gpxUtils";
 
 type Scout = { id: string; full_name: string | null; totem: string | null };
 type Challenge = {
@@ -40,6 +39,7 @@ type Challenge = {
   exact_distance: boolean;
   target_elevation: number | null;
   gpx_template_path: string | null;
+  route_validation: boolean;
   winner_id: string | null;
 };
 type Participant = {
@@ -70,7 +70,7 @@ const participantLabels: Record<string, string> = {
 };
 
 function challengeCriteria(c: Challenge) {
-  if (c.gpx_template_path) return "Reproduire le tracé GPX (validation staff)";
+  if (c.route_validation || c.gpx_template_path) return "Parcours à tracer (validation staff)";
   const terms = [
     c.target_km !== null
       ? `${c.exact_distance ? "exactement" : "au moins"} ${c.target_km} km`
@@ -95,7 +95,6 @@ export function ChallengesPanel() {
   const [targetElevation, setTargetElevation] = useState("");
   const [points, setPoints] = useState("5");
   const [gpxMode, setGpxMode] = useState(false);
-  const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -175,6 +174,10 @@ export function ChallengesPanel() {
       toast.error("Indique une distance, un D+ ou les deux.");
       return;
     }
+    if (gpxMode && !description.trim()) {
+      toast.error("Décris le parcours demandé (ex. : réalise un parcours en forme de cœur).");
+      return;
+    }
     if (km !== null && (!Number.isFinite(km) || km <= 0 || km > 1000)) {
       toast.error("La distance doit être comprise entre 0,1 et 1000 km.");
       return;
@@ -186,27 +189,7 @@ export function ChallengesPanel() {
       toast.error("Le D+ doit être compris entre 1 et 20 000 m.");
       return;
     }
-    if (gpxMode && !gpxFile) {
-      toast.error("Ajoute le tracé GPX à reproduire.");
-      return;
-    }
     setBusy(true);
-    let gpxPath: string | null = null;
-    if (gpxMode && gpxFile) {
-      gpxPath = `${user.id}_challenge_${Date.now()}.gpx`;
-      const cropped = await processAndCropGpx(gpxFile);
-      const { error } = await supabase.storage
-        .from("proofs")
-        .upload(gpxPath, new Blob([cropped], { type: "application/gpx+xml" }), {
-          contentType: "application/gpx+xml",
-          upsert: false,
-        });
-      if (error) {
-        setBusy(false);
-        toast.error("Impossible d’envoyer le tracé GPX.");
-        return;
-      }
-    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).rpc("create_scout_challenge", {
       _title: title.trim(),
@@ -216,11 +199,10 @@ export function ChallengesPanel() {
       _target_km: gpxMode ? null : km,
       _exact_distance: gpxMode ? false : km !== null && exactDistance,
       _target_elevation: gpxMode ? null : elevation,
-      _gpx_template_path: gpxPath,
+      _gpx_template_path: null,
       _participant_ids: selectedScouts,
     });
     if (error) {
-      if (gpxPath) await supabase.storage.from("proofs").remove([gpxPath]);
       setBusy(false);
       toast.error(
         error.message?.includes("challenge") ? "Impossible de lancer ce défi." : error.message,
@@ -237,7 +219,6 @@ export function ChallengesPanel() {
     setTargetElevation("");
     setExactDistance(false);
     setGpxMode(false);
-    setGpxFile(null);
     await load();
   };
 
@@ -398,31 +379,24 @@ export function ChallengesPanel() {
                   variant={gpxMode ? "default" : "outline"}
                   onClick={() => setGpxMode(true)}
                 >
-                  Tracé GPX
+                  Parcours à tracer
                 </Button>
               </div>
               {gpxMode ? (
                 <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-                  <Label>Tracé GPX à reproduire</Label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-3 text-sm">
-                    <Upload className="h-4 w-4" />
-                    {gpxFile?.name || "Choisir un fichier .gpx"}
-                    <input
-                      type="file"
-                      accept=".gpx,application/gpx+xml"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file && !file.name.toLowerCase().endsWith(".gpx")) {
-                          toast.error("Choisis un fichier .gpx.");
-                          return;
-                        }
-                        setGpxFile(file || null);
-                      }}
-                    />
-                  </label>
+                  <Label htmlFor="challenge-route-prompt">Consigne du parcours</Label>
+                  <Textarea
+                    id="challenge-route-prompt"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    required
+                    placeholder="Ex. : réalise un parcours en forme de cœur."
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Le staff comparera le tracé soumis à celui-ci et validera le défi.
+                    Aucun GPX modèle n’est nécessaire. Le scout joindra le GPX de sa sortie et le
+                    staff vérifiera qu’il suit la consigne.
                   </p>
                 </div>
               ) : (
@@ -477,15 +451,17 @@ export function ChallengesPanel() {
                   </p>
                 </div>
               )}
-              <div className="space-y-2">
-                <Label>Description (facultative)</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={500}
-                  rows={2}
-                />
-              </div>
+              {!gpxMode && (
+                <div className="space-y-2">
+                  <Label>{gpxMode ? "Consigne du parcours" : "Description (facultative)"}</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                    rows={2}
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Points proposés</Label>
                 <Input
@@ -589,6 +565,8 @@ export function ChallengesBanner() {
                 <p className="text-xs text-muted-foreground">
                   {sportNames[challenge.sport]} · {challengeCriteria(challenge)}
                 </p>
+                {(challenge.route_validation || challenge.gpx_template_path) &&
+                  challenge.description && <p className="mt-1 text-xs">{challenge.description}</p>}
                 <p className="text-sm font-bold text-amber-700">
                   {challenge.proposed_points} pts ·{" "}
                   {status === "submitted" ? "sortie en vérification" : "à réaliser"}
@@ -623,8 +601,8 @@ export function ChallengesBanner() {
               </span>
               <span className="block">
                 Les sorties validées qui respectent ces critères attribuent automatiquement les
-                points au premier participant. Pour un défi GPX, le staff compare le tracé et valide
-                les points.
+                points au premier participant. Pour un défi de parcours, le scout joint le GPX de sa
+                sortie et le staff vérifie qu’il suit la consigne.
               </span>
             </DialogDescription>
           </DialogHeader>
