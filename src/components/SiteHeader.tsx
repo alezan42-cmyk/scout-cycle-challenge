@@ -132,7 +132,7 @@ export function SiteHeader() {
                 Défi Vélo
               </span>
             </div>
-            <p className="text-[11px] text-amber-300/80 font-medium tracking-wide leading-none hidden sm:block">
+            <p className="text-[10px] text-amber-300/80 font-medium tracking-wide leading-none sm:text-[11px]">
               by Aquila 🦅
             </p>
           </div>

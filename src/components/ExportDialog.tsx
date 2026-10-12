@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { getActivitySport, type Patrol } from "@/lib/database";
+import { isStaffPatrol } from "@/lib/categories";
 import {
   generatePdf,
   formatDateSlash,
@@ -83,6 +84,16 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [withRecap, setWithRecap] = useState(true);
+  const nonStaffPatrolIds = useMemo(
+    () => new Set(patrols.filter((patrol) => !isStaffPatrol(patrol)).map((patrol) => patrol.id)),
+    [patrols],
+  );
+
+  const matchesPatrolFilter = (patrolId?: string | null) => {
+    if (patrolFilter === "all") return true;
+    if (patrolFilter === "non-staff") return !!patrolId && nonStaffPatrolIds.has(patrolId);
+    return patrolId === patrolFilter;
+  };
 
   // Champs "profils"
   const [fields, setFields] = useState<Record<ProfileFieldKey, boolean>>({
@@ -98,7 +109,9 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
   const patrolLabel =
     patrolFilter === "all"
       ? "Toutes les patrouilles"
-      : `Patrouille : ${patrols.find((p) => p.id === patrolFilter)?.name ?? "?"}`;
+      : patrolFilter === "non-staff"
+        ? "Patrouilles non-staff uniquement"
+        : `Patrouille : ${patrols.find((p) => p.id === patrolFilter)?.name ?? "?"}`;
 
   const titlePreview = useMemo(
     () =>
@@ -130,7 +143,7 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
         });
 
         const rows = all.filter((r) => {
-          if (patrolFilter !== "all" && r.profiles?.patrol_id !== patrolFilter) return false;
+          if (!matchesPatrolFilter(r.profiles?.patrol_id)) return false;
           if (sport !== "all" && getActivitySport(r as never) !== sport) return false;
           return true;
         });
@@ -166,7 +179,7 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
         const all = await fetchAllPages<any>((from, to) =>
           supabase.from("profiles").select("*").order("id").range(from, to),
         );
-        const rows = all.filter((p) => patrolFilter === "all" || p.patrol_id === patrolFilter);
+        const rows = all.filter((p) => matchesPatrolFilter(p.patrol_id));
 
         if (rows.length === 0) {
           toast.error("Aucun membre ne correspond à ce filtre.");
@@ -223,6 +236,7 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les patrouilles</SelectItem>
+                <SelectItem value="non-staff">Patrouilles non-staff uniquement</SelectItem>
                 {patrols.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -319,8 +333,8 @@ export function ExportDialog({ open, onOpenChange, patrols }: Props) {
                 ))}
               </div>
               <p className="pt-1 text-[11px] text-muted-foreground">
-                Email et téléphone sont des données personnelles : ne diffuse pas ce PDF en dehors
-                de le staff.
+                Email, téléphone et date de naissance sont des données personnelles : ne diffuse pas
+                ce PDF en dehors du staff.
               </p>
             </div>
           )}
