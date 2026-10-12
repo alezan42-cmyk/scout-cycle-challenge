@@ -16,7 +16,8 @@ import { SportBadge } from "@/components/SportIcon";
 import { CumulativeDistanceLevels } from "@/components/DistanceTrophies";
 import { supabase } from "@/integrations/supabase/client";
 import { SPORT_INFO, getActivitySport, type ActivitySport } from "@/lib/database";
-import { DISTANCE_TROPHIES, getBestSingleActivityDistances } from "@/lib/distanceTrophies";
+import { getBestSingleActivityDistances } from "@/lib/distanceTrophies";
+import { useDistanceAwards } from "@/lib/useDistanceAwards";
 
 export const Route = createFileRoute("/scout/$scoutId")({
   ssr: false,
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/scout/$scoutId")({
 
 type ScoutProfile = {
   id: string;
+  full_name: string | null;
   totem: string | null;
   quali: string | null;
   scout_year: number | null;
@@ -65,6 +67,7 @@ function SportIcon({ sport }: { sport: ActivitySport }) {
 
 function ScoutProfilePage() {
   const { scoutId } = Route.useParams();
+  const { thresholds } = useDistanceAwards();
   const [profile, setProfile] = useState<ScoutProfile | null>(null);
   const [patrolName, setPatrolName] = useState<string | null>(null);
   const [patrolMemberCount, setPatrolMemberCount] = useState<number | null>(null);
@@ -80,7 +83,7 @@ function ScoutProfilePage() {
       const [profileResult, activityResult] = (await Promise.all([
         supabase
           .from("profiles_public")
-          .select("id,totem,quali,scout_year,patrol_id")
+          .select("id,full_name,totem,quali,scout_year,patrol_id")
           .eq("id", scoutId)
           .maybeSingle(),
         supabase
@@ -134,14 +137,14 @@ function ScoutProfilePage() {
 
   const earnedBadges = useMemo(() => {
     const best = getBestSingleActivityDistances(activities);
-    return (Object.keys(DISTANCE_TROPHIES) as ActivitySport[]).flatMap((sport) =>
-      DISTANCE_TROPHIES[sport].filter((km) => best[sport] >= km).map((km) => ({ sport, km })),
+    return (Object.keys(thresholds.single_ride) as ActivitySport[]).flatMap((sport) =>
+      thresholds.single_ride[sport].filter((km) => best[sport] >= km).map((km) => ({ sport, km })),
     );
-  }, [activities]);
+  }, [activities, thresholds]);
 
   const displayName = profile?.totem
     ? `${profile.totem}${profile.quali ? ` ${profile.quali}` : ""}`
-    : "Scout";
+    : profile?.full_name || "Scout";
 
   if (loading) {
     return (
