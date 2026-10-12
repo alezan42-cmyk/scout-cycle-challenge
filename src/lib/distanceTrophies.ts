@@ -18,11 +18,14 @@ export function getBestSingleActivityDistances(activities: DistanceActivity[]) {
   return best;
 }
 
-export function getNextDistanceTrophy(activities: DistanceActivity[]) {
+export function getNextDistanceTrophy(
+  activities: DistanceActivity[],
+  trophies: Record<ActivitySport, number[]> = DISTANCE_TROPHIES,
+) {
   const best = getBestSingleActivityDistances(activities);
   const next = (Object.keys(DISTANCE_TROPHIES) as ActivitySport[])
     .flatMap((sport) =>
-      DISTANCE_TROPHIES[sport]
+      trophies[sport]
         .filter((km) => best[sport] < km)
         .map((km) => ({ sport, km, total: best[sport], progress: best[sport] / km })),
     )

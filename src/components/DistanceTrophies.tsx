@@ -3,17 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SPORT_INFO, type ActivitySport } from "@/lib/database";
 import {
-  DISTANCE_TROPHIES,
   getBestSingleActivityDistances,
   getNextDistanceTrophy,
   type DistanceActivity,
 } from "@/lib/distanceTrophies";
 import {
-  CUMULATIVE_DISTANCE_LEVELS,
   type CumulativeDistanceActivity,
   getCumulativeDistanceTotals,
   getDistanceLevel,
 } from "@/lib/distanceLevels";
+import { useDistanceAwards } from "@/lib/useDistanceAwards";
 
 const icons = { velo: Bike, course: Footprints, marche: PersonStanding };
 const colors: Record<ActivitySport, string> = {
@@ -29,7 +28,8 @@ export function NearestDistanceTrophy({
   activities: DistanceActivity[];
   compact?: boolean;
 }) {
-  const next = getNextDistanceTrophy(activities);
+  const { thresholds } = useDistanceAwards();
+  const next = getNextDistanceTrophy(activities, thresholds.single_ride);
   if (!next) return null;
   const Icon = icons[next.sport];
   const percent = Math.min(100, Math.round((next.total / next.km) * 100));
@@ -63,6 +63,7 @@ export function NearestDistanceTrophy({
 }
 
 export function DistanceTrophyCollection({ activities }: { activities: DistanceActivity[] }) {
+  const { thresholds } = useDistanceAwards();
   const best = getBestSingleActivityDistances(activities);
   return (
     <Card>
@@ -76,7 +77,7 @@ export function DistanceTrophyCollection({ activities }: { activities: DistanceA
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
-        {(Object.keys(DISTANCE_TROPHIES) as ActivitySport[]).map((sport) => {
+        {(Object.keys(thresholds.single_ride) as ActivitySport[]).map((sport) => {
           const Icon = icons[sport];
           return (
             <section key={sport} className="space-y-2">
@@ -88,7 +89,7 @@ export function DistanceTrophyCollection({ activities }: { activities: DistanceA
                 </span>
               </h3>
               <div className="flex flex-wrap gap-2">
-                {DISTANCE_TROPHIES[sport].map((km) => {
+                {thresholds.single_ride[sport].map((km) => {
                   const earned = best[sport] >= km;
                   const percent = Math.min(100, Math.round((best[sport] / km) * 100));
                   return (
@@ -127,6 +128,7 @@ export function CumulativeDistanceLevels({
   activities: CumulativeDistanceActivity[];
   compact?: boolean;
 }) {
+  const { thresholds } = useDistanceAwards();
   const totals = getCumulativeDistanceTotals(activities);
   return (
     <Card>
@@ -142,10 +144,14 @@ export function CumulativeDistanceLevels({
         </CardHeader>
       )}
       <CardContent className={compact ? "space-y-3 p-3" : "space-y-4"}>
-        {(Object.keys(CUMULATIVE_DISTANCE_LEVELS) as ActivitySport[]).map((sport) => {
+        {(Object.keys(thresholds.cumulative) as ActivitySport[]).map((sport) => {
           const Icon = icons[sport];
           const total = totals[sport];
-          const { level, nextThreshold, progress } = getDistanceLevel(total, sport);
+          const { level, nextThreshold, progress } = getDistanceLevel(
+            total,
+            sport,
+            thresholds.cumulative,
+          );
           return (
             <div key={sport} className="rounded-xl border p-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -177,7 +183,7 @@ export function CumulativeDistanceLevels({
                 </>
               ) : (
                 <p className="mt-1 text-xs font-semibold text-primary">
-                  Palier maximum atteint ({CUMULATIVE_DISTANCE_LEVELS[sport].at(-1)} km)
+                  Palier maximum atteint ({thresholds.cumulative[sport].at(-1)} km)
                 </p>
               )}
             </div>
@@ -189,14 +195,15 @@ export function CumulativeDistanceLevels({
 }
 
 export function CumulativeDistanceBadges({ totals }: { totals: Record<ActivitySport, number> }) {
-  const sports = (Object.keys(CUMULATIVE_DISTANCE_LEVELS) as ActivitySport[]).filter(
+  const { thresholds } = useDistanceAwards();
+  const sports = (Object.keys(thresholds.cumulative) as ActivitySport[]).filter(
     (sport) => totals[sport] > 0,
   );
   if (!sports.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5" aria-label="Paliers de distance cumulée">
       {sports.map((sport) => {
-        const { level } = getDistanceLevel(totals[sport], sport);
+        const { level } = getDistanceLevel(totals[sport], sport, thresholds.cumulative);
         return (
           <Badge key={sport} variant="outline" className="text-[10px]">
             {SPORT_INFO[sport].short} · {level > 0 ? `Palier ${level}` : "En progression"}

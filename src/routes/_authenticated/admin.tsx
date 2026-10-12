@@ -51,6 +51,8 @@ import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifA
 import { SportBadge } from "@/components/SportIcon";
 import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
 import { AdminChallenges } from "@/components/AdminChallenges";
+import { AdminDistanceAwards } from "@/components/AdminDistanceAwards";
+import { ChallengesPanel } from "@/components/ChallengesPanel";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -397,7 +399,7 @@ function Admin() {
             </TabsTrigger>
             <TabsTrigger value="challenges" className={TAB_TRIGGER}>
               <Award className="h-4 w-4" />
-              Défis
+              Défis & trophées
             </TabsTrigger>
             <TabsTrigger value="countdown" className={TAB_TRIGGER}>
               <Clock className="h-4 w-4" />
@@ -557,7 +559,14 @@ function Admin() {
           </TabsContent>
 
           <TabsContent value="challenges" className="space-y-6">
+            <h2 className="font-display text-lg font-bold">Créer un défi</h2>
+            <ChallengesPanel />
+            <h2 className="font-display text-lg font-bold">
+              Gérer les défis en cours et les validations
+            </h2>
             <AdminChallenges />
+            <h2 className="font-display text-lg font-bold">Trophées et paliers de distance</h2>
+            <AdminDistanceAwards />
           </TabsContent>
 
           {/* Tab 3: Countdowns Management */}

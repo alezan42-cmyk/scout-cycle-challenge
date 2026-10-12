@@ -23,8 +23,12 @@ export function getCumulativeDistanceTotals(activities: CumulativeDistanceActivi
   return totals;
 }
 
-export function getDistanceLevel(distanceKm: number, sport: ActivitySport) {
-  const thresholds = CUMULATIVE_DISTANCE_LEVELS[sport];
+export function getDistanceLevel(
+  distanceKm: number,
+  sport: ActivitySport,
+  levels: Record<ActivitySport, number[]> = CUMULATIVE_DISTANCE_LEVELS,
+) {
+  const thresholds = levels[sport];
   const level = thresholds.filter((threshold) => distanceKm >= threshold).length;
   const nextThreshold = thresholds[level] ?? null;
   const previousThreshold = thresholds[level - 1] ?? 0;
