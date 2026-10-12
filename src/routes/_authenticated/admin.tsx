@@ -325,8 +325,8 @@ function Admin() {
       setCdDate("2026-11-15T18:00");
       setCdActive(false);
       load();
-    } catch (err: any) {
-      toast.error("Erreur : " + (err.message || err));
+    } catch (err: unknown) {
+      toast.error("Erreur : " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -404,7 +404,7 @@ function Admin() {
             </TabsTrigger>
             <TabsTrigger value="scouts" className={TAB_TRIGGER}>
               <Users className="h-4 w-4" />
-              Membres
+              Membres ({profiles.length})
             </TabsTrigger>
             <TabsTrigger value="fetes" className={TAB_TRIGGER}>
               <Palette className="h-4 w-4" />

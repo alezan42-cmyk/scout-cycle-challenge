@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   Shield,
@@ -12,6 +12,7 @@ import {
   Sparkles,
   Mail,
   Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -46,12 +47,41 @@ export function AdminUserList({
   currentUserId,
   currentUserEmail,
 }: AdminUserListProps) {
+  const [sortBy, setSortBy] = useState<"patrol" | "name" | "totem">("patrol");
+  const [newMemberIds, setNewMemberIds] = useState<string[]>([]);
+  const initialMembersTracked = useRef(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admins" | "scouts">("all");
   const [patrolFilter, setPatrolFilter] = useState<string>("all");
   const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
   const [adminEmailInput, setAdminEmailInput] = useState("");
   const [addingEmail, setAddingEmail] = useState(false);
+
+  useEffect(() => {
+    if (initialMembersTracked.current || profiles.length === 0) return;
+    initialMembersTracked.current = true;
+
+    const storageKey = "alezan-admin-members-last-seen-at";
+    const now = Date.now();
+    try {
+      const storedLastSeenAt = Number(window.localStorage.getItem(storageKey));
+      const lastSeenAt =
+        Number.isFinite(storedLastSeenAt) && storedLastSeenAt > 0
+          ? storedLastSeenAt
+          : now - 30 * 24 * 60 * 60 * 1000;
+      setNewMemberIds(
+        profiles
+          .filter((profile) => {
+            const createdAt = Date.parse(profile.created_at);
+            return Number.isFinite(createdAt) && createdAt > lastSeenAt && createdAt <= now;
+          })
+          .map((profile) => profile.id),
+      );
+      window.localStorage.setItem(storageKey, String(now));
+    } catch {
+      // Le tri et la gestion restent utilisables si le stockage local est indisponible.
+    }
+  }, [profiles]);
 
   // Map patrol names
   const patrolMap = useMemo(() => {
@@ -214,7 +244,7 @@ export function AdminUserList({
 
   // Filter profiles
   const filteredProfiles = useMemo(() => {
-    return profiles.filter((p) => {
+    const filtered = profiles.filter((p) => {
       const isAdm = isUserAdmin(p);
 
       // Role filter
@@ -241,7 +271,37 @@ export function AdminUserList({
 
       return true;
     });
-  }, [profiles, search, roleFilter, patrolFilter, patrolMap, isUserAdmin]);
+
+    return filtered.sort((a, b) => {
+      const aIsNew = newMemberIds.includes(a.id);
+      const bIsNew = newMemberIds.includes(b.id);
+      if (aIsNew !== bIsNew) return aIsNew ? -1 : 1;
+
+      const compareNullable = (
+        left: string | null | undefined,
+        right: string | null | undefined,
+      ) => {
+        if (!left && !right) return 0;
+        if (!left) return 1;
+        if (!right) return -1;
+        return left.localeCompare(right, "fr", { sensitivity: "base" });
+      };
+
+      if (sortBy === "patrol") {
+        const patrolOrder = compareNullable(
+          a.patrol_id ? patrolMap.get(a.patrol_id)?.name : null,
+          b.patrol_id ? patrolMap.get(b.patrol_id)?.name : null,
+        );
+        if (patrolOrder !== 0) return patrolOrder;
+      } else if (sortBy === "totem") {
+        const totemOrder = compareNullable(a.totem, b.totem);
+        if (totemOrder !== 0) return totemOrder;
+      }
+
+      const nameOrder = compareNullable(a.full_name, b.full_name);
+      return nameOrder || a.id.localeCompare(b.id);
+    });
+  }, [profiles, search, roleFilter, patrolFilter, patrolMap, isUserAdmin, sortBy, newMemberIds]);
 
   // Stats
   const totalCount = profiles.length;
@@ -388,6 +448,18 @@ export function AdminUserList({
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+              <SelectTrigger className="h-9 w-full text-xs sm:w-40" aria-label="Trier les membres">
+                <ArrowUpDown className="mr-2 h-3.5 w-3.5" />
+                <SelectValue placeholder="Trier par" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="patrol">Trier par patrouille</SelectItem>
+                <SelectItem value="name">Trier par nom</SelectItem>
+                <SelectItem value="totem">Trier par totem</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -475,6 +547,11 @@ export function AdminUserList({
                                   className="text-[9px] px-1.5 py-0 font-medium"
                                 >
                                   C'est vous
+                                </Badge>
+                              )}
+                              {newMemberIds.includes(p.id) && (
+                                <Badge className="border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0 text-[9px] font-bold text-emerald-700">
+                                  Nouveau
                                 </Badge>
                               )}
                             </div>
