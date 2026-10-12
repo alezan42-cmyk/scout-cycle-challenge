@@ -4,7 +4,8 @@
 // Appelée chaque nuit par pg_cron (en-tête x-cron-secret) ou par un admin
 // depuis la page Admin (jeton de session). Elle :
 //  1. appelle cleanup_database() : sorties à plusieurs vides, comptes à
-//     rebours dépassés, sorties en attente de plus de 60 jours ;
+//     rebours dépassés, sorties en attente de plus de 60 jours, liens Strava
+//     et descriptions des sorties validées depuis plus de 30 jours ;
 //  2. efface les photos de preuve validées depuis plus de 30 jours
 //     (les km restent, proof_path passe à null) ;
 //  3. efface les fichiers orphelins de plus de 7 jours (proofs et backgrounds)
@@ -89,6 +90,7 @@ Deno.serve(async (req) => {
   report.groupes_vides_supprimes = dbReport.groupes_vides_supprimes ?? 0;
   report.comptes_a_rebours_desactives = dbReport.comptes_a_rebours_desactives ?? 0;
   report.sorties_en_attente_supprimees = dbReport.sorties_en_attente_supprimees ?? 0;
+  report.sorties_validees_nettoyees = dbReport.sorties_validees_nettoyees ?? 0;
   const pendingFiles = ((dbReport.fichiers_a_effacer as string[] | undefined) ?? [])
     .map((u) => fileName(u, "proofs"))
     .filter((n): n is string => !!n);
