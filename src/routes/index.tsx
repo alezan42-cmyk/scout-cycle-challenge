@@ -51,7 +51,7 @@ import { computeJerseys } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
-import { ChallengesPanel } from "@/components/ChallengesPanel";
+import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
@@ -719,6 +719,9 @@ function Index() {
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
         <CountdownBanner isAdmin={isAdmin} />
+
+        {/* Défis ouverts destinés au scout connecté */}
+        <ChallengesBanner />
 
         {/* Anniversaires : membres connectés uniquement */}
         <BirthdayBanner userId={user?.id} />

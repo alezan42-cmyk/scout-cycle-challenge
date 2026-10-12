@@ -66,6 +66,21 @@ const PRESET_DISTANCES_VELO = [5, 10, 15, 25, 40, 60];
 const PRESET_DISTANCES_COURSE = [2, 5, 8, 10, 15, 21];
 const PRESET_DISTANCES_MARCHE = [2, 4, 6, 10, 15, 20];
 
+type OpenChallengeRow = {
+  status: string;
+  scout_challenges: {
+    id: string;
+    title: string;
+    proposed_points: number;
+    sport: ActivitySport;
+    target_km: number | null;
+    exact_distance: boolean;
+    target_elevation: number | null;
+    gpx_template_path: string | null;
+    status: string;
+  };
+};
+
 // Fonction utilitaire pour calculer la distance Haversine en mètres entre deux points GPS
 function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371000;
@@ -145,7 +160,18 @@ export function DailyDistanceForm({
   const [elevationM, setElevationM] = useState("");
   const [rideDate, setRideDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedPatrolId, setSelectedPatrolId] = useState<string>(defaultPatrolId || "");
-  const [openChallenges, setOpenChallenges] = useState<Array<{ id: string; title: string; proposed_points: number }>>([]);
+  const [openChallenges, setOpenChallenges] = useState<
+    Array<{
+      id: string;
+      title: string;
+      proposed_points: number;
+      sport: ActivitySport;
+      target_km: number | null;
+      exact_distance: boolean;
+      target_elevation: number | null;
+      gpx_template_path: string | null;
+    }>
+  >([]);
   const [selectedChallengeId, setSelectedChallengeId] = useState("");
   const [stravaUrl, setStravaUrl] = useState("");
   const [rideNote, setRideNote] = useState("");
@@ -211,11 +237,33 @@ export function DailyDistanceForm({
   }, [loadPatrols]);
 
   useEffect(() => {
-    if (!user) { setOpenChallenges([]); return; }
-    (supabase as any).from("scout_challenges").select("id,title,proposed_points")
-      .eq("challenged_id", user.id).eq("status", "open").order("created_at", { ascending: false })
-      .then(({ data }: { data: Array<{ id: string; title: string; proposed_points: number }> | null }) => setOpenChallenges(data || []));
+    if (!user) {
+      setOpenChallenges([]);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("scout_challenge_participants")
+      .select(
+        "status,scout_challenges(id,title,proposed_points,sport,target_km,exact_distance,target_elevation,gpx_template_path,status)",
+      )
+      .eq("user_id", user.id)
+      .eq("status", "open")
+      .then((result: { data: OpenChallengeRow[] | null }) => {
+        setOpenChallenges(
+          (result.data || [])
+            .map((entry) => entry.scout_challenges)
+            .filter((challenge) => challenge?.status === "open"),
+        );
+      });
   }, [user]);
+
+  useEffect(() => {
+    const selected = openChallenges.find((challenge) => challenge.id === selectedChallengeId);
+    if (selected && selected.sport !== sport) {
+      setSelectedChallengeId("");
+    }
+  }, [openChallenges, selectedChallengeId, sport]);
 
   // 2. Pre-select patrol based on scout profile or default prop
   useEffect(() => {
@@ -283,6 +331,40 @@ export function DailyDistanceForm({
     if (!selectedPatrolId) {
       toast.error("Veuillez sélectionner la patrouille à laquelle associer cette distance");
       return;
+    }
+
+    const selectedChallenge = openChallenges.find(
+      (challenge) => challenge.id === selectedChallengeId,
+    );
+    if (selectedChallenge) {
+      if (selectedChallenge.sport !== sport) {
+        toast.error("Le type d’activité ne correspond pas à ce défi.");
+        return;
+      }
+      if (
+        selectedChallenge.target_km !== null &&
+        (selectedChallenge.exact_distance
+          ? kmNumber !== Number(selectedChallenge.target_km)
+          : kmNumber < Number(selectedChallenge.target_km))
+      ) {
+        toast.error(
+          selectedChallenge.exact_distance
+            ? "La distance doit être exactement celle du défi."
+            : "La distance est inférieure au minimum demandé.",
+        );
+        return;
+      }
+      if (
+        selectedChallenge.target_elevation !== null &&
+        (typeof elevation !== "number" || elevation < selectedChallenge.target_elevation)
+      ) {
+        toast.error("Le D+ est inférieur au minimum demandé pour ce défi.");
+        return;
+      }
+      if (selectedChallenge.gpx_template_path && !gpxFile) {
+        toast.error("Ajoute le tracé GPX de ta sortie pour ce défi.");
+        return;
+      }
     }
 
     const trimmedStrava = stravaUrl.trim();
@@ -846,14 +928,42 @@ export function DailyDistanceForm({
             </p>
           </div>
 
-          {openChallenges.length > 0 && <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <Label className="font-bold">Cette sortie réalise un défi ?</Label>
-            <Select value={selectedChallengeId || "none"} onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Choisir un défi (facultatif)" /></SelectTrigger>
-              <SelectContent><SelectItem value="none">Aucun défi</SelectItem>{openChallenges.map((c) => <SelectItem key={c.id} value={c.id}>{c.title} · {c.proposed_points} pts proposés</SelectItem>)}</SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Le staff attribuera les points après vérification de la sortie.</p>
-          </div>}
+          {openChallenges.filter((c) => c.sport === sport).length > 0 && (
+            <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <Label className="font-bold">Cette sortie réalise un défi ?</Label>
+              <Select
+                value={selectedChallengeId || "none"}
+                onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un défi (facultatif)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun défi</SelectItem>
+                  {openChallenges
+                    .filter((c) => c.sport === sport)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.title} · {c.proposed_points} pts · {c.gpx_template_path
+                          ? "tracé GPX"
+                          : [
+                              c.target_km !== null
+                                ? `${c.exact_distance ? "exactement" : "≥"} ${c.target_km} km`
+                                : null,
+                              c.target_elevation !== null ? `≥ ${c.target_elevation} m D+` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" + ")}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Les critères sont vérifiés à l’enregistrement. Les points sont attribués au
+                premier scout dont la sortie est validée. Le staff valide les défis GPX.
+              </p>
+            </div>
+          )}
 
           <GroupRidePicker
             key={pickerKey}
