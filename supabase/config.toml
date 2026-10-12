@@ -2,3 +2,9 @@ project_id = "civblymnwigeayfecujp"
 
 [functions.pending-activity-alert]
 verify_jwt = false
+
+[functions.strava-oauth]
+verify_jwt = false
+
+[functions.strava-webhook]
+verify_jwt = false
