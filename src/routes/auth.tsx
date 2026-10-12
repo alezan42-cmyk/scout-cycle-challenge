@@ -442,7 +442,7 @@ function AuthPage() {
                 <Link to="/profil">Voir / Modifier mon profil scout</Link>
               </Button>
               <Button asChild variant="secondary" className="rounded-xl font-medium">
-                <Link to="/classement">Voir le Classement général</Link>
+                <Link to="/">Voir le Classement général</Link>
               </Button>
               <Button
                 variant="ghost"

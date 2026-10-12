@@ -470,7 +470,7 @@ function MapPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full">
-                <Link to="/classement">Retour au classement public</Link>
+                <Link to="/">Retour au classement public</Link>
               </Button>
             </div>
           </Card>

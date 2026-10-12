@@ -231,7 +231,7 @@ function Admin() {
               <Link to="/auth">Connexion Admin</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/classement">Retour au classement</Link>
+              <Link to="/">Retour au classement</Link>
             </Button>
           </div>
         </main>

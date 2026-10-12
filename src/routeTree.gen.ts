@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ClassementRouteImport } from './routes/classement'
 import { Route as NouveauMotDePasseRouteImport } from './routes/nouveau-mot-de-passe'
 import { Route as SolidariteRouteImport } from './routes/solidarite'
 import { Route as TimelineRouteImport } from './routes/timeline'
@@ -34,11 +33,6 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClassementRoute = ClassementRouteImport.update({
-  id: '/classement',
-  path: '/classement',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NouveauMotDePasseRoute = NouveauMotDePasseRouteImport.update({
@@ -85,7 +79,6 @@ const ScoutScoutIdRoute = ScoutScoutIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/classement': typeof ClassementRoute
   '/nouveau-mot-de-passe': typeof NouveauMotDePasseRoute
   '/solidarite': typeof SolidariteRoute
   '/timeline': typeof TimelineRoute
@@ -98,7 +91,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/classement': typeof ClassementRoute
   '/nouveau-mot-de-passe': typeof NouveauMotDePasseRoute
   '/solidarite': typeof SolidariteRoute
   '/timeline': typeof TimelineRoute
@@ -113,7 +105,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/classement': typeof ClassementRoute
   '/nouveau-mot-de-passe': typeof NouveauMotDePasseRoute
   '/solidarite': typeof SolidariteRoute
   '/timeline': typeof TimelineRoute
@@ -128,7 +119,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/classement'
     | '/nouveau-mot-de-passe'
     | '/solidarite'
     | '/timeline'
@@ -141,7 +131,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/classement'
     | '/nouveau-mot-de-passe'
     | '/solidarite'
     | '/timeline'
@@ -155,7 +144,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/classement'
     | '/nouveau-mot-de-passe'
     | '/solidarite'
     | '/timeline'
@@ -170,7 +158,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  ClassementRoute: typeof ClassementRoute
   NouveauMotDePasseRoute: typeof NouveauMotDePasseRoute
   SolidariteRoute: typeof SolidariteRoute
   TimelineRoute: typeof TimelineRoute
@@ -198,13 +185,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/classement': {
-      id: '/classement'
-      path: '/classement'
-      fullPath: '/classement'
-      preLoaderRoute: typeof ClassementRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nouveau-mot-de-passe': {
@@ -287,7 +267,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  ClassementRoute: ClassementRoute,
   NouveauMotDePasseRoute: NouveauMotDePasseRoute,
   SolidariteRoute: SolidariteRoute,
   TimelineRoute: TimelineRoute,
