@@ -8,22 +8,23 @@ export const DISTANCE_TROPHIES: Record<ActivitySport, number[]> = {
   marche: [1, 5, 10, 20, 40],
 };
 
-export function getDistanceTotals(activities: DistanceActivity[]) {
-  const totals: Record<ActivitySport, number> = { velo: 0, course: 0, marche: 0 };
+export function getBestSingleActivityDistances(activities: DistanceActivity[]) {
+  const best: Record<ActivitySport, number> = { velo: 0, course: 0, marche: 0 };
   for (const activity of activities) {
     if (activity.status && activity.status !== "approved") continue;
-    totals[getActivitySport(activity)] += Number(activity.km || 0);
+    const sport = getActivitySport(activity);
+    best[sport] = Math.max(best[sport], Number(activity.km || 0));
   }
-  return totals;
+  return best;
 }
 
 export function getNextDistanceTrophy(activities: DistanceActivity[]) {
-  const totals = getDistanceTotals(activities);
+  const best = getBestSingleActivityDistances(activities);
   const next = (Object.keys(DISTANCE_TROPHIES) as ActivitySport[])
     .flatMap((sport) =>
       DISTANCE_TROPHIES[sport]
-        .filter((km) => totals[sport] < km)
-        .map((km) => ({ sport, km, total: totals[sport], progress: totals[sport] / km })),
+        .filter((km) => best[sport] < km)
+        .map((km) => ({ sport, km, total: best[sport], progress: best[sport] / km })),
     )
     .sort((a, b) => b.progress - a.progress)[0];
   return next ?? null;
