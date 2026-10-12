@@ -50,6 +50,7 @@ import { CleanupAdmin } from "@/components/CleanupAdmin";
 import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifAdmin";
 import { SportBadge } from "@/components/SportIcon";
 import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
+import { AdminChallenges } from "@/components/AdminChallenges";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -385,7 +386,7 @@ function Admin() {
 
         <Tabs defaultValue="validations" className="space-y-5 md:space-y-6">
           {/* Mobile : une seule ligne qui défile, collée sous l'en-tête ; ordinateur : 6 colonnes */}
-          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-7 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
+          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-8 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="validations" className={TAB_TRIGGER}>
               <Check className="h-4 w-4" />
               Sorties ({pending.length})
@@ -393,6 +394,10 @@ function Admin() {
             <TabsTrigger value="badges" className={TAB_TRIGGER}>
               <Award className="h-4 w-4" />
               Scout sportif ({weeklyBadges.filter((b) => b.week_start).length})
+            </TabsTrigger>
+            <TabsTrigger value="challenges" className={TAB_TRIGGER}>
+              <Award className="h-4 w-4" />
+              Défis
             </TabsTrigger>
             <TabsTrigger value="countdown" className={TAB_TRIGGER}>
               <Clock className="h-4 w-4" />
@@ -549,6 +554,10 @@ function Admin() {
               badges={weeklyBadges}
               onChanged={load}
             />
+          </TabsContent>
+
+          <TabsContent value="challenges" className="space-y-6">
+            <AdminChallenges />
           </TabsContent>
 
           {/* Tab 3: Countdowns Management */}
