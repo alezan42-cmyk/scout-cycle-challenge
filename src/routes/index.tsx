@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -51,10 +51,12 @@ import { computeJerseys } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
+import { NearestDistanceTrophy } from "@/components/DistanceTrophies";
 import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
+import type { DistanceActivity } from "@/lib/distanceTrophies";
 import { AlezanNamePoll } from "../components/AlezanNamePoll";
 import {
   Dialog,
@@ -176,15 +178,32 @@ function FilterPill({
 
 function Index() {
   const { user, profile, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { background: themeBackground } = useSeasonalTheme();
   const [sportMode, setSportMode] = useState<SportMode>("all");
   const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");
   const [scoutYear, setScoutYear] = useState<ScoutYearFilter>("all");
-  const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges">("patrols");
+  const [view, setView] = useState<
+    "patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges"
+  >("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
+
+  const { data: myApprovedActivities = [] } = useQuery<DistanceActivity[]>({
+    queryKey: ["my-approved-activities-for-trophies", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km,note,status")
+        .eq("user_id", user!.id)
+        .eq("status", "approved");
+      if (error) throw error;
+      return (data || []) as unknown as DistanceActivity[];
+    },
+  });
 
   const { data: globalActivityCount = 0 } = useQuery<number>({
     queryKey: ["global-approved-activity-count"],
@@ -518,8 +537,8 @@ function Index() {
     });
   }, [scoutRows]);
 
-  const openScoutActivities = (scout: LeaderboardItem) => {
-    setSelectedEntry({ title: scout.display_name, userIds: [scout.user_id] });
+  const openScoutProfile = (scout: LeaderboardItem) => {
+    void navigate({ to: "/scout/$scoutId", params: { scoutId: scout.user_id } });
   };
 
   const openPatrolActivities = (patrol: (typeof rankedPatrols)[number]) => {
@@ -597,7 +616,9 @@ function Index() {
               </span>
               <span className="text-left">
                 <span className="block text-sm font-bold">Retrouve-nous sur Strava</span>
-                <span className="block text-xs text-white/80">Rejoins le club Troupe de l’Alezan</span>
+                <span className="block text-xs text-white/80">
+                  Rejoins le club Troupe de l’Alezan
+                </span>
               </span>
               <ExternalLink className="ml-1 h-4 w-4 shrink-0 text-white/80" />
             </a>
@@ -665,6 +686,12 @@ function Index() {
                     </Button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {user && (
+              <div className="mt-4 max-w-md">
+                <NearestDistanceTrophy activities={myApprovedActivities} compact />
               </div>
             )}
 
@@ -1047,7 +1074,9 @@ function Index() {
               onClick={() => setView("challenges")}
               className={cn(
                 "relative pb-3 font-display text-base sm:text-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5",
-                view === "challenges" ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:rounded-full after:bg-primary" : "text-muted-foreground hover:text-foreground",
+                view === "challenges"
+                  ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:rounded-full after:bg-primary"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Award className="h-4 w-4 text-amber-500" />
@@ -1165,7 +1194,7 @@ function Index() {
                 {scoutRows[1] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[1])}
+                    onClick={() => openScoutProfile(scoutRows[1])}
                     className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1194,7 +1223,7 @@ function Index() {
                 {scoutRows[0] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[0])}
+                    onClick={() => openScoutProfile(scoutRows[0])}
                     className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1230,7 +1259,7 @@ function Index() {
                 {scoutRows[2] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[2])}
+                    onClick={() => openScoutProfile(scoutRows[2])}
                     className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1278,7 +1307,7 @@ function Index() {
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
                     sportMode={sportMode}
-                    onClick={() => openScoutActivities(s)}
+                    onClick={() => openScoutProfile(s)}
                   />
                 ))
               )}

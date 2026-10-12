@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SportBadge, SPORT_COLORS } from "@/components/SportIcon";
 import { CorrectionNotice } from "@/components/CorrectionNotice";
+import { DistanceTrophyCollection } from "@/components/DistanceTrophies";
 
 export const Route = createFileRoute("/_authenticated/mes-km")({
   ssr: false,
@@ -222,6 +223,13 @@ function MesKm() {
                 <span className="font-display text-2xl font-black text-white">
                   {profile?.totem || profile?.full_name || user.email}
                 </span>
+                <Link
+                  to="/scout/$scoutId"
+                  params={{ scoutId: user.id }}
+                  className="text-xs font-bold text-amber-200 underline-offset-2 hover:underline"
+                >
+                  Voir mon profil public
+                </Link>
                 {profile?.is_chef && (
                   <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase text-amber-950">
                     Chef
@@ -284,6 +292,8 @@ function MesKm() {
             </div>
           </div>
         </div>
+
+        <DistanceTrophyCollection activities={approvedActs} />
 
         {/* Two Columns: Form + Ride History */}
         <div className="grid gap-8 lg:grid-cols-[1.1fr_1.2fr]">

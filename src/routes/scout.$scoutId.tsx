@@ -15,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SportBadge } from "@/components/SportIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { SPORT_INFO, getActivitySport, type ActivitySport } from "@/lib/database";
+import { DISTANCE_TROPHIES, getDistanceTotals } from "@/lib/distanceTrophies";
 
-export const Route = createFileRoute("/_authenticated/scout/$scoutId")({
+export const Route = createFileRoute("/scout/$scoutId")({
   ssr: false,
   head: () => ({
     meta: [
@@ -46,12 +47,6 @@ type ScoutActivity = {
 };
 
 type Patrol = { id: string; name: string };
-
-const distanceMilestones: Record<ActivitySport, number[]> = {
-  velo: [5, 10, 25, 50, 100],
-  course: [1, 5, 10, 21, 42],
-  marche: [1, 5, 10, 20, 40],
-};
 
 const sportColors: Record<ActivitySport, string> = {
   velo: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200",
@@ -131,14 +126,9 @@ function ScoutProfilePage() {
   }, [scoutId]);
 
   const earnedBadges = useMemo(() => {
-    return (Object.keys(distanceMilestones) as ActivitySport[]).flatMap((sport) =>
-      distanceMilestones[sport]
-        .filter((km) =>
-          activities.some(
-            (activity) => getActivitySport(activity) === sport && Number(activity.km || 0) >= km,
-          ),
-        )
-        .map((km) => ({ sport, km })),
+    const totals = getDistanceTotals(activities);
+    return (Object.keys(DISTANCE_TROPHIES) as ActivitySport[]).flatMap((sport) =>
+      DISTANCE_TROPHIES[sport].filter((km) => totals[sport] >= km).map((km) => ({ sport, km })),
     );
   }, [activities]);
 
@@ -232,7 +222,8 @@ function ScoutProfilePage() {
             </div>
           )}
           <p className="mt-4 text-xs text-muted-foreground">
-            Chaque badge correspond à une sortie validée atteignant le palier dans sa discipline.
+            Chaque trophée se débloque quand le total des kilomètres validés atteint le palier de sa
+            discipline.
           </p>
         </CardContent>
       </Card>
