@@ -29,6 +29,7 @@ type PublicProfile = {
   quali: string | null;
   patrol_id: string | null;
   is_admin: boolean | null;
+  scout_year: number | null;
   patrols: { id: string; name: string; category: string } | null;
 };
 type PublicActivity = {
@@ -53,6 +54,7 @@ export interface ScoutRow {
   patrol_id: string | null;
   patrol_name: string;
   is_staff: boolean;
+  scout_year: number | null;
   km: number;
   rides: number;
 }
@@ -74,7 +76,9 @@ export function useTroopData() {
       const [p, a, pt] = await Promise.all([
         supabase
           .from("profiles_public")
-          .select("id, full_name, totem, quali, patrol_id, is_admin, patrols(id, name, category)"),
+          .select(
+            "id, full_name, totem, quali, patrol_id, is_admin, scout_year, patrols(id, name, category)",
+          ),
         supabase
           .from("activities_public")
           .select("user_id, km, elevation_m, ride_date, status, note"),
@@ -125,6 +129,7 @@ export function rankScouts(data: TroopData | undefined, period: AppPeriod, sport
         patrol_id: p.patrol_id,
         patrol_name: p.patrols?.name || (staff ? TROOP_STAFF_PATROL_NAME : "Sans patrouille"),
         is_staff: staff,
+        scout_year: p.scout_year,
         km: Math.round(t.km * 10) / 10,
         rides: t.rides,
       };
@@ -227,4 +232,19 @@ export function useNextEvent() {
 
 export function daysUntil(iso: string) {
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 864e5));
+}
+
+/** Groupe de comparaison : tout le monde, les scouts (1re à 4e, sans le staff), une année, ou le staff. */
+export type AppGroup = "all" | "scouts" | "1" | "2" | "3" | "4" | "staff";
+
+export function inGroup(row: Pick<ScoutRow, "is_staff" | "scout_year">, group: AppGroup) {
+  if (group === "all") return true;
+  if (group === "staff") return row.is_staff;
+  if (row.is_staff) return false;
+  return group === "scouts" || row.scout_year === Number(group);
+}
+
+/** Km validés de toute la troupe (toutes disciplines) sur la période. */
+export function troopTotal(data: TroopData | undefined, period: AppPeriod) {
+  return rankScouts(data, period, "all").reduce((s, r) => s + r.km, 0);
 }

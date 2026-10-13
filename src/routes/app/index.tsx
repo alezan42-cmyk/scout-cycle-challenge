@@ -20,6 +20,7 @@ import {
   periodRange,
   rankOf,
   rankPatrols,
+  troopTotal,
   useMyActivities,
   useNextEvent,
   useTroopData,
@@ -53,6 +54,7 @@ function AppHome() {
     const inMonth = acts.filter((a) => a.ride_date >= month.from && a.ride_date <= month.to);
     const approved = inMonth.filter((a) => a.status === "approved");
     return {
+      total: acts.filter((a) => a.status === "approved").reduce((s, a) => s + Number(a.km || 0), 0),
       km: approved.reduce((s, a) => s + Number(a.km || 0), 0),
       rides: approved.length,
       pending: acts
@@ -66,6 +68,7 @@ function AppHome() {
     [mine.data, thresholds.single_ride],
   );
 
+  const troopKm = useMemo(() => troopTotal(troop.data, "all"), [troop.data]);
   const patrols = useMemo(() => rankPatrols(troop.data, "week", "all"), [troop.data]);
   const myPatrolRank = profile?.patrol_id
     ? rankOf(patrols, (p) => p.id === profile.patrol_id)
@@ -109,6 +112,22 @@ function AppHome() {
                 </span>
               )}
             </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
+              <div>
+                <p className="font-display text-[22px] font-black leading-none tabular-nums text-foreground">
+                  {formatKm(stats.total)}
+                  <span className="ml-1 text-[13px] font-bold text-muted-foreground">km</span>
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground">Mon total</p>
+              </div>
+              <div>
+                <p className="font-display text-[22px] font-black leading-none tabular-nums text-foreground">
+                  {formatKm(troopKm)}
+                  <span className="ml-1 text-[13px] font-bold text-muted-foreground">km</span>
+                </p>
+                <p className="mt-1 text-[13px] text-muted-foreground">Toute la troupe</p>
+              </div>
+            </div>
             <Link
               to="/app/enregistrer"
               className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[16px] font-bold text-primary-foreground shadow-sm active:scale-[0.99]"
@@ -152,6 +171,12 @@ function AppHome() {
           </p>
           <p className="mt-1 text-[14px] text-muted-foreground">
             Connecte-toi pour enregistrer tes sorties vélo, course et marche.
+          </p>
+          <p className="mt-4 font-display text-[28px] font-black leading-none text-foreground">
+            {formatKm(troopKm)}
+            <span className="ml-1 text-[14px] font-bold text-muted-foreground">
+              km parcourus par la troupe
+            </span>
           </p>
           <Link
             to="/auth"
