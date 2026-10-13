@@ -28,6 +28,8 @@ import { useDistanceAwards } from "@/lib/useDistanceAwards";
 import { getNextDistanceTrophy } from "@/lib/distanceTrophies";
 import { getActivitySport, getPatrolEmblem, SPORT_INFO } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
+import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/app/")({ ssr: false, component: AppHome });
 
@@ -42,6 +44,8 @@ function AppHome() {
   const mine = useMyActivities(user?.id);
   const event = useNextEvent();
   const { thresholds } = useDistanceAwards();
+  // Même photo que l'accueil du site : celle du thème si l'admin en a mis une
+  const { background: themeBackground } = useSeasonalTheme();
 
   const month = periodRange("month")!;
   const stats = useMemo(() => {
@@ -74,6 +78,8 @@ function AppHome() {
   return (
     <AppPageShell
       root
+      heroImage={themeBackground ?? hero}
+      heroPosition={themeBackground ? "center" : "75% 68%"}
       title={user ? `${greeting()}${name ? `, ${name}` : ""} 👋` : "ALEZAN 42"}
       description={
         user
