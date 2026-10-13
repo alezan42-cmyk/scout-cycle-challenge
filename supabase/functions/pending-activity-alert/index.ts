@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       from,
       to: recipients,
       subject: `Alezan 42 : ${pendingCount} activités à approuver`,
-      text: `Il y a actuellement ${pendingCount} activités en attente d'approbation sur Alezan 42.\n\nOuvrir l'administration : https://alezan42-cycling.pages.dev/admin`,
+      text: `Il y a actuellement ${pendingCount} activités en attente d'approbation sur Alezan 42.\n\nOuvrir l'administration : https://alezan42-cycling.lesscoutsdemoustier.be/admin`,
     }),
   });
 

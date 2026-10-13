@@ -17,7 +17,7 @@ Définir dans les secrets Supabase :
 - `STRAVA_REDIRECT_URI` = `https://<project-ref>.supabase.co/functions/v1/strava-oauth`
 - `STRAVA_WEBHOOK_VERIFY_TOKEN` = une valeur aléatoire longue
 - `STRAVA_WEBHOOK_SUBSCRIPTION_ID` = l’identifiant obtenu à la création de la souscription
-- `SITE_URL` = `https://alezan42-cycling.pages.dev`
+- `SITE_URL` = `https://alezan42-cycling.lesscoutsdemoustier.be`
 
 Puis appliquer la migration, déployer `strava-oauth` et `strava-webhook`, et enregistrer auprès de Strava l’URL `https://<project-ref>.supabase.co/functions/v1/strava-webhook` avec le même jeton de vérification.
 

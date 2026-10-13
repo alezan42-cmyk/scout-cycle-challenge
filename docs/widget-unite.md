@@ -1,13 +1,13 @@
 # Widget « Défi kilomètres » pour le site de l'unité
 
 Fichier : `public/widget/alezan42-km.js`, publié avec le site à
-`https://alezan42-cycling.pages.dev/widget/alezan42-km.js`.
+`https://alezan42-cycling.lesscoutsdemoustier.be/widget/alezan42-km.js`.
 
 ## Code à coller sur le site de l'unité
 
 ```html
 <div data-alezan42-km data-sections="total,patrouilles,scouts" data-period="semaine"></div>
-<script src="https://alezan42-cycling.pages.dev/widget/alezan42-km.js" defer></script>
+<script src="https://alezan42-cycling.lesscoutsdemoustier.be/widget/alezan42-km.js" defer></script>
 ```
 
 ## Options
