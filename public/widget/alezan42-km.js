@@ -122,7 +122,11 @@
       var pid = patrol ? patrol.id : staff && mainStaff ? mainStaff.id : null;
       if (pid) patrolKm[pid] = (patrolKm[pid] || 0) + km;
       if (!staff && km > 0) {
-        scouts.push({ name: p.totem || p.full_name || "Scout", sub: patrol ? patrol.name : "", km: km });
+        scouts.push({
+          name: p.totem || p.full_name || "Scout",
+          sub: patrol ? patrol.name : "",
+          km: km,
+        });
       }
     });
     var patrols = d.patrols
@@ -140,7 +144,7 @@
 
   var CSS =
     ":host{all:initial;display:block}" +
-    ".w{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:20px;max-width:560px;box-sizing:border-box;line-height:1.35}" +
+    ".w{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--fg);background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:20px;width:100%;box-sizing:border-box;line-height:1.35}" +
     ".w *{box-sizing:border-box}" +
     ".clair{--bg:#fffaf3;--fg:#2b1d12;--mu:#7a6250;--bd:#ecdcc8;--ac:#e8782a;--row:#f6ecdf}" +
     ".sombre{--bg:#1d1814;--fg:#f6eadb;--mu:#bba48f;--bd:#3a2f26;--ac:#f08a3c;--row:#2a221c}" +
@@ -159,7 +163,24 @@
     ".k{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}" +
     ".e{font-size:14px;color:var(--mu);padding:6px 2px}" +
     "a.l{display:inline-block;margin-top:14px;color:var(--ac);font-weight:700;font-size:14px;text-decoration:none}" +
-    "a.l:hover{text-decoration:underline}";
+    "a.l:hover{text-decoration:underline}" +
+    ".cols{display:grid;gap:0 20px}" +
+    // Petit espace (téléphone, colonne étroite) : plus compact
+    ".sz-s{padding:14px;border-radius:16px}" +
+    ".sz-s .t{font-size:15px}" +
+    ".sz-s .tot{padding:12px 14px;margin-bottom:12px}" +
+    ".sz-s .tot b{font-size:24px}" +
+    ".sz-s li{padding:8px 10px;gap:8px}" +
+    ".sz-s .n{font-size:14px}" +
+    ".sz-s .k{font-size:14px}" +
+    // Grand espace (ordinateur) : total à gauche, classements côte à côte
+    ".sz-l{padding:26px}" +
+    ".sz-l .t{font-size:20px}" +
+    ".sz-l .tot b{font-size:38px}" +
+    ".sz-l .cols.two{grid-template-columns:1fr 1fr}" +
+    ".sz-l .cols h4{margin-top:4px}" +
+    ".sz-xl .body{display:grid;grid-template-columns:minmax(200px,1fr) 3fr;gap:24px;align-items:start}" +
+    ".sz-xl .tot{margin:0}";
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -206,9 +227,24 @@
     var title = el.getAttribute("data-titre") || "Défi kilomètres ALEZAN 42";
 
     var root = el.attachShadow ? el.attachShadow({ mode: "open" }) : el;
-    var box = function (inner) {
-      root.innerHTML = "<style>" + CSS + '</style><div class="w ' + theme + '">' + inner + "</div>";
+    // Taille du bloc sur la page hôte (et pas seulement de l'écran) : s < 420 px ≤ m < 640 px ≤ l < 900 px ≤ xl
+    var sizeOf = function (w) {
+      return w < 420 ? "sz-s" : w < 640 ? "sz-m" : w < 900 ? "sz-l" : "sz-l sz-xl";
     };
+    var size = sizeOf(el.getBoundingClientRect().width || 360);
+    var box = function (inner) {
+      root.innerHTML =
+        "<style>" + CSS + '</style><div class="w ' + theme + " " + size + '">' + inner + "</div>";
+    };
+    if (window.ResizeObserver) {
+      new ResizeObserver(function (entries) {
+        var next = sizeOf(entries[0].contentRect.width);
+        if (next === size) return;
+        size = next;
+        var w = root.querySelector(".w");
+        if (w) w.className = "w " + theme + " " + size;
+      }).observe(el);
+    }
     box('<p class="e">Chargement du classement…</p>');
 
     loadData()
@@ -220,6 +256,12 @@
           '</p><p class="p">Vélo, course et marche · ' +
           c.label +
           "</p></div></div>";
+        var lists = [];
+        if (sections.indexOf("patrouilles") >= 0)
+          lists.push("<div><h4>Patrouilles</h4>" + list(c.patrols, limit) + "</div>");
+        if (sections.indexOf("scouts") >= 0)
+          lists.push("<div><h4>Scouts</h4>" + list(c.scouts, limit) + "</div>");
+        html += '<div class="body">';
         if (sections.indexOf("total") >= 0) {
           html +=
             '<div class="tot"><b>' +
@@ -228,14 +270,16 @@
             c.label +
             "</span></div>";
         }
-        if (sections.indexOf("patrouilles") >= 0) {
-          html += "<h4>Patrouilles</h4>" + list(c.patrols, limit);
-        }
-        if (sections.indexOf("scouts") >= 0) {
-          html += "<h4>Scouts</h4>" + list(c.scouts, limit);
-        }
         html +=
-          '<a class="l" href="' + SITE + '" target="_blank" rel="noopener">Voir le classement complet →</a>';
+          '<div class="cols' +
+          (lists.length > 1 ? " two" : "") +
+          '">' +
+          lists.join("") +
+          "</div></div>";
+        html +=
+          '<a class="l" href="' +
+          SITE +
+          '" target="_blank" rel="noopener">Voir le classement complet →</a>';
         box(html);
       })
       .catch(function () {
@@ -256,6 +300,9 @@
   else init();
   // Pages construites après coup (constructeurs de sites) : on surveille l'arrivée du bloc
   if (window.MutationObserver) {
-    new MutationObserver(init).observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(init).observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
   }
 })();

@@ -20,6 +20,17 @@ Fichier : `public/widget/alezan42-km.js`, publié avec le site à
 | `data-theme` | `clair`, `sombre` | `clair` |
 | `data-titre` | texte libre | `Défi kilomètres ALEZAN 42` |
 
+## Taille automatique
+
+Le widget prend toute la largeur de l'endroit où il est placé et adapte sa mise en page à cette largeur (et pas seulement à l'écran) :
+
+- moins de 420 px (téléphone, colonne étroite) : version compacte, une colonne ;
+- 420 à 640 px : une colonne confortable ;
+- 640 px et plus (ordinateur) : classements côte à côte ;
+- 900 px et plus : total à gauche, classements à droite.
+
+La mise en page change en direct si la fenêtre est redimensionnée. Pour limiter la largeur, il suffit de placer le bloc dans un conteneur plus étroit.
+
 Plusieurs blocs peuvent être placés sur la même page ; le script n'est chargé qu'une fois.
 
 ## Données et vie privée
