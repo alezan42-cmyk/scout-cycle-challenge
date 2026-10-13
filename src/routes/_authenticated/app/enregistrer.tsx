@@ -1,13 +1,31 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { DailyDistanceForm } from "@/components/DailyDistanceForm";
 import { AppPageShell } from "@/components/AppPageShell";
 import { useAuth } from "@/lib/useAuth";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-function RecordPage() {
-  const { user } = useAuth();
-  const [patrolId, setPatrolId] = useState<string>();
-  useEffect(() => { if (user?.id) void supabase.from("profiles").select("patrol_id").eq("id", user.id).maybeSingle().then(({ data }) => setPatrolId(data?.patrol_id ?? undefined)); }, [user?.id]);
-  return <AppPageShell title="Enregistrer mes kms" description="Ajoute une sortie vélo, course à pied ou marche."><DailyDistanceForm defaultPatrolId={patrolId} title="Nouvelle sortie" description="Choisis ta discipline et ajoute ta preuve." /></AppPageShell>;
+
+function RecordScreen() {
+  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  return (
+    <AppPageShell title="Nouvelle sortie">
+      <DailyDistanceForm
+        variant="app"
+        {...(profile?.patrol_id ? { defaultPatrolId: profile.patrol_id } : {})}
+        onSuccess={async () => {
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: ["app-my-activities"] }),
+            qc.invalidateQueries({ queryKey: ["app-troop-data"] }),
+          ]);
+          void navigate({ to: "/app/mes-kms" });
+        }}
+      />
+    </AppPageShell>
+  );
 }
-export const Route = createFileRoute("/_authenticated/app/enregistrer")({ ssr: false, component: RecordPage });
+
+export const Route = createFileRoute("/_authenticated/app/enregistrer")({
+  ssr: false,
+  component: RecordScreen,
+});

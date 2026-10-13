@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Trophy,
   Flame,
@@ -31,6 +31,7 @@ import { CollectiveRouteMap } from "@/components/CollectiveRouteMap";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { weekRange, monthRange, useAuth } from "@/lib/useAuth";
+import { isStandalone } from "@/lib/standalone";
 import {
   db,
   type Patrol,
@@ -181,6 +182,10 @@ function Index() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { background: themeBackground } = useSeasonalTheme();
+  // Application installée : l'accueil est l'écran /app (le site n'est pas concerné)
+  useEffect(() => {
+    if (isStandalone()) void navigate({ to: "/app", replace: true });
+  }, [navigate]);
   const [sportMode, setSportMode] = useState<SportMode>("all");
   const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");

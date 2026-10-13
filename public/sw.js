@@ -1,4 +1,4 @@
-const CACHE_NAME = "alezan-app-shell-v1";
+const CACHE_NAME = "alezan-app-shell-v2";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -36,7 +36,9 @@ self.addEventListener("fetch", (event) => {
 
   // Cache uniquement le shell public de l’application. Les données de compte,
   // les appels Supabase, les cartes et les fichiers de preuve restent réseau.
-  const isAppShell = request.mode === "navigate" && url.pathname === "/";
+  // Écrans de l’app installée (/app…) : même page de départ que « / » hors connexion.
+  const isAppShell =
+    request.mode === "navigate" && (url.pathname === "/" || url.pathname.startsWith("/app"));
   const isStaticAsset = /\.(?:css|js|png|jpe?g|svg|ico|woff2?)$/i.test(url.pathname);
   if (!isAppShell && !isStaticAsset) return;
 

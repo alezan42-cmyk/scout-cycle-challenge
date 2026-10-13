@@ -12,13 +12,8 @@ import {
   MapPinned,
   X,
   ChevronRight,
-  ChevronDown,
   House,
   MoreHorizontal,
-  Clock3,
-  Medal,
-  Award,
-  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -26,6 +21,7 @@ import { cn } from "@/lib/utils";
 import logoAlezan from "@/assets/logo-alezan.png";
 import { HeaderTrim } from "@/components/SeasonalDecor";
 import { PwaInstallButton } from "@/components/PwaInstallButton";
+import { AppTabBar } from "@/components/app/AppTabBar";
 
 interface NavItem {
   to: string;
@@ -36,22 +32,12 @@ interface NavItem {
   requiresAdmin?: boolean;
 }
 
-type AppMenu = "home" | "km" | "profile" | "more";
-
-interface AppMenuLink {
-  to: "/" | "/mes-km" | "/timeline" | "/profil" | "/admin" | "/solidarite" | "/auth" | "/app/maillots" | "/app/sorties" | "/app/classement" | "/app/defis" | "/app/compte-a-rebours" | "/app/mes-kms" | "/app/enregistrer" | "/app/trophees";
-  hash?: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-}
-
 export function SiteHeader() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isInstalledApp, setIsInstalledApp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState<AppMenu | null>(null);
   // La page est pré-rendue sur « / » : on ne marque la page active qu'une fois
   // dans le navigateur, sinon « Classement » resterait surligné partout.
   const [mounted, setMounted] = useState(false);
@@ -69,24 +55,21 @@ export function SiteHeader() {
 
   // Close mobile menu whenever navigating
   useEffect(() => {
-    setMobileMenu(null);
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!mobileMenu && !mobileMenuOpen) return;
+    if (!mobileMenuOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMobileMenu(null);
         setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mobileMenu, mobileMenuOpen]);
+  }, [mobileMenuOpen]);
 
   const handleSignOut = async () => {
-    setMobileMenu(null);
     setMobileMenuOpen(false);
     await signOut();
     navigate({ to: "/" });
@@ -158,44 +141,6 @@ export function SiteHeader() {
     "/solidarite": HandHeart,
   };
 
-  const appMenus: Record<AppMenu, { title: string; links: AppMenuLink[] }> = {
-    home: {
-      title: "Accueil",
-      links: [
-        { to: "/app/maillots", label: "Maillots jaune et à pois", icon: Trophy },
-        { to: "/app/sorties", label: "Kms enregistrés", icon: Bike },
-        { to: "/app/classement", label: "Classement", icon: Medal },
-        { to: "/app/defis", label: "Défis", icon: Award },
-      ],
-    },
-    km: {
-      title: "Mes km",
-      links: user
-        ? [
-            { to: "/app/mes-kms", label: "Mes kms enregistrés", icon: History },
-            { to: "/app/enregistrer", label: "Enregistrer mes kms", icon: Bike },
-            { to: "/app/trophees", label: "Mes trophées", icon: Award },
-          ]
-        : [{ to: "/auth", label: "Me connecter", icon: LogIn }],
-    },
-    profile: {
-      title: "Profil",
-      links: [
-        ...(user ? [{ to: "/profil" as const, label: "Mon profil", icon: CircleUserRound }] : []),
-        ...(isAdmin ? [{ to: "/admin" as const, label: "Admin", icon: ShieldCheck }] : []),
-        { to: "/solidarite", label: "Solidarité", icon: HandHeart },
-        ...(!user ? [{ to: "/auth" as const, label: "Me connecter", icon: LogIn }] : []),
-      ],
-    },
-    more: {
-      title: "À découvrir",
-      links: [
-        { to: "/timeline", label: "Ligne du temps", icon: History },
-        { to: "/app/compte-a-rebours", label: "Compte à rebours", icon: Clock3 },
-      ],
-    },
-  };
-
   return (
     <>
       <header
@@ -211,7 +156,6 @@ export function SiteHeader() {
           <Link
             to="/"
             onClick={() => {
-              setMobileMenu(null);
               setMobileMenuOpen(false);
             }}
             className="flex items-center gap-2.5 group shrink-0"
@@ -325,41 +269,7 @@ export function SiteHeader() {
       </header>
 
       {isInstalledApp ? (
-        <nav
-          aria-label="Navigation de l’application"
-          className="mobile-tabbar app-mobile-tabbar md:hidden"
-        >
-          {(
-            [
-              ["home", House, "Accueil"],
-              ["km", Bike, "Mes km"],
-              ["more", CalendarDays, "Temps"],
-              ["profile", CircleUserRound, "Profil"],
-            ] as const
-          ).map(([menuId, Icon, label]) => {
-            const isOpen = mobileMenu === menuId;
-            const isCurrent =
-              (menuId === "home" && location.pathname === "/") ||
-              (menuId === "km" && location.pathname.startsWith("/mes-km")) ||
-              (menuId === "more" && location.pathname === "/timeline") ||
-              (menuId === "profile" &&
-                ["/profil", "/admin", "/solidarite"].includes(location.pathname));
-            return (
-              <button
-                key={menuId}
-                type="button"
-                className={cn("mobile-tab", (isOpen || isCurrent) && "mobile-tab-active")}
-                onClick={() => setMobileMenu(isOpen ? null : menuId)}
-                aria-expanded={isOpen}
-                aria-controls="app-navigation-menu"
-              >
-                <Icon className="h-5 w-5" strokeWidth={isOpen || isCurrent ? 2.2 : 1.8} />
-                <span>{label}</span>
-                <ChevronDown className={cn("mobile-tab-chevron", isOpen && "rotate-180")} />
-              </button>
-            );
-          })}
-        </nav>
+        <AppTabBar />
       ) : (
         <nav aria-label="Navigation principale" className="mobile-tabbar md:hidden">
           {mobileItems.map((item) => {
@@ -391,68 +301,6 @@ export function SiteHeader() {
             <span>Plus</span>
           </button>
         </nav>
-      )}
-
-      {isInstalledApp && mobileMenu && (
-        <>
-          <button
-            className="mobile-menu-backdrop app-mobile-menu-backdrop md:hidden"
-            aria-label="Fermer le menu"
-            onClick={() => setMobileMenu(null)}
-          />
-          <div
-            id="app-navigation-menu"
-            className="mobile-menu-sheet app-mobile-menu-sheet md:hidden"
-            role="dialog"
-            aria-label={appMenus[mobileMenu].title}
-            aria-modal="true"
-          >
-            <div className="mobile-menu-heading">
-              <div>
-                <p className="mobile-menu-eyebrow">Navigation</p>
-                <h2>{appMenus[mobileMenu].title}</h2>
-              </div>
-              <button
-                type="button"
-                className="mobile-menu-close"
-                onClick={() => setMobileMenu(null)}
-                aria-label="Fermer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mobile-menu-links">
-              {appMenus[mobileMenu].links.map(({ to, hash, label: linkLabel, icon: LinkIcon }) => (
-                <Link
-                  key={`${to}-${hash || linkLabel}`}
-                  to={to}
-                  {...(hash ? { hash } : {})}
-                  onClick={() => setMobileMenu(null)}
-                  className="mobile-menu-link"
-                >
-                  <span className="mobile-menu-link-icon">
-                    <LinkIcon className="h-5 w-5" />
-                  </span>
-                  <span>{linkLabel}</span>
-                  <ChevronRight className="ml-auto h-4 w-4 opacity-50" />
-                </Link>
-              ))}
-              {mobileMenu === "profile" && user && (
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="mobile-menu-link mobile-menu-signout"
-                >
-                  <span className="mobile-menu-link-icon">
-                    <LogOut className="h-5 w-5" />
-                  </span>
-                  <span>Se déconnecter</span>
-                  <ChevronRight className="ml-auto h-4 w-4 opacity-50" />
-                </button>
-              )}
-            </div>
-          </div>
-        </>
       )}
 
       {!isInstalledApp && mobileMenuOpen && (
