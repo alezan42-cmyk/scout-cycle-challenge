@@ -407,7 +407,7 @@ function AuthPage() {
           <img
             src={logoAlezanComplet}
             alt="Alezan 42 Cycling Team"
-            className="mx-auto h-24 w-auto rounded-2xl bg-white px-4 py-3 shadow-lg"
+            className="mx-auto h-24 w-auto drop-shadow-sm"
           />
           <h1 className="mt-4 font-display text-2xl sm:text-3xl font-black text-foreground">
             Défi Vélo ALEZAN 42
