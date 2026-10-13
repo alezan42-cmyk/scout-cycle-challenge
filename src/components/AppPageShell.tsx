@@ -14,12 +14,17 @@ export function AppPageShell({
   children,
   root = false,
   action,
+  heroImage,
+  heroPosition = "center",
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   root?: boolean;
   action?: ReactNode;
+  /** Photo plein écran en haut (accueil) : titre en blanc dessus, contenu qui la chevauche */
+  heroImage?: string | undefined;
+  heroPosition?: string;
 }) {
   const router = useRouter();
   const [standalone, setStandalone] = useState<boolean | null>(null);
@@ -35,6 +40,41 @@ export function AppPageShell({
     if (window.history.length > 1) router.history.back();
     else void router.navigate({ to: "/app" });
   };
+
+  if (heroImage) {
+    return (
+      <main className="app-screen min-h-screen bg-background">
+        <div className="relative isolate overflow-hidden bg-bark">
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+            style={{ objectPosition: heroPosition }}
+          />
+          {/* Voile aux couleurs du thème + dégradé pour lire le texte et fondre dans la page */}
+          <div className="absolute inset-0 -z-10 bg-primary/25 mix-blend-multiply" />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/45 via-black/20 to-black/70" />
+          <div className="mx-auto flex min-h-[calc(16.5rem+env(safe-area-inset-top))] max-w-xl flex-col justify-end px-5 pb-16 pt-[calc(2.5rem+env(safe-area-inset-top))]">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="font-display text-[30px] font-black leading-[1.1] tracking-tight text-white drop-shadow-sm">
+                  {title}
+                </h1>
+                {description && (
+                  <p className="mt-1.5 text-[15px] leading-snug text-white/85">{description}</p>
+                )}
+              </div>
+              {action}
+            </div>
+          </div>
+        </div>
+        <div className="relative mx-auto -mt-10 max-w-xl px-5 pb-[calc(7rem+env(safe-area-inset-bottom))]">
+          <div className="space-y-7">{children}</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="app-screen min-h-screen bg-background">
