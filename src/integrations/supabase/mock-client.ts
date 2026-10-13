@@ -249,6 +249,15 @@ export function createMockSupabaseClient() {
       return { data: [], error: null };
     },
 
+    functions: {
+      async invoke(_name: string, _options?: { body?: unknown }) {
+        return {
+          data: null,
+          error: new Error("Les fonctions Supabase ne sont pas disponibles en mode local"),
+        };
+      },
+    },
+
     storage: {
       from(_bucket: string) {
         return {

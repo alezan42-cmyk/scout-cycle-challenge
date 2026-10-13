@@ -12,11 +12,13 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AlezanMascot } from "@/components/AlezanMascot";
 import { AuthProvider } from "@/context/AuthContext";
 import { SeasonalThemeProvider } from "@/context/SeasonalThemeContext";
 import { SeasonalDecor } from "@/components/SeasonalDecor";
 import { AnimationToggle } from "@/components/AnimationToggle";
 import { THEME_BOOT_SCRIPT } from "@/lib/seasonalTheme";
+import { APP_BOOT_SCRIPT } from "@/lib/standalone";
 import { supabase } from "@/integrations/supabase/client";
 import appCss from "../styles.css?url";
 
@@ -97,7 +99,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#a84300" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "ALEZAN 42" },
       { title: "ALEZAN 42 — Défi vélo des patrouilles" },
       { name: "description", content: "Concours de kilomètres à vélo entre patrouilles scoutes." },
       { property: "og:title", content: "ALEZAN 42 — Défi vélo des patrouilles" },
@@ -121,10 +127,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   // Applique le dernier thème connu avant l'affichage (évite un flash aux couleurs standard)
-  scripts: () => [{ children: THEME_BOOT_SCRIPT }],
+  // App installée : marque <html> et ouvre l'accueil de l'app (le site n'est pas concerné)
+  scripts: () => [{ children: THEME_BOOT_SCRIPT }, { children: APP_BOOT_SCRIPT }],
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -149,6 +157,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useEffect(() => {
+    if (!import.meta.env.DEV && "serviceWorker" in navigator && window.isSecureContext) {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+        // L’application reste utilisable même si le service worker est indisponible.
+      });
+    }
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
@@ -162,9 +175,10 @@ function RootComponent() {
       <SeasonalThemeProvider>
         <AuthProvider>
           <SiteHeader />
+          <AlezanMascot />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
-          <footer className="py-4 text-center text-[10px] text-muted-foreground/70">
+          <footer className="site-footer py-4 text-center text-[10px] text-muted-foreground/70">
             Version {__APP_VERSION__} · mise en ligne le{" "}
             {new Date(__APP_BUILT_AT__).toLocaleString("fr-BE", {
               dateStyle: "short",

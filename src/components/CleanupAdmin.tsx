@@ -13,6 +13,7 @@ type Report = {
   groupes_vides_supprimes?: number;
   comptes_a_rebours_desactives?: number;
   sorties_en_attente_supprimees?: number;
+  sorties_validees_nettoyees?: number;
   photos_de_preuve_effacees?: number;
   fichiers_orphelins_effaces?: number;
   erreurs?: string[];
@@ -30,6 +31,7 @@ type Member = {
 
 const RULES = [
   "Photos de preuve : effacées 30 jours après la validation (les km restent).",
+  "Sorties validées depuis 30 jours : lien Strava et description effacés ; km, D+, date et sport conservés.",
   "Sorties en attente : signalées après 30 jours, supprimées après 60 jours.",
   "Sorties à plusieurs restées vides : supprimées après 30 jours.",
   "Comptes à rebours dépassés : désactivés le lendemain.",
@@ -41,6 +43,7 @@ function summary(r: Report): string {
   const parts = [
     [r.photos_de_preuve_effacees, "photo(s) de preuve"],
     [r.sorties_en_attente_supprimees, "sortie(s) en attente"],
+    [r.sorties_validees_nettoyees, "sortie(s) validée(s) nettoyée(s)"],
     [r.groupes_vides_supprimes, "sortie(s) à plusieurs vide(s)"],
     [r.comptes_a_rebours_desactives, "compte(s) à rebours"],
     [r.fichiers_orphelins_effaces, "fichier(s) orphelin(s)"],

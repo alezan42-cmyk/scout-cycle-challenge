@@ -53,6 +53,7 @@ export const Route = createFileRoute("/timeline")({
         content: "Retrouve les archives photos, albums Drive et souvenirs des patrouilles.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/timeline" }],
   }),
   component: TimelinePage,
 });

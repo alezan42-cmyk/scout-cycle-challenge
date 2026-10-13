@@ -49,7 +49,9 @@ export function getPatrolEmblem(patrolName?: string | null, patrolId?: string | 
   }
 
   // 2. Check if name already starts with an emoji (e.g. "🐱 Lynx")
-  const emojiPrefixMatch = patrolName.match(/^([\p{Emoji_Presentation}\p{Extended_Pictographic}])/u);
+  const emojiPrefixMatch = patrolName.match(
+    /^([\p{Emoji_Presentation}\p{Extended_Pictographic}])/u,
+  );
   if (emojiPrefixMatch) {
     return emojiPrefixMatch[1];
   }
@@ -102,6 +104,8 @@ export interface Profile {
   quali: string | null;
   scout_year: number | null; // 1 to 4, or null for Chefs
   phone: string | null;
+  birth_day?: number | null;
+  birth_month?: number | null;
   strava_url: string | null;
   patrol_id: string | null;
   is_chef?: boolean | undefined;
@@ -109,7 +113,17 @@ export interface Profile {
   created_at: string;
 }
 
-export type ActivitySport = "velo" | "course";
+export type ActivitySport = "velo" | "course" | "marche";
+
+/** Libellés et icônes des sports (affichage). */
+export const SPORT_INFO: Record<
+  ActivitySport,
+  { label: string; short: string; emoji: string; verb: string }
+> = {
+  velo: { label: "Sortie vélo", short: "Vélo", emoji: "🚴", verb: "roulé" },
+  course: { label: "Course à pied", short: "Course", emoji: "🏃", verb: "couru" },
+  marche: { label: "Marche", short: "Marche", emoji: "🥾", verb: "marché" },
+};
 
 export function getActivitySport(act: { note?: string | null } | null | undefined): ActivitySport {
   if (!act?.note) return "velo";
@@ -124,12 +138,23 @@ export function getActivitySport(act: { note?: string | null } | null | undefine
   ) {
     return "course";
   }
+  if (
+    n.startsWith("[marche]") ||
+    n.startsWith("[walk]") ||
+    n.startsWith("[rando]") ||
+    n.includes("#marche") ||
+    n.includes("#walk")
+  ) {
+    return "marche";
+  }
   return "velo";
 }
 
 export function cleanActivityNote(note?: string | null): string {
   if (!note) return "";
-  return note.replace(/^\[(course|course_a_pied|run|running|velo)\]\s*/i, "").trim();
+  return note
+    .replace(/^\[(course|course_a_pied|run|running|velo|marche|walk|rando)\]\s*/i, "")
+    .trim();
 }
 
 export interface Activity {
@@ -499,6 +524,8 @@ class StandaloneDatabase {
       scout_year?: number | null;
       patrol_id?: string | null;
       phone?: string | null;
+      birth_day?: number | null;
+      birth_month?: number | null;
       is_chef?: boolean;
     },
   ) {
@@ -522,6 +549,8 @@ class StandaloneDatabase {
         quali: metadata.quali || null,
         scout_year: metadata.scout_year ?? null,
         phone: metadata.phone || null,
+        birth_day: metadata.birth_day ?? null,
+        birth_month: metadata.birth_month ?? null,
         strava_url: null,
         patrol_id: metadata.patrol_id || (isGauthier ? "patrol-staff" : null),
         is_chef: metadata.is_chef ?? isGauthier,

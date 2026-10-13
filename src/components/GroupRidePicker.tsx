@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { pelotonMultiplier } from "@/lib/peloton";
+import { SPORT_INFO, type ActivitySport } from "@/lib/database";
 
 export type GroupChoice =
   | { mode: "seul" }
@@ -14,7 +15,7 @@ export type GroupChoice =
       mode: "rejoindre";
       groupId: string;
       rideDate: string;
-      sport: "velo" | "course";
+      sport: ActivitySport;
       /** nombre de personnes prévues dans la sortie (toi comprise) */
       size?: number;
     };
@@ -23,7 +24,7 @@ type Member = { id: string; name: string };
 export type Invitation = {
   groupId: string;
   rideDate: string;
-  sport: "velo" | "course";
+  sport: ActivitySport;
   createdByName: string;
   otherNames: string[];
 };
@@ -44,7 +45,7 @@ async function loadInvitations(userId: string): Promise<Invitation[]> {
     .gte("group_rides.ride_date", since);
   const groups = (mine ?? []) as {
     group_id: string;
-    group_rides: { id: string; ride_date: string; sport: "velo" | "course"; created_by: string };
+    group_rides: { id: string; ride_date: string; sport: ActivitySport; created_by: string };
   }[];
   if (groups.length === 0) return [];
 
@@ -278,7 +279,7 @@ export function GroupRidePicker({
               />
               <span>
                 <strong>
-                  {inv.sport === "course" ? "🏃 Course" : "🚴 Sortie vélo"} du{" "}
+                  {SPORT_INFO[inv.sport].emoji} {SPORT_INFO[inv.sport].label} du{" "}
                   {new Date(inv.rideDate).toLocaleDateString("fr-BE")}
                 </strong>
                 <br />

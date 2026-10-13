@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Trophy,
   Flame,
@@ -20,6 +20,8 @@ import {
   Search,
   Footprints,
   Clock,
+  PersonStanding,
+  ExternalLink,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
 import { CountdownBanner } from "@/components/CountdownBanner";
@@ -29,7 +31,16 @@ import { CollectiveRouteMap } from "@/components/CollectiveRouteMap";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { weekRange, monthRange, useAuth } from "@/lib/useAuth";
-import { db, type Patrol, getActivitySport, type ActivitySport, getPatrolEmblem } from "@/lib/database";
+import { isAppMode } from "@/lib/standalone";
+import {
+  db,
+  type Patrol,
+  getActivitySport,
+  type ActivitySport,
+  getPatrolEmblem,
+  SPORT_INFO,
+} from "@/lib/database";
+import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
 import { cn } from "@/lib/utils";
 import {
   isStaffPatrol,
@@ -41,9 +52,20 @@ import { computeJerseys } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
+import { CumulativeDistanceBadges, NearestDistanceTrophy } from "@/components/DistanceTrophies";
+import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
+import type { DistanceActivity } from "@/lib/distanceTrophies";
+import { AlezanNamePoll } from "../components/AlezanNamePoll";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface LeaderboardItem {
   user_id: string;
@@ -56,9 +78,24 @@ interface LeaderboardItem {
   category: string;
   km: number;
   dplus: number;
+  distanceTotals: Record<ActivitySport, number>;
   scout_year?: number | null;
   is_chef?: boolean;
   peloton?: PelotonUserScore | undefined;
+}
+
+interface RankedActivity {
+  user_id: string;
+  km: number;
+  elevation_m?: number | null;
+  ride_date: string;
+  note?: string | null;
+  group_ride_id?: string | null;
+}
+
+interface SelectedLeaderboardEntry {
+  title: string;
+  userIds: string[];
 }
 
 export const Route = createFileRoute("/")({
@@ -74,6 +111,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "ALEZAN 42 — Le défi vélo des patrouilles" },
       { property: "og:description", content: "Quelle patrouille roulera le plus cette semaine ?" },
     ],
+    // Adresse officielle (le site répond aussi sur alezan42-cycling.pages.dev)
+    links: [{ rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/" }],
   }),
   component: Index,
 });
@@ -88,8 +127,22 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: "Depuis le début",
 };
 type GenderCat = "all" | "homme" | "femme";
-type ScoutYearFilter = "all" | "1" | "2" | "3" | "4" | "chef";
-type SportMode = "velo" | "course" | "all";
+type ScoutYearFilter = "all" | "scouts" | "1" | "2" | "3" | "4" | "chef";
+type SportMode = "velo" | "course" | "marche" | "all";
+
+/** Icône du mode de classement (Tous = vélo). */
+function ModeIcon({
+  mode,
+  className,
+  colored,
+}: {
+  mode: SportMode;
+  className?: string;
+  colored?: boolean;
+}) {
+  const sport = mode === "all" ? "velo" : mode;
+  return <SportIcon sport={sport} className={cn(className, colored && SPORT_COLORS[sport].text)} />;
+}
 
 function FilterPill({
   active,
@@ -129,14 +182,50 @@ function FilterPill({
 
 function Index() {
   const { user, profile, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { background: themeBackground } = useSeasonalTheme();
-  const [sportMode, setSportMode] = useState<SportMode>("velo");
-  const [period, setPeriod] = useState<Period>("week");
+  // Application installée sur téléphone : l'accueil est l'écran /app (le site n'est pas concerné)
+  useEffect(() => {
+    if (isAppMode()) void navigate({ to: "/app", replace: true });
+  }, [navigate]);
+  const [sportMode, setSportMode] = useState<SportMode>("all");
+  const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");
   const [scoutYear, setScoutYear] = useState<ScoutYearFilter>("all");
-  const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart">("patrols");
+  const [view, setView] = useState<
+    "patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges"
+  >("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
+  const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
+
+  const { data: myApprovedActivities = [] } = useQuery<DistanceActivity[]>({
+    queryKey: ["my-approved-activities-for-trophies", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km,note,status")
+        .eq("user_id", user!.id)
+        .eq("status", "approved");
+      if (error) throw error;
+      return (data || []) as unknown as DistanceActivity[];
+    },
+  });
+
+  const { data: globalActivityCount = 0 } = useQuery<number>({
+    queryKey: ["global-approved-activity-count"],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("activities_public")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "approved");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const range =
     period === "week"
@@ -149,22 +238,29 @@ function Index() {
             ? monthRange(-1)
             : null;
 
-  const { data: leaderboardData = [], isLoading: isLeaderboardLoading } = useQuery<
-    LeaderboardItem[]
-  >({
+  const {
+    data: leaderboardData,
+    isLoading: isLeaderboardLoading,
+    isError: isLeaderboardError,
+  } = useQuery<LeaderboardItem[]>({
     queryKey: ["leaderboard", period, sportMode],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       // Direct aggregation from real Supabase profiles and activities with sport filtering
       try {
-        const { data: realProfiles } = await supabase
+        const { data: realProfiles, error: profilesError } = await supabase
           .from("profiles_public")
           .select(
             "id, full_name, totem, quali, patrol_id, is_admin, scout_year, patrols(id, name, category)",
           );
 
-        const { data: realActs } = await supabase
+        const { data: realActs, error: activitiesError } = await supabase
           .from("activities_public")
           .select("user_id, km, elevation_m, ride_date, status, note, group_ride_id");
+
+        if (profilesError) throw profilesError;
+        if (activitiesError) throw activitiesError;
 
         type ProfileWithPatrol = {
           id: string;
@@ -195,8 +291,7 @@ function Index() {
           if (range?.from && a.ride_date < range.from) return false;
           if (range?.to && a.ride_date > range.to) return false;
           const sport = getActivitySport(a);
-          if (sportMode === "velo" && sport !== "velo") return false;
-          if (sportMode === "course" && sport !== "course") return false;
+          if (sportMode !== "all" && sport !== sportMode) return false;
           return true;
         });
         const sumPending = pendingForSport.reduce((acc, curr) => acc + Number(curr.km || 0), 0);
@@ -208,8 +303,7 @@ function Index() {
             if (range?.from && a.ride_date < range.from) return false;
             if (range?.to && a.ride_date > range.to) return false;
             const sport = getActivitySport(a);
-            if (sportMode === "velo" && sport !== "velo") return false;
-            if (sportMode === "course" && sport !== "course") return false;
+            if (sportMode !== "all" && sport !== sportMode) return false;
             return true;
           }),
         );
@@ -229,8 +323,7 @@ function Index() {
 
               // Filtre selon le Mode Sport sélectionné (Vélo vs Course à pied vs Tous)
               const sport = getActivitySport(a);
-              if (sportMode === "velo" && sport !== "velo") return false;
-              if (sportMode === "course" && sport !== "course") return false;
+              if (sportMode !== "all" && sport !== sportMode) return false;
 
               return true;
             });
@@ -240,6 +333,16 @@ function Index() {
               (acc, curr) => acc + Number(curr.elevation_m || 0),
               0,
             );
+            const distanceTotals: Record<ActivitySport, number> = {
+              velo: 0,
+              course: 0,
+              marche: 0,
+            };
+            acts
+              .filter((activity) => activity.user_id === p.id && activity.status === "approved")
+              .forEach((activity) => {
+                distanceTotals[getActivitySport(activity)] += Number(activity.km || 0);
+              });
             const displayName = p.totem
               ? `${p.totem}${p.quali ? ` ${p.quali}` : ""}`
               : p.full_name || "Scout";
@@ -256,6 +359,7 @@ function Index() {
               category: isStaffOrChef ? "staff" : (pt?.category as "homme" | "femme") || "homme",
               km: Number(totalKm.toFixed(1)),
               dplus: Math.round(totalDplus),
+              distanceTotals,
               scout_year: p.scout_year ?? undefined,
               is_chef: isStaffOrChef,
               peloton: peloton.get(p.id),
@@ -264,9 +368,30 @@ function Index() {
           .sort((a, b) => b.km - a.km);
 
         return items;
-      } catch {
-        return [];
+      } catch (error) {
+        console.error("Erreur de synchronisation du classement :", error);
+        throw error;
       }
+    },
+  });
+
+  const selectedUserIds = selectedEntry?.userIds ?? [];
+  const { data: entryActivities = [], isLoading: isEntryActivitiesLoading } = useQuery({
+    queryKey: ["leaderboard-entry-activities", selectedUserIds, period, sportMode],
+    enabled: !!selectedEntry && selectedUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("user_id, km, elevation_m, ride_date, note, group_ride_id")
+        .in("user_id", selectedUserIds)
+        .eq("status", "approved")
+        .order("ride_date", { ascending: false });
+      if (error) throw error;
+      return ((data as unknown as RankedActivity[]) || []).filter((activity) => {
+        if (range?.from && activity.ride_date < range.from) return false;
+        if (range?.to && activity.ride_date > range.to) return false;
+        return sportMode === "all" || getActivitySport(activity) === sportMode;
+      });
     },
   });
 
@@ -295,6 +420,9 @@ function Index() {
       if (scoutYear !== "all") {
         if (scoutYear === "chef") {
           if (!isStaffOrChef) return false;
+        } else if (scoutYear === "scouts") {
+          // Scouts de 1re à 4e année ensemble, sans le staff
+          if (isStaffOrChef) return false;
         } else {
           const targetYear = Number(scoutYear);
           if (isStaffOrChef || r.scout_year !== targetYear) {
@@ -431,10 +559,26 @@ function Index() {
     });
   }, [scoutRows]);
 
+  const openScoutProfile = (scout: LeaderboardItem) => {
+    void navigate({ to: "/scout/$scoutId", params: { scoutId: scout.user_id } });
+  };
+
+  const openPatrolActivities = (patrol: (typeof rankedPatrols)[number]) => {
+    const isMainStaffPatrol =
+      isStaffPatrol(patrol) && (isTroopStaffPatrol(patrol) || patrol.id === "staff");
+    const userIds = filteredScouts
+      .filter(
+        (scout) =>
+          scout.patrol_id === patrol.id || (isMainStaffPatrol && scout.is_chef && !scout.patrol_id),
+      )
+      .map((scout) => scout.user_id);
+    setSelectedEntry({ title: patrol.name, userIds });
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="mobile-home-page min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-bark text-bark-foreground">
+      <section className="mobile-home-hero relative overflow-hidden bg-bark text-bark-foreground">
         <img
           src={themeBackground ?? hero}
           alt={
@@ -453,29 +597,53 @@ function Index() {
         <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">
-              {sportMode === "course" ? (
-                <Footprints className="h-4 w-4" />
+              {sportMode === "course" || sportMode === "marche" ? (
+                <ModeIcon mode={sportMode} className="h-4 w-4" />
               ) : (
                 <Tent className="h-4 w-4" />
               )}
               <span>
                 {sportMode === "course"
                   ? "ALEZAN 42 — Défi Course à Pied Inter-Patrouilles 🏃"
-                  : sportMode === "all"
-                    ? "ALEZAN 42 — Défi Combiné (Vélo & Course) 🏆"
-                    : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
+                  : sportMode === "marche"
+                    ? "ALEZAN 42 — Défi Marche Inter-Patrouilles 🥾"
+                    : sportMode === "all"
+                      ? "ALEZAN 42 — Défi Combiné (Vélo, Course & Marche) 🏆"
+                      : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
               </span>
             </div>
             <h1 className="mt-4 font-display text-4xl font-black leading-tight text-white md:text-6xl">
               {sportMode === "course"
                 ? "Qui courra le plus loin cette semaine ?"
-                : "Qui pédalera le plus loin cette semaine ?"}
+                : sportMode === "marche"
+                  ? "Qui marchera le plus loin cette semaine ?"
+                  : "Qui pédalera le plus loin cette semaine ?"}
             </h1>
-            <p className="mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
+            <p className="mobile-hero-description mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
               {sportMode === "course"
                 ? "Chaque foulée compte pour ta patrouille ! Enregistre tes sorties de course à pied avec Strava ou photo de chrono, grimpe au classement dédié et fais briller tes couleurs."
-                : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
+                : sportMode === "marche"
+                  ? "Chaque pas compte pour ta patrouille ! Enregistre tes marches et randos avec Strava ou une capture de ton appli, grimpe au classement dédié et fais briller tes couleurs."
+                  : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
             </p>
+
+            <a
+              href="https://www.strava.com/clubs/Troupe-Alezan42"
+              target="_blank"
+              rel="noreferrer"
+              className="mobile-hero-secondary mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fc4c02] text-lg font-black">
+                S
+              </span>
+              <span className="text-left">
+                <span className="block text-sm font-bold">Retrouve-nous sur Strava</span>
+                <span className="block text-xs text-white/80">
+                  Rejoins le club Troupe de l’Alezan
+                </span>
+              </span>
+              <ExternalLink className="ml-1 h-4 w-4 shrink-0 text-white/80" />
+            </a>
 
             {/* Scout Identity Bandeau (Visible when logged in) */}
             {user && (
@@ -543,6 +711,12 @@ function Index() {
               </div>
             )}
 
+            {user && (
+              <div className="mt-4 max-w-md">
+                <NearestDistanceTrophy activities={myApprovedActivities} compact />
+              </div>
+            )}
+
             {/* Quick Actions */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button
@@ -551,15 +725,13 @@ function Index() {
                 className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
               >
                 <Link to="/mes-km">
-                  {sportMode === "course" ? (
-                    <Footprints className="mr-2 h-5 w-5" />
-                  ) : (
-                    <Bike className="mr-2 h-5 w-5" />
-                  )}
+                  <ModeIcon mode={sportMode} className="mr-2 h-5 w-5" />
                   <span>
                     {sportMode === "course"
                       ? "Enregistrer ma course à pied"
-                      : "Enregistrer mes kilomètres"}
+                      : sportMode === "marche"
+                        ? "Enregistrer ma marche"
+                        : "Enregistrer mes kilomètres"}
                   </span>
                 </Link>
               </Button>
@@ -590,27 +762,35 @@ function Index() {
           </div>
         </div>
       </section>
+      <AlezanNamePoll />
 
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
-        <CountdownBanner isAdmin={isAdmin} />
+        <div id="compte-a-rebours" className="scroll-mt-6">
+          <CountdownBanner isAdmin={isAdmin} />
+        </div>
+
+        {/* Défis ouverts destinés au scout connecté */}
+        <div id="defis" className="scroll-mt-6">
+          <ChallengesBanner />
+        </div>
 
         {/* Anniversaires : membres connectés uniquement */}
         <BirthdayBanner userId={user?.id} />
 
-        {/* SELECTEUR DU MODE SPORT (VÉLO vs COURSE À PIED vs COMBINÉ) */}
+        {/* SÉLECTEUR DU SPORT (VÉLO / COURSE À PIED / MARCHE / COMBINÉ) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card p-3 shadow-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="text-xs font-black uppercase tracking-wider text-muted-foreground mr-1">
               Discipline :
             </span>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
               <button
                 type="button"
                 onClick={() => setSportMode("velo")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "velo"
                     ? "bg-primary text-primary-foreground shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -624,7 +804,7 @@ function Index() {
                 type="button"
                 onClick={() => setSportMode("course")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "course"
                     ? "bg-purple-600 text-white shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -636,9 +816,23 @@ function Index() {
 
               <button
                 type="button"
+                onClick={() => setSportMode("marche")}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
+                  sportMode === "marche"
+                    ? "bg-sky-600 text-white shadow-sm scale-102"
+                    : "bg-muted/50 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <PersonStanding className="h-4 w-4" />
+                <span>Mode Marche 🥾</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setSportMode("all")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-black transition-all",
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs sm:px-4 sm:text-sm font-black transition-all",
                   sportMode === "all"
                     ? "bg-amber-600 text-white shadow-sm scale-102"
                     : "bg-muted/50 text-muted-foreground hover:text-foreground",
@@ -654,13 +848,32 @@ function Index() {
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             <span>
               Classement dédié{" "}
-              {sportMode === "course" ? "Course à pied" : sportMode === "velo" ? "Vélo" : "Général"}
+              {sportMode === "all"
+                ? "Général"
+                : sportMode === "course"
+                  ? "Course à pied"
+                  : SPORT_INFO[sportMode].short}
             </span>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sorties validées
+              </span>
+              <span className="rounded-lg bg-primary/10 p-2 text-primary">
+                <Bike className="h-5 w-5" />
+              </span>
+            </div>
+            <div className="mt-2 font-display text-2xl font-black text-foreground sm:text-3xl">
+              {globalActivityCount.toLocaleString("fr-BE")}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">tous sports, depuis le début</p>
+          </div>
+
           <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -668,20 +881,24 @@ function Index() {
                   ? "Total couru à pied"
                   : sportMode === "velo"
                     ? "Total parcouru à vélo"
-                    : "Total cumulé"}
+                    : sportMode === "marche"
+                      ? "Total marché"
+                      : "Total cumulé"}
               </span>
               <span
                 className={cn(
                   "rounded-lg p-2",
                   sportMode === "course"
                     ? "bg-purple-500/10 text-purple-600"
-                    : "bg-primary/10 text-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-500/10 text-sky-600"
+                      : "bg-primary/10 text-primary",
                 )}
               >
-                {sportMode === "course" ? (
-                  <Footprints className="h-5 w-5" />
-                ) : (
+                {sportMode === "velo" || sportMode === "all" ? (
                   <Flame className="h-5 w-5" />
+                ) : (
+                  <ModeIcon mode={sportMode} className="h-5 w-5" />
                 )}
               </span>
             </div>
@@ -721,7 +938,7 @@ function Index() {
             </div>
             <p className="mt-1 truncate text-xs text-muted-foreground">
               {topPatrol
-                ? `${topPatrol.km.toFixed(1)} km (${sportMode === "course" ? "course" : "vélo"})`
+                ? `${topPatrol.km.toFixed(1)} km (${sportMode === "all" ? "tous sports" : SPORT_INFO[sportMode].short.toLowerCase()})`
                 : "En attente de sorties"}
             </p>
           </div>
@@ -733,7 +950,9 @@ function Index() {
                   ? "Premier Coureur"
                   : sportMode === "velo"
                     ? "Premier Cycliste"
-                    : "Premier Scout"}
+                    : sportMode === "marche"
+                      ? "Premier Marcheur"
+                      : "Premier Scout"}
               </span>
               <span className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600">
                 <Trophy className="h-5 w-5" />
@@ -814,6 +1033,9 @@ function Index() {
             <FilterPill active={scoutYear === "all"} onClick={() => setScoutYear("all")}>
               Toutes années
             </FilterPill>
+            <FilterPill active={scoutYear === "scouts"} onClick={() => setScoutYear("scouts")}>
+              Scouts (1re à 4e)
+            </FilterPill>
             <FilterPill active={scoutYear === "1"} onClick={() => setScoutYear("1")}>
               1ère année
             </FilterPill>
@@ -833,13 +1055,18 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
-        <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        <div id="maillots" className="scroll-mt-6">
+          <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        </div>
 
         {/* Scout sportif du mois (affiché dès qu'un premier lauréat est désigné) */}
         <ScoutSportifCard />
 
         {/* View Switcher: Patrouilles vs Individuel vs Tendances Graphique */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3">
+        <div
+          id="classement"
+          className="scroll-mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3"
+        >
           <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto">
             <button
               onClick={() => setView("patrols")}
@@ -850,15 +1077,11 @@ function Index() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {sportMode === "course" ? (
-                <Footprints className="h-4 w-4 text-purple-600" />
-              ) : (
-                <Bike className="h-4 w-4 text-primary" />
-              )}
+              <ModeIcon mode={sportMode} className="h-4 w-4" colored />
               <span>
                 Classement Patrouilles{" "}
                 <span className="text-xs font-normal opacity-80">
-                  ({sportMode === "course" ? "Course" : sportMode === "velo" ? "Vélo" : "Tous"})
+                  ({sportMode === "all" ? "Tous" : SPORT_INFO[sportMode].short})
                 </span>{" "}
                 ({patrolRows.length})
               </span>
@@ -876,10 +1099,22 @@ function Index() {
               <span>
                 Classement Individuel{" "}
                 <span className="text-xs font-normal opacity-80">
-                  ({sportMode === "course" ? "Course" : sportMode === "velo" ? "Vélo" : "Tous"})
+                  ({sportMode === "all" ? "Tous" : SPORT_INFO[sportMode].short})
                 </span>{" "}
                 ({scoutRows.length})
               </span>
+            </button>
+            <button
+              onClick={() => setView("challenges")}
+              className={cn(
+                "relative pb-3 font-display text-base sm:text-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5",
+                view === "challenges"
+                  ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:rounded-full after:bg-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Award className="h-4 w-4 text-amber-500" />
+              <span>Défis</span>
             </button>
             <button
               onClick={() => setView("peloton")}
@@ -920,12 +1155,14 @@ function Index() {
           </div>
 
           <span className="hidden text-xs text-muted-foreground md:inline">
-            Mise à jour en temps réel
+            Mise à jour automatique toutes les 30 s
           </span>
         </div>
 
         {/* View Content */}
-        {view === "map" ? (
+        {view === "challenges" ? (
+          <ChallengesPanel />
+        ) : view === "map" ? (
           <CollectiveRouteMap />
         ) : view === "chart" ? (
           <PatrolDailyContributionChart />
@@ -933,6 +1170,10 @@ function Index() {
           <div className="rounded-2xl border bg-card p-12 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             <p className="mt-3 text-sm text-muted-foreground">Calcul des kilomètres en cours…</p>
+          </div>
+        ) : isLeaderboardError && !leaderboardData ? (
+          <div className="rounded-2xl border border-destructive/30 bg-card p-10 text-center text-sm text-muted-foreground">
+            Impossible de synchroniser le classement. Réessaie dans quelques instants.
           </div>
         ) : view === "peloton" ? (
           <PelotonPanel scouts={filteredScouts} patrols={patrolRows} sportMode={sportMode} />
@@ -954,6 +1195,7 @@ function Index() {
                   km={p.km}
                   maxKm={rankedPatrols[0]?.km || 1}
                   sportMode={sportMode}
+                  onClick={() => openPatrolActivities(p)}
                 />
               ))
             )}
@@ -968,7 +1210,7 @@ function Index() {
                   type="text"
                   value={scoutSearch}
                   onChange={(e) => setScoutSearch(e.target.value)}
-                  placeholder="Rechercher par totem, qualificatif, nom ou patrouille..."
+                  placeholder="Rechercher par totem, qualificatif ou patrouille..."
                   className="w-full bg-background rounded-xl pl-9 pr-4 py-2 text-sm border border-input focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -984,7 +1226,11 @@ function Index() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
                 {/* 2nd place */}
                 {scoutRows[1] && (
-                  <div className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1">
+                  <button
+                    type="button"
+                    onClick={() => openScoutProfile(scoutRows[1])}
+                    className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-200 text-slate-800 font-black text-sm">
                         2
@@ -999,21 +1245,22 @@ function Index() {
                         {scoutRows[1].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[1].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-4 w-4 text-purple-600" />
-                      ) : (
-                        <Bike className="h-4 w-4 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[1].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {/* 1st place */}
                 {scoutRows[0] && (
-                  <div className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2">
+                  <button
+                    type="button"
+                    onClick={() => openScoutProfile(scoutRows[0])}
+                    className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white font-black text-base shadow">
                         1
@@ -1022,7 +1269,11 @@ function Index() {
                     </div>
                     <div className="mt-4">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                        {sportMode === "course" ? "🏃 Meilleur Coureur" : "🚴 Maillot Jaune"}
+                        {sportMode === "course"
+                          ? "🏃 Meilleur Coureur"
+                          : sportMode === "marche"
+                            ? "🥾 Meilleur Marcheur"
+                            : "🚴 Maillot Jaune"}
                       </span>
                       <h4 className="font-display font-black text-lg text-foreground truncate">
                         {scoutRows[0].display_name}
@@ -1031,21 +1282,22 @@ function Index() {
                         {scoutRows[0].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[0].distanceTotals} />
                     <div className="mt-4 pt-2 border-t font-display font-black text-2xl text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-5 w-5 text-purple-600" />
-                      ) : (
-                        <Bike className="h-5 w-5 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-5 w-5" colored />
                       <span>{scoutRows[0].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {/* 3rd place */}
                 {scoutRows[2] && (
-                  <div className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3">
+                  <button
+                    type="button"
+                    onClick={() => openScoutProfile(scoutRows[2])}
+                    className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3 text-left hover:border-primary/50 hover:shadow-md transition-all"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-800 text-amber-100 font-black text-sm">
                         3
@@ -1060,16 +1312,13 @@ function Index() {
                         {scoutRows[2].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[2].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
-                      {sportMode === "course" ? (
-                        <Footprints className="h-4 w-4 text-purple-600" />
-                      ) : (
-                        <Bike className="h-4 w-4 text-primary" />
-                      )}
+                      <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[2].km.toFixed(1)}</span>
                       <span className="text-xs font-semibold text-muted-foreground">km</span>
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
             )}
@@ -1091,10 +1340,12 @@ function Index() {
                     isChef={s.is_chef}
                     km={s.km}
                     dplus={s.dplus}
+                    distanceTotals={s.distanceTotals}
                     yellowJersey={jerseyHolderIds.yellow.has(s.user_id)}
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
                     sportMode={sportMode}
+                    onClick={() => openScoutProfile(s)}
                   />
                 ))
               )}
@@ -1102,6 +1353,71 @@ function Index() {
           </div>
         )}
       </main>
+      <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+        <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Sorties de {selectedEntry?.title}</DialogTitle>
+            <DialogDescription>
+              Sorties approuvées correspondant aux filtres du classement : {PERIOD_LABELS[period]} ·{" "}
+              {sportMode === "all" ? "Tout" : SPORT_INFO[sportMode].short}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+            {isEntryActivitiesLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Chargement des sorties…
+              </p>
+            ) : entryActivities.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Aucune sortie approuvée ne correspond à ces filtres.
+              </p>
+            ) : (
+              entryActivities.map((activity, index) => {
+                const member = leaderboardData.find((scout) => scout.user_id === activity.user_id);
+                const sport = getActivitySport(activity);
+                return (
+                  <div
+                    key={`${activity.user_id}-${activity.ride_date}-${index}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3"
+                  >
+                    <div className="min-w-0">
+                      {selectedEntry.userIds.length > 1 && (
+                        <p className="truncate text-xs font-semibold text-foreground">
+                          {member?.display_name ?? "Membre"}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(`${activity.ride_date}T12:00:00`).toLocaleDateString("fr-BE")} ·{" "}
+                        {SPORT_INFO[sport].label}
+                      </p>
+                      {activity.note && !activity.note.startsWith("[") && (
+                        <p className="truncate text-xs text-muted-foreground">{activity.note}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-display font-bold">{Number(activity.km).toFixed(1)} km</p>
+                      {activity.elevation_m ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          {activity.elevation_m} m D+
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {entryActivities.length > 0 && (
+            <p className="border-t pt-3 text-right text-sm font-bold">
+              Total affiché :{" "}
+              {entryActivities
+                .reduce((sum, activity) => sum + Number(activity.km || 0), 0)
+                .toFixed(1)}{" "}
+              km
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1115,6 +1431,7 @@ function PatrolLeaderboardRow({
   km,
   maxKm,
   sportMode = "velo",
+  onClick,
 }: {
   rank: number;
   name: string;
@@ -1124,6 +1441,7 @@ function PatrolLeaderboardRow({
   km: number;
   maxKm: number;
   sportMode?: SportMode;
+  onClick: () => void;
 }) {
   const isRanked = km > 0 && rank > 0;
   const percentage = isRanked && maxKm > 0 ? Math.max(3, (km / maxKm) * 100) : 0;
@@ -1165,9 +1483,11 @@ function PatrolLeaderboardRow({
   };
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "group relative flex items-center gap-4 rounded-2xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md",
+        "group relative flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-md",
         rank === 1 && isRanked
           ? "border-amber-400/40 bg-gradient-to-r from-amber-500/5 via-card to-card"
           : "",
@@ -1193,11 +1513,7 @@ function PatrolLeaderboardRow({
             )}
           </div>
           <div className="font-display text-xl font-black text-foreground flex items-center gap-1">
-            {sportMode === "course" ? (
-              <Footprints className="h-4 w-4 text-purple-600" />
-            ) : (
-              <Bike className="h-4 w-4 text-primary" />
-            )}
+            <ModeIcon mode={sportMode} className="h-4 w-4" colored />
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
@@ -1213,7 +1529,9 @@ function PatrolLeaderboardRow({
                   ? "bg-gradient-to-r from-amber-500 to-primary"
                   : sportMode === "course"
                     ? "bg-purple-600"
-                    : "bg-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-600"
+                      : "bg-primary",
               )}
               style={{ width: `${percentage}%` }}
             />
@@ -1223,7 +1541,7 @@ function PatrolLeaderboardRow({
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -1235,10 +1553,12 @@ function ScoutLeaderboardRow({
   isChef,
   km,
   dplus = 0,
+  distanceTotals,
   yellowJersey = false,
   climberJersey = false,
   maxKm,
   sportMode = "velo",
+  onClick,
 }: {
   rank: number;
   displayName: string;
@@ -1247,18 +1567,22 @@ function ScoutLeaderboardRow({
   isChef?: boolean;
   km: number;
   dplus?: number;
+  distanceTotals: Record<ActivitySport, number>;
   yellowJersey?: boolean;
   climberJersey?: boolean;
   maxKm: number;
   sportMode?: SportMode;
+  onClick: () => void;
 }) {
   const isRanked = km > 0 && rank > 0;
   const percentage = isRanked && maxKm > 0 ? Math.max(3, (km / maxKm) * 100) : 0;
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "group relative flex items-center gap-4 rounded-2xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md",
+        "group relative flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-md",
         rank === 1 && isRanked
           ? "border-amber-400/40 bg-gradient-to-r from-amber-500/5 via-card to-card"
           : "",
@@ -1311,14 +1635,14 @@ function ScoutLeaderboardRow({
             )}
           </div>
           <div className="font-display text-lg font-black text-foreground flex items-center gap-1">
-            {sportMode === "course" ? (
-              <Footprints className="h-4 w-4 text-purple-600" />
-            ) : (
-              <Bike className="h-4 w-4 text-primary" />
-            )}
+            <ModeIcon mode={sportMode} className="h-4 w-4" colored />
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
+        </div>
+
+        <div className="mt-2">
+          <CumulativeDistanceBadges totals={distanceTotals} />
         </div>
 
         <div className="mt-2 flex items-center gap-3">
@@ -1330,7 +1654,9 @@ function ScoutLeaderboardRow({
                   ? "bg-gradient-to-r from-amber-500 to-primary"
                   : sportMode === "course"
                     ? "bg-purple-600"
-                    : "bg-primary",
+                    : sportMode === "marche"
+                      ? "bg-sky-600"
+                      : "bg-primary",
               )}
               style={{ width: `${percentage}%` }}
             />
@@ -1342,6 +1668,6 @@ function ScoutLeaderboardRow({
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

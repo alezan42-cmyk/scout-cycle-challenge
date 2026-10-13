@@ -11,8 +11,6 @@ import {
   Crown,
   ExternalLink,
   Plus,
-  Bike,
-  Footprints,
   Calendar,
   Edit3,
   FileText,
@@ -51,6 +49,11 @@ import { SeasonalThemeAdmin } from "@/components/SeasonalThemeAdmin";
 import { CleanupAdmin } from "@/components/CleanupAdmin";
 import { PendingAlertAdmin } from "@/components/PendingAlertAdmin";
 import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifAdmin";
+import { SportBadge } from "@/components/SportIcon";
+import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
+import { AdminChallenges } from "@/components/AdminChallenges";
+import { AdminDistanceAwards } from "@/components/AdminDistanceAwards";
+import { ChallengesPanel } from "@/components/ChallengesPanel";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -77,7 +80,6 @@ type CountdownItem = {
   target_date: string;
   is_active: boolean;
 };
-
 
 function Admin() {
   const { isAdmin, loading, user } = useAuth();
@@ -305,7 +307,10 @@ function Admin() {
       };
 
       if (cdActive) {
-        await supabase.from("countdowns").update({ is_active: false }).neq("id", editingCdId || "new");
+        await supabase
+          .from("countdowns")
+          .update({ is_active: false })
+          .neq("id", editingCdId || "new");
       }
 
       if (editingCdId) {
@@ -324,8 +329,8 @@ function Admin() {
       setCdDate("2026-11-15T18:00");
       setCdActive(false);
       load();
-    } catch (err: any) {
-      toast.error("Erreur : " + (err.message || err));
+    } catch (err: unknown) {
+      toast.error("Erreur : " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -384,7 +389,7 @@ function Admin() {
 
         <Tabs defaultValue="validations" className="space-y-5 md:space-y-6">
           {/* Mobile : une seule ligne qui défile, collée sous l'en-tête ; ordinateur : 6 colonnes */}
-          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-7 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
+          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-8 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="validations" className={TAB_TRIGGER}>
               <Check className="h-4 w-4" />
               Sorties ({pending.length})
@@ -392,6 +397,10 @@ function Admin() {
             <TabsTrigger value="badges" className={TAB_TRIGGER}>
               <Award className="h-4 w-4" />
               Scout sportif ({weeklyBadges.filter((b) => b.week_start).length})
+            </TabsTrigger>
+            <TabsTrigger value="challenges" className={TAB_TRIGGER}>
+              <Award className="h-4 w-4" />
+              Défis & trophées
             </TabsTrigger>
             <TabsTrigger value="countdown" className={TAB_TRIGGER}>
               <Clock className="h-4 w-4" />
@@ -403,7 +412,7 @@ function Admin() {
             </TabsTrigger>
             <TabsTrigger value="scouts" className={TAB_TRIGGER}>
               <Users className="h-4 w-4" />
-              Membres
+              Membres ({profiles.length})
             </TabsTrigger>
             <TabsTrigger value="fetes" className={TAB_TRIGGER}>
               <Palette className="h-4 w-4" />
@@ -454,26 +463,7 @@ function Admin() {
                             <Badge variant="outline" className="text-[10px]">
                               {patrol?.name || "Sans patrouille"}
                             </Badge>
-                            <Badge
-                              variant="outline"
-                              className={
-                                getActivitySport(act) === "course"
-                                  ? "border-purple-300 bg-purple-50 text-purple-700 text-[10px] gap-1"
-                                  : "border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px] gap-1"
-                              }
-                            >
-                              {getActivitySport(act) === "course" ? (
-                                <>
-                                  <Footprints className="h-3 w-3" />
-                                  <span>Course</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Bike className="h-3 w-3" />
-                                  <span>Vélo</span>
-                                </>
-                              )}
-                            </Badge>
+                            <SportBadge sport={getActivitySport(act)} />
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Sortie du {new Date(act.ride_date).toLocaleDateString("fr-FR")} •{" "}
@@ -556,6 +546,8 @@ function Admin() {
                 })}
               </div>
             )}
+
+            <AdminActivitiesManager reloadKey={pending.length} onChanged={load} />
           </TabsContent>
 
           {/* Tab 2: Scout sportif du mois */}
@@ -566,6 +558,17 @@ function Admin() {
               badges={weeklyBadges}
               onChanged={load}
             />
+          </TabsContent>
+
+          <TabsContent value="challenges" className="space-y-6">
+            <h2 className="font-display text-lg font-bold">Créer un défi</h2>
+            <ChallengesPanel />
+            <h2 className="font-display text-lg font-bold">
+              Gérer les défis en cours et les validations
+            </h2>
+            <AdminChallenges />
+            <h2 className="font-display text-lg font-bold">Trophées et paliers de distance</h2>
+            <AdminDistanceAwards />
           </TabsContent>
 
           {/* Tab 3: Countdowns Management */}
@@ -649,7 +652,10 @@ function Admin() {
                         Annuler
                       </Button>
                     )}
-                    <Button type="submit" className="font-bold bg-primary text-primary-foreground flex-1">
+                    <Button
+                      type="submit"
+                      className="font-bold bg-primary text-primary-foreground flex-1"
+                    >
                       {editingCdId ? "Mettre à jour" : "Créer l'élément"}
                     </Button>
                   </div>
@@ -663,7 +669,9 @@ function Admin() {
 
                 <div className="mt-4 space-y-3 max-h-[400px] overflow-y-auto pr-1">
                   {countdowns.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-6">Aucun compte à rebours configuré.</p>
+                    <p className="text-xs text-muted-foreground text-center py-6">
+                      Aucun compte à rebours configuré.
+                    </p>
                   ) : (
                     countdowns.map((item) => (
                       <div

@@ -27,6 +27,15 @@ Concours de vélo entre patrouilles scoutes pour déterminer qui parcourt le plu
 
 ---
 
+## 📱 Installer sur un téléphone
+
+Le site peut aussi être installé comme une application (PWA), sans passer par l’App Store ou Google Play. Il reste accessible dans un navigateur et l’application installée utilise le même compte et les mêmes données.
+
+- **iPhone/iPad :** ouvre le site dans Safari, touche **Partager** → **Sur l’écran d’accueil**. Active **Ouvrir comme app web** si l’option apparaît, puis touche **Ajouter**.
+- **Android :** ouvre le site dans Chrome, touche **⋮** → **Installer l’application** (ou **Installer et créer un raccourci**), puis confirme.
+
+Le bouton **Installer** dans l’en-tête affiche ces étapes. Une connexion Internet reste nécessaire pour les comptes, les kilomètres et les classements.
+
 ## 💻 Développement Local
 
 Pour travailler en local sur le projet :

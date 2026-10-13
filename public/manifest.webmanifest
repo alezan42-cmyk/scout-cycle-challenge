@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "ALEZAN 42 — Défi vélo des patrouilles",
+  "short_name": "ALEZAN 42",
+  "description": "Les kilomètres et défis des patrouilles ALEZAN 42.",
+  "lang": "fr-BE",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff8ef",
+  "theme_color": "#a84300",
+  "categories": ["sports", "social"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
