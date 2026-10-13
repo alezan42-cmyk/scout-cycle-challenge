@@ -12,8 +12,13 @@ import {
   MapPinned,
   X,
   ChevronRight,
+  ChevronDown,
   House,
   MoreHorizontal,
+  Clock3,
+  Medal,
+  Award,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -31,32 +36,57 @@ interface NavItem {
   requiresAdmin?: boolean;
 }
 
+type AppMenu = "home" | "km" | "profile" | "more";
+
+interface AppMenuLink {
+  to: "/" | "/mes-km" | "/timeline" | "/profil" | "/admin" | "/solidarite" | "/auth";
+  hash?: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}
+
 export function SiteHeader() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isInstalledApp, setIsInstalledApp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState<AppMenu | null>(null);
   // La page est pré-rendue sur « / » : on ne marque la page active qu'une fois
   // dans le navigateur, sinon « Classement » resterait surligné partout.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const currentPath = mounted ? location.pathname : null;
 
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsInstalledApp(standalone);
+    document.body.classList.toggle("app-standalone", standalone);
+    return () => document.body.classList.remove("app-standalone");
+  }, []);
+
   // Close mobile menu whenever navigating
   useEffect(() => {
+    setMobileMenu(null);
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!mobileMenuOpen) return;
+    if (!mobileMenu && !mobileMenuOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
+      if (event.key === "Escape") {
+        setMobileMenu(null);
+        setMobileMenuOpen(false);
+      }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mobileMenuOpen]);
+  }, [mobileMenu, mobileMenuOpen]);
 
   const handleSignOut = async () => {
+    setMobileMenu(null);
     setMobileMenuOpen(false);
     await signOut();
     navigate({ to: "/" });
@@ -128,16 +158,62 @@ export function SiteHeader() {
     "/solidarite": HandHeart,
   };
 
+  const appMenus: Record<AppMenu, { title: string; links: AppMenuLink[] }> = {
+    home: {
+      title: "Accueil",
+      links: [
+        { to: "/", hash: "maillots", label: "Maillots jaune et à pois", icon: Trophy },
+        { to: "/mes-km", hash: "historique", label: "Kms enregistrés", icon: Bike },
+        { to: "/", hash: "classement", label: "Classement", icon: Medal },
+        { to: "/", hash: "defis", label: "Défis", icon: Award },
+      ],
+    },
+    km: {
+      title: "Mes km",
+      links: user
+        ? [
+            { to: "/mes-km", hash: "historique", label: "Mes kms enregistrés", icon: History },
+            { to: "/mes-km", hash: "enregistrer", label: "Enregistrer mes kms", icon: Bike },
+            { to: "/mes-km", hash: "trophees", label: "Mes trophées", icon: Award },
+          ]
+        : [{ to: "/auth", label: "Me connecter", icon: LogIn }],
+    },
+    profile: {
+      title: "Profil",
+      links: [
+        ...(user ? [{ to: "/profil" as const, label: "Mon profil", icon: CircleUserRound }] : []),
+        ...(isAdmin ? [{ to: "/admin" as const, label: "Admin", icon: ShieldCheck }] : []),
+        { to: "/solidarite", label: "Solidarité", icon: HandHeart },
+        ...(!user ? [{ to: "/auth" as const, label: "Me connecter", icon: LogIn }] : []),
+      ],
+    },
+    more: {
+      title: "À découvrir",
+      links: [
+        { to: "/timeline", label: "Ligne du temps", icon: History },
+        { to: "/", hash: "compte-a-rebours", label: "Compte à rebours", icon: Clock3 },
+      ],
+    },
+  };
+
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[var(--header)]/95 text-white shadow-lg backdrop-blur-md">
+      <header
+        className={cn(
+          "site-header sticky top-0 z-50 w-full border-b border-white/10 bg-[var(--header)]/95 text-white shadow-lg backdrop-blur-md",
+          isInstalledApp && "app-shell-header-hidden",
+        )}
+      >
         <HeaderTrim />
         {/* Main Bar */}
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2 sm:px-4 sm:py-3">
           {/* Brand Logo & by Aquila */}
           <Link
             to="/"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={() => {
+              setMobileMenu(null);
+              setMobileMenuOpen(false);
+            }}
             className="flex items-center gap-2.5 group shrink-0"
           >
             <span className="grid h-9 w-11 sm:h-10 sm:w-14 place-items-center rounded-xl bg-white px-1 py-0.5 shadow-md transition-transform group-hover:scale-105">
@@ -248,38 +324,138 @@ export function SiteHeader() {
         </div>
       </header>
 
-      <nav aria-label="Navigation principale" className="mobile-tabbar md:hidden">
-        {mobileItems.map((item) => {
-          const Icon = mobileItemIcons[item.to] || item.icon;
-          const active =
-            location.pathname === item.to ||
-            (item.to !== "/" && location.pathname.startsWith(`${item.to}/`));
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              aria-current={active ? "page" : undefined}
-              className={cn("mobile-tab", active && "mobile-tab-active")}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.3 : 1.8} />
-              <span>{item.to === "/mes-km" ? "Mes km" : item.label}</span>
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          className={cn("mobile-tab", mobileMenuOpen && "mobile-tab-active")}
-          onClick={() => setMobileMenuOpen((open) => !open)}
-          aria-expanded={mobileMenuOpen}
-          aria-controls="mobile-more-menu"
+      {isInstalledApp ? (
+        <nav
+          aria-label="Navigation de l’application"
+          className="mobile-tabbar app-mobile-tabbar md:hidden"
         >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
-          <span>Plus</span>
-        </button>
-      </nav>
+          {(
+            [
+              ["home", House, "Accueil"],
+              ["km", Bike, "Mes km"],
+              ["more", CalendarDays, "Temps"],
+              ["profile", CircleUserRound, "Profil"],
+            ] as const
+          ).map(([menuId, Icon, label]) => {
+            const isOpen = mobileMenu === menuId;
+            const isCurrent =
+              (menuId === "home" && location.pathname === "/") ||
+              (menuId === "km" && location.pathname.startsWith("/mes-km")) ||
+              (menuId === "more" && location.pathname === "/timeline") ||
+              (menuId === "profile" &&
+                ["/profil", "/admin", "/solidarite"].includes(location.pathname));
+            return (
+              <button
+                key={menuId}
+                type="button"
+                className={cn("mobile-tab", (isOpen || isCurrent) && "mobile-tab-active")}
+                onClick={() => setMobileMenu(isOpen ? null : menuId)}
+                aria-expanded={isOpen}
+                aria-controls="app-navigation-menu"
+              >
+                <Icon className="h-5 w-5" strokeWidth={isOpen || isCurrent ? 2.2 : 1.8} />
+                <span>{label}</span>
+                <ChevronDown className={cn("mobile-tab-chevron", isOpen && "rotate-180")} />
+              </button>
+            );
+          })}
+        </nav>
+      ) : (
+        <nav aria-label="Navigation principale" className="mobile-tabbar md:hidden">
+          {mobileItems.map((item) => {
+            const Icon = mobileItemIcons[item.to] || item.icon;
+            const active =
+              location.pathname === item.to ||
+              (item.to !== "/" && location.pathname.startsWith(`${item.to}/`));
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={active ? "page" : undefined}
+                className={cn("mobile-tab", active && "mobile-tab-active")}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Icon className="h-5 w-5" strokeWidth={active ? 2.3 : 1.8} />
+                <span>{item.to === "/mes-km" ? "Mes km" : item.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            className={cn("mobile-tab", mobileMenuOpen && "mobile-tab-active")}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-more-menu"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
+            <span>Plus</span>
+          </button>
+        </nav>
+      )}
 
-      {mobileMenuOpen && (
+      {isInstalledApp && mobileMenu && (
+        <>
+          <button
+            className="mobile-menu-backdrop app-mobile-menu-backdrop md:hidden"
+            aria-label="Fermer le menu"
+            onClick={() => setMobileMenu(null)}
+          />
+          <div
+            id="app-navigation-menu"
+            className="mobile-menu-sheet app-mobile-menu-sheet md:hidden"
+            role="dialog"
+            aria-label={appMenus[mobileMenu].title}
+            aria-modal="true"
+          >
+            <div className="mobile-menu-heading">
+              <div>
+                <p className="mobile-menu-eyebrow">Navigation</p>
+                <h2>{appMenus[mobileMenu].title}</h2>
+              </div>
+              <button
+                type="button"
+                className="mobile-menu-close"
+                onClick={() => setMobileMenu(null)}
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mobile-menu-links">
+              {appMenus[mobileMenu].links.map(({ to, hash, label: linkLabel, icon: LinkIcon }) => (
+                <Link
+                  key={`${to}-${hash || linkLabel}`}
+                  to={to}
+                  {...(hash ? { hash } : {})}
+                  onClick={() => setMobileMenu(null)}
+                  className="mobile-menu-link"
+                >
+                  <span className="mobile-menu-link-icon">
+                    <LinkIcon className="h-5 w-5" />
+                  </span>
+                  <span>{linkLabel}</span>
+                  <ChevronRight className="ml-auto h-4 w-4 opacity-50" />
+                </Link>
+              ))}
+              {mobileMenu === "profile" && user && (
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="mobile-menu-link mobile-menu-signout"
+                >
+                  <span className="mobile-menu-link-icon">
+                    <LogOut className="h-5 w-5" />
+                  </span>
+                  <span>Se déconnecter</span>
+                  <ChevronRight className="ml-auto h-4 w-4 opacity-50" />
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {!isInstalledApp && mobileMenuOpen && (
         <>
           <button
             className="mobile-menu-backdrop md:hidden"
@@ -292,7 +468,6 @@ export function SiteHeader() {
             role="region"
             aria-label="Autres pages"
           >
-            {/* User profile summary if logged in */}
             {user && (
               <div className="border-b border-white/10 bg-black/30 px-4 py-3">
                 <div className="flex items-center justify-between">
@@ -317,13 +492,10 @@ export function SiteHeader() {
                 </div>
               </div>
             )}
-
-            {/* Navigation Links List */}
             <div className="max-h-[55vh] overflow-y-auto p-3 space-y-1">
               {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.to;
-
                 return (
                   <Link
                     key={item.to}
@@ -358,8 +530,6 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
-
-              {/* Logout / Login button at bottom of mobile menu */}
               <div className="pt-2 mt-2 border-t border-white/10">
                 {user ? (
                   <button
@@ -367,12 +537,10 @@ export function SiteHeader() {
                     onClick={handleSignOut}
                     className="flex w-full items-center justify-between rounded-xl p-2.5 text-rose-300 hover:bg-rose-500/10 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/20">
-                        <LogOut className="h-4 w-4 text-rose-400" />
-                      </span>
+                    <span className="flex items-center gap-3">
+                      <LogOut className="h-4 w-4" />
                       <span className="text-sm font-bold">Se déconnecter</span>
-                    </div>
+                    </span>
                     <ChevronRight className="h-4 w-4 text-rose-400/50" />
                   </button>
                 ) : (

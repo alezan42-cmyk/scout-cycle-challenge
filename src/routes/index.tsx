@@ -757,10 +757,14 @@ function Index() {
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
-        <CountdownBanner isAdmin={isAdmin} />
+        <div id="compte-a-rebours" className="scroll-mt-6">
+          <CountdownBanner isAdmin={isAdmin} />
+        </div>
 
         {/* Défis ouverts destinés au scout connecté */}
-        <ChallengesBanner />
+        <div id="defis" className="scroll-mt-6">
+          <ChallengesBanner />
+        </div>
 
         {/* Anniversaires : membres connectés uniquement */}
         <BirthdayBanner userId={user?.id} />
@@ -1038,13 +1042,18 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
-        <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        <div id="maillots" className="scroll-mt-6">
+          <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        </div>
 
         {/* Scout sportif du mois (affiché dès qu'un premier lauréat est désigné) */}
         <ScoutSportifCard />
 
         {/* View Switcher: Patrouilles vs Individuel vs Tendances Graphique */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3">
+        <div
+          id="classement"
+          className="scroll-mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3"
+        >
           <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto">
             <button
               onClick={() => setView("patrols")}

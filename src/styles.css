@@ -807,6 +807,10 @@ body {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
 
+  .app-shell-header-hidden {
+    display: none;
+  }
+
   .mobile-home-page {
     display: flex;
     flex-direction: column;
@@ -910,6 +914,120 @@ body {
     overscroll-behavior: contain;
   }
 
+  .app-mobile-tabbar {
+    justify-content: space-between;
+    gap: 0.25rem;
+    padding: 0.45rem 0.55rem max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .app-mobile-tabbar .mobile-tab {
+    min-height: 3.45rem;
+    gap: 0.22rem;
+    font-size: 0.68rem;
+  }
+
+  .app-mobile-tabbar .mobile-tab-chevron {
+    width: 0.68rem;
+    height: 0.68rem;
+    margin-top: -0.12rem;
+    opacity: 0.55;
+    transition: transform 160ms ease;
+  }
+
+  .app-mobile-menu-sheet {
+    right: 0.75rem;
+    bottom: calc(4.8rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    max-height: min(70dvh, 34rem);
+    border-radius: 1.35rem;
+  }
+
+  .app-mobile-menu-backdrop {
+    display: block;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.1rem 0.85rem;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-eyebrow {
+    margin: 0 0 0.2rem;
+    color: rgb(255 255 255 / 0.52);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-heading h2 {
+    margin: 0;
+    color: white;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-close {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 0.85rem;
+    background: rgb(255 255 255 / 0.06);
+    color: white;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-links {
+    display: grid;
+    max-height: calc(min(70dvh, 34rem) - 4.5rem);
+    gap: 0.35rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.7rem;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-link {
+    display: flex;
+    min-height: 3.55rem;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid rgb(255 255 255 / 0.06);
+    border-radius: 1rem;
+    background: rgb(255 255 255 / 0.045);
+    color: rgb(255 255 255 / 0.94);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-link:active {
+    background: rgb(255 255 255 / 0.12);
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-link-icon {
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: rgb(255 255 255 / 0.08);
+    color: #ffd089;
+  }
+
+  .app-mobile-menu-sheet .mobile-menu-signout {
+    width: 100%;
+    border-color: rgb(251 113 133 / 0.18);
+    background: rgb(244 63 94 / 0.08);
+    color: #fecdd3;
+  }
+
   .mobile-mascot {
     right: 0.25rem;
     bottom: calc(4.1rem + env(safe-area-inset-bottom));
@@ -927,6 +1045,10 @@ body {
 
   .min-h-screen > main {
     padding: 1rem 0.8rem;
+  }
+
+  .app-standalone .min-h-screen > main {
+    padding: 1.3rem 1rem;
   }
 
   main.space-y-8 > :not(:first-child) {
