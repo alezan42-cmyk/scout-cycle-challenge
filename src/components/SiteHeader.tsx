@@ -22,6 +22,7 @@ import logoAlezan from "@/assets/logo-alezan.png";
 import { HeaderTrim } from "@/components/SeasonalDecor";
 import { PwaInstallButton } from "@/components/PwaInstallButton";
 import { AppTabBar } from "@/components/app/AppTabBar";
+import { APP_MAX_WIDTH, isAppMode } from "@/lib/standalone";
 
 interface NavItem {
   to: string;
@@ -44,13 +45,21 @@ export function SiteHeader() {
   useEffect(() => setMounted(true), []);
   const currentPath = mounted ? location.pathname : null;
 
+  // Mode « app » : installée ET écran de téléphone (sur ordinateur, on garde le site)
   useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setIsInstalledApp(standalone);
-    document.body.classList.toggle("app-standalone", standalone);
-    return () => document.body.classList.remove("app-standalone");
+    const update = () => {
+      const app = isAppMode();
+      setIsInstalledApp(app);
+      document.body.classList.toggle("app-standalone", app);
+      document.documentElement.classList.toggle("app-standalone", app);
+    };
+    update();
+    const mq = window.matchMedia(`(max-width: ${APP_MAX_WIDTH}px)`);
+    mq.addEventListener("change", update);
+    return () => {
+      mq.removeEventListener("change", update);
+      document.body.classList.remove("app-standalone");
+    };
   }, []);
 
   // Close mobile menu whenever navigating

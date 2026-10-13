@@ -31,7 +31,7 @@ import { CollectiveRouteMap } from "@/components/CollectiveRouteMap";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { weekRange, monthRange, useAuth } from "@/lib/useAuth";
-import { isStandalone } from "@/lib/standalone";
+import { isAppMode } from "@/lib/standalone";
 import {
   db,
   type Patrol,
@@ -182,9 +182,9 @@ function Index() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { background: themeBackground } = useSeasonalTheme();
-  // Application installée : l'accueil est l'écran /app (le site n'est pas concerné)
+  // Application installée sur téléphone : l'accueil est l'écran /app (le site n'est pas concerné)
   useEffect(() => {
-    if (isStandalone()) void navigate({ to: "/app", replace: true });
+    if (isAppMode()) void navigate({ to: "/app", replace: true });
   }, [navigate]);
   const [sportMode, setSportMode] = useState<SportMode>("all");
   const [period, setPeriod] = useState<Period>("all");
