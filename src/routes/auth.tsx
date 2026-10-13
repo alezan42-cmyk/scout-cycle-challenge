@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/useAuth";
 import { db } from "@/lib/database";
 import { ForgotPassword } from "@/components/ForgotPassword";
-import logoAlezanComplet from "@/assets/logo-alezan-complet.png";
+import logoAlezanComplet from "@/assets/logo-alezan.png";
 import { isStaffPatrol, isTroopStaffPatrol, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
 
 export const Route = createFileRoute("/auth")({
@@ -407,7 +407,7 @@ function AuthPage() {
           <img
             src={logoAlezanComplet}
             alt="Alezan 42 Cycling Team"
-            className="mx-auto h-24 w-auto rounded-2xl bg-white p-2 shadow-lg"
+            className="mx-auto h-24 w-auto drop-shadow-sm"
           />
           <h1 className="mt-4 font-display text-2xl sm:text-3xl font-black text-foreground">
             Défi Vélo ALEZAN 42

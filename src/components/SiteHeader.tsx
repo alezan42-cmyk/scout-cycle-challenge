@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
-import logoAlezan from "@/assets/logo-alezan.png";
+import logoAlezan from "@/assets/logo-alezan-clair.png";
 import { HeaderTrim } from "@/components/SeasonalDecor";
 import { PwaInstallButton } from "@/components/PwaInstallButton";
 import { AppTabBar } from "@/components/app/AppTabBar";
@@ -169,7 +169,7 @@ export function SiteHeader() {
             }}
             className="flex items-center gap-2.5 group shrink-0"
           >
-            <span className="grid h-9 w-11 sm:h-10 sm:w-14 place-items-center rounded-xl bg-white px-1 py-0.5 shadow-md transition-transform group-hover:scale-105">
+            <span className="grid h-9 w-12 sm:h-10 sm:w-14 place-items-center transition-transform group-hover:scale-105">
               <img
                 src={logoAlezan}
                 alt="Logo Alezan 42 Cycling Team"
