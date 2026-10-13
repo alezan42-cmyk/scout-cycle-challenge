@@ -8,8 +8,10 @@ import { useAuth } from "@/lib/useAuth";
 import {
   formatKm,
   rankPatrols,
+  inGroup,
   rankScouts,
   useTroopData,
+  type AppGroup,
   type AppPeriod,
   type AppSport,
 } from "@/lib/appData";
@@ -26,9 +28,13 @@ function RankingScreen() {
   const [view, setView] = useState<"patrols" | "scouts">("patrols");
   const [period, setPeriod] = useState<AppPeriod>("week");
   const [sport, setSport] = useState<AppSport>("all");
+  const [group, setGroup] = useState<AppGroup>("all");
 
   const patrols = useMemo(() => rankPatrols(data, period, sport), [data, period, sport]);
-  const scouts = useMemo(() => rankScouts(data, period, sport), [data, period, sport]);
+  const scouts = useMemo(
+    () => rankScouts(data, period, sport).filter((s) => inGroup(s, group)),
+    [data, period, sport, group],
+  );
 
   const rows =
     view === "patrols"
@@ -52,6 +58,8 @@ function RankingScreen() {
         }));
   const ranked = rows.filter((r) => r.km > 0);
   const others = rows.length - ranked.length;
+  const myIndex = ranked.findIndex((r) => r.mine);
+  const myRank = myIndex >= 0 ? myIndex + 1 : null;
   const total = (view === "patrols" ? patrols : scouts).reduce((s, r) => s + r.km, 0);
 
   return (
@@ -62,7 +70,7 @@ function RankingScreen() {
           onChange={setView}
           options={[
             { value: "patrols", label: "Patrouilles" },
-            { value: "scouts", label: "Scouts" },
+            { value: "scouts", label: "Individuel" },
           ]}
         />
         <TextTabs
@@ -74,6 +82,21 @@ function RankingScreen() {
             { value: "all", label: "Tout" },
           ]}
         />
+        {view === "scouts" && (
+          <ChipRow
+            value={group}
+            onChange={setGroup}
+            options={[
+              { value: "all", label: "Tout le monde" },
+              { value: "scouts", label: "Scouts (1re à 4e)" },
+              { value: "1", label: "1re" },
+              { value: "2", label: "2e" },
+              { value: "3", label: "3e" },
+              { value: "4", label: "4e" },
+              { value: "staff", label: "Staff" },
+            ]}
+          />
+        )}
         <ChipRow
           value={sport}
           onChange={setSport}
@@ -104,6 +127,16 @@ function RankingScreen() {
         <div className="space-y-3">
           <p className="px-1 text-[14px] text-muted-foreground">
             <strong className="font-semibold text-foreground">{formatKm(total)} km</strong> au total
+            {myRank && (
+              <>
+                {" · "}
+                {view === "patrols" ? "ta patrouille est" : "tu es"}{" "}
+                <strong className="font-semibold text-foreground">
+                  {myRank === 1 ? "1re" : `${myRank}e`}
+                </strong>{" "}
+                sur {ranked.length}
+              </>
+            )}
           </p>
           <AppCard className="divide-y divide-border/60 overflow-hidden">
             {ranked.map((r, i) => {

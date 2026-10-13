@@ -125,7 +125,7 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: "Depuis le début",
 };
 type GenderCat = "all" | "homme" | "femme";
-type ScoutYearFilter = "all" | "1" | "2" | "3" | "4" | "chef";
+type ScoutYearFilter = "all" | "scouts" | "1" | "2" | "3" | "4" | "chef";
 type SportMode = "velo" | "course" | "marche" | "all";
 
 /** Icône du mode de classement (Tous = vélo). */
@@ -418,6 +418,9 @@ function Index() {
       if (scoutYear !== "all") {
         if (scoutYear === "chef") {
           if (!isStaffOrChef) return false;
+        } else if (scoutYear === "scouts") {
+          // Scouts de 1re à 4e année ensemble, sans le staff
+          if (isStaffOrChef) return false;
         } else {
           const targetYear = Number(scoutYear);
           if (isStaffOrChef || r.scout_year !== targetYear) {
@@ -1027,6 +1030,9 @@ function Index() {
             </div>
             <FilterPill active={scoutYear === "all"} onClick={() => setScoutYear("all")}>
               Toutes années
+            </FilterPill>
+            <FilterPill active={scoutYear === "scouts"} onClick={() => setScoutYear("scouts")}>
+              Scouts (1re à 4e)
             </FilterPill>
             <FilterPill active={scoutYear === "1"} onClick={() => setScoutYear("1")}>
               1ère année
