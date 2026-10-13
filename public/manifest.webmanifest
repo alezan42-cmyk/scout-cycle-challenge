@@ -4,7 +4,7 @@
   "short_name": "ALEZAN 42",
   "description": "Les kilomètres et défis des patrouilles ALEZAN 42.",
   "lang": "fr-BE",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#fff8ef",

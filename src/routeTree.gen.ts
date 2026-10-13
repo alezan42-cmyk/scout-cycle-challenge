@@ -19,10 +19,12 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedCarteRouteImport } from './routes/_authenticated/carte'
 import { Route as AuthenticatedMesKmRouteImport } from './routes/_authenticated/mes-km'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
+import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppClassementRouteImport } from './routes/app/classement'
 import { Route as AppCompteAReboursRouteImport } from './routes/app/compte-a-rebours'
 import { Route as AppDefisRouteImport } from './routes/app/defis'
 import { Route as AppMaillotsRouteImport } from './routes/app/maillots'
+import { Route as AppPlusRouteImport } from './routes/app/plus'
 import { Route as AppSortiesRouteImport } from './routes/app/sorties'
 import { Route as ScoutScoutIdRouteImport } from './routes/scout.$scoutId'
 import { Route as AuthenticatedAppEnregistrerRouteImport } from './routes/_authenticated/app/enregistrer'
@@ -78,6 +80,11 @@ const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   path: '/profil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/app/',
+  path: '/app/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppClassementRoute = AppClassementRouteImport.update({
   id: '/app/classement',
   path: '/app/classement',
@@ -96,6 +103,11 @@ const AppDefisRoute = AppDefisRouteImport.update({
 const AppMaillotsRoute = AppMaillotsRouteImport.update({
   id: '/app/maillots',
   path: '/app/maillots',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppPlusRoute = AppPlusRouteImport.update({
+  id: '/app/plus',
+  path: '/app/plus',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSortiesRoute = AppSortiesRouteImport.update({
@@ -140,8 +152,10 @@ export interface FileRoutesByFullPath {
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
   '/app/maillots': typeof AppMaillotsRoute
+  '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
   '/scout/$scoutId': typeof ScoutScoutIdRoute
+  '/app/': typeof AppIndexRoute
   '/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
   '/app/trophees': typeof AuthenticatedAppTropheesRoute
@@ -160,8 +174,10 @@ export interface FileRoutesByTo {
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
   '/app/maillots': typeof AppMaillotsRoute
+  '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
   '/scout/$scoutId': typeof ScoutScoutIdRoute
+  '/app': typeof AppIndexRoute
   '/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
   '/app/trophees': typeof AuthenticatedAppTropheesRoute
@@ -182,8 +198,10 @@ export interface FileRoutesById {
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
   '/app/maillots': typeof AppMaillotsRoute
+  '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
   '/scout/$scoutId': typeof ScoutScoutIdRoute
+  '/app/': typeof AppIndexRoute
   '/_authenticated/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/_authenticated/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
   '/_authenticated/app/trophees': typeof AuthenticatedAppTropheesRoute
@@ -204,8 +222,10 @@ export interface FileRouteTypes {
     | '/app/compte-a-rebours'
     | '/app/defis'
     | '/app/maillots'
+    | '/app/plus'
     | '/app/sorties'
     | '/scout/$scoutId'
+    | '/app/'
     | '/app/enregistrer'
     | '/app/mes-kms'
     | '/app/trophees'
@@ -224,8 +244,10 @@ export interface FileRouteTypes {
     | '/app/compte-a-rebours'
     | '/app/defis'
     | '/app/maillots'
+    | '/app/plus'
     | '/app/sorties'
     | '/scout/$scoutId'
+    | '/app'
     | '/app/enregistrer'
     | '/app/mes-kms'
     | '/app/trophees'
@@ -245,8 +267,10 @@ export interface FileRouteTypes {
     | '/app/compte-a-rebours'
     | '/app/defis'
     | '/app/maillots'
+    | '/app/plus'
     | '/app/sorties'
     | '/scout/$scoutId'
+    | '/app/'
     | '/_authenticated/app/enregistrer'
     | '/_authenticated/app/mes-kms'
     | '/_authenticated/app/trophees'
@@ -263,8 +287,10 @@ export interface RootRouteChildren {
   AppCompteAReboursRoute: typeof AppCompteAReboursRoute
   AppDefisRoute: typeof AppDefisRoute
   AppMaillotsRoute: typeof AppMaillotsRoute
+  AppPlusRoute: typeof AppPlusRoute
   AppSortiesRoute: typeof AppSortiesRoute
   ScoutScoutIdRoute: typeof ScoutScoutIdRoute
+  AppIndexRoute: typeof AppIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -339,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/app/': {
+      id: '/app/'
+      path: '/app'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/classement': {
       id: '/app/classement'
       path: '/app/classement'
@@ -365,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/app/maillots'
       fullPath: '/app/maillots'
       preLoaderRoute: typeof AppMaillotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/plus': {
+      id: '/app/plus'
+      path: '/app/plus'
+      fullPath: '/app/plus'
+      preLoaderRoute: typeof AppPlusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/sorties': {
@@ -439,8 +479,10 @@ const rootRouteChildren: RootRouteChildren = {
   AppCompteAReboursRoute: AppCompteAReboursRoute,
   AppDefisRoute: AppDefisRoute,
   AppMaillotsRoute: AppMaillotsRoute,
+  AppPlusRoute: AppPlusRoute,
   AppSortiesRoute: AppSortiesRoute,
   ScoutScoutIdRoute: ScoutScoutIdRoute,
+  AppIndexRoute: AppIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

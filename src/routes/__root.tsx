@@ -18,6 +18,7 @@ import { SeasonalThemeProvider } from "@/context/SeasonalThemeContext";
 import { SeasonalDecor } from "@/components/SeasonalDecor";
 import { AnimationToggle } from "@/components/AnimationToggle";
 import { THEME_BOOT_SCRIPT } from "@/lib/seasonalTheme";
+import { APP_BOOT_SCRIPT } from "@/lib/standalone";
 import { supabase } from "@/integrations/supabase/client";
 import appCss from "../styles.css?url";
 
@@ -130,7 +131,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
   }),
   // Applique le dernier thème connu avant l'affichage (évite un flash aux couleurs standard)
-  scripts: () => [{ children: THEME_BOOT_SCRIPT }],
+  // App installée : marque <html> et ouvre l'accueil de l'app (le site n'est pas concerné)
+  scripts: () => [{ children: THEME_BOOT_SCRIPT }, { children: APP_BOOT_SCRIPT }],
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -176,7 +178,7 @@ function RootComponent() {
           <AlezanMascot />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
-          <footer className="py-4 text-center text-[10px] text-muted-foreground/70">
+          <footer className="site-footer py-4 text-center text-[10px] text-muted-foreground/70">
             Version {__APP_VERSION__} · mise en ligne le{" "}
             {new Date(__APP_BUILT_AT__).toLocaleString("fr-BE", {
               dateStyle: "short",

@@ -13,6 +13,7 @@ import {
   ArrowRight,
   MapPin,
   Mountain,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +60,8 @@ export interface DailyDistanceFormProps {
   description?: string;
   /** Custom class names */
   className?: string;
+  /** « app » : présentation allégée pour l'application installée (le site garde « card ») */
+  variant?: "card" | "app";
 }
 
 const PRESET_DISTANCES_VELO = [5, 10, 15, 25, 40, 60];
@@ -151,6 +154,7 @@ export function DailyDistanceForm({
   title = "Enregistrer une sortie à vélo",
   description = "Indique tes kilomètres du jour et associe-les directement à ta patrouille",
   className,
+  variant = "card",
 }: DailyDistanceFormProps) {
   const { user, profile, isAdmin, refreshProfile } = useAuth();
   const { theme } = useSeasonalTheme();
@@ -158,6 +162,9 @@ export function DailyDistanceForm({
   // Form states
   const [sport, setSport] = useState<ActivitySport>("velo");
   const [distanceKm, setDistanceKm] = useState("");
+  // Version application : détails repliés et choix de date simplifié
+  const [appDetailsOpen, setAppDetailsOpen] = useState(false);
+  const [appOtherDate, setAppOtherDate] = useState(false);
   const [elevationM, setElevationM] = useState("");
   const [rideDate, setRideDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedPatrolId, setSelectedPatrolId] = useState<string>(defaultPatrolId || "");
@@ -670,6 +677,454 @@ export function DailyDistanceForm({
 
   const selectedPatrolObj = patrols.find((p) => p.id === selectedPatrolId);
 
+  // Blocs partagés entre la version site (carte) et la version application
+  const challengeBlock = (
+    <>
+      {openChallenges.filter((c) => c.sport === sport).length > 0 && (
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <Label className="font-bold">Cette sortie réalise un défi ?</Label>
+          <Select
+            value={selectedChallengeId || "none"}
+            onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choisir un défi (facultatif)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Aucun défi</SelectItem>
+              {openChallenges
+                .filter((c) => c.sport === sport)
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.title} · {c.proposed_points} pts ·{" "}
+                    {c.gpx_template_path || c.route_validation
+                      ? "parcours à tracer"
+                      : [
+                          c.target_km !== null
+                            ? `${c.exact_distance ? "exactement" : "≥"} ${c.target_km} km`
+                            : null,
+                          c.target_elevation !== null ? `≥ ${c.target_elevation} m D+` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" + ")}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Les critères sont vérifiés à l’enregistrement. Les points sont attribués au premier
+            scout dont la sortie est validée. Pour les défis de parcours, joins le GPX de ta sortie
+            : le staff vérifie la consigne.
+          </p>
+        </div>
+      )}
+    </>
+  );
+
+  const gpxBlock = (
+    <>
+      {/* CHAMP OPTIONNEL GPX POUR LA CARTE DE LA TROUPE */}
+      <div className="space-y-2 rounded-xl border border-border/70 bg-card/60 p-4">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 text-primary" />
+          {selectedChallengeForForm?.route_validation || selectedChallengeForForm?.gpx_template_path
+            ? "Fichier GPX requis pour ce défi"
+            : "Fichier GPX du parcours (optionnel pour la carte de la troupe)"}
+        </Label>
+        <div className="flex items-center gap-3">
+          <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
+            <Upload className="h-4 w-4 text-primary" />
+            <span>
+              {gpxFile
+                ? gpxFile.name
+                : selectedChallengeForForm?.route_validation ||
+                    selectedChallengeForForm?.gpx_template_path
+                  ? "Ajouter le GPX de ta sortie"
+                  : "Ajouter un fichier .gpx (optionnel)"}
+            </span>
+            <input
+              type="file"
+              accept=".gpx,application/gpx+xml"
+              className="hidden"
+              onChange={handleGpxChange}
+            />
+          </label>
+          {gpxFile && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setGpxFile(null)}
+              className="text-xs text-destructive hover:bg-destructive/10"
+            >
+              Retirer
+            </Button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          🔒 <strong>Vie privée :</strong> Les 200 premiers et derniers mètres de ton tracé GPX
+          seront automatiquement rognés pour masquer ton départ et ton arrivée.
+        </p>
+      </div>
+    </>
+  );
+
+  function renderAppForm() {
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const today = iso(new Date());
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = iso(yesterdayDate);
+    const dateMode = appOtherDate
+      ? "other"
+      : rideDate === today
+        ? "today"
+        : rideDate === yesterday
+          ? "yesterday"
+          : "other";
+    const presets =
+      sport === "course"
+        ? PRESET_DISTANCES_COURSE
+        : sport === "marche"
+          ? PRESET_DISTANCES_MARCHE
+          : PRESET_DISTANCES_VELO;
+    const sportChallenges = openChallenges.filter((c) => c.sport === sport);
+    const detailCount =
+      (elevationM ? 1 : 0) +
+      (gpxFile ? 1 : 0) +
+      (rideNote.trim() ? 1 : 0) +
+      (groupChoice.mode !== "seul" ? 1 : 0) +
+      (selectedChallengeId ? 1 : 0);
+    const pill = (active: boolean) =>
+      cn(
+        "h-10 flex-1 rounded-xl text-[14px] font-semibold transition-all",
+        active
+          ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.12)]"
+          : "text-muted-foreground",
+      );
+
+    return (
+      <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
+        {!user && (
+          <div className="rounded-2xl bg-amber-500/10 p-4 text-[14px] text-amber-900 dark:text-amber-200">
+            Connecte-toi pour enregistrer tes sorties.{" "}
+            <Link to="/auth" className="font-semibold underline">
+              Connexion
+            </Link>
+          </div>
+        )}
+
+        {/* Sport */}
+        <div className="grid grid-cols-3 gap-2">
+          {(["velo", "course", "marche"] as const).map((sp) => (
+            <button
+              key={sp}
+              type="button"
+              onClick={() => setSport(sp)}
+              disabled={joiningGroup}
+              aria-pressed={sport === sp}
+              className={cn(
+                "flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl border text-[14px] font-semibold transition-all",
+                sport === sp
+                  ? cn(SPORT_COLORS[sp].solid, "border-transparent shadow-sm")
+                  : "border-border/60 bg-card text-foreground",
+              )}
+            >
+              <SportIcon sport={sp} className="h-6 w-6" />
+              {sp === "course" ? "Course" : SPORT_INFO[sp].short}
+            </button>
+          ))}
+        </div>
+
+        {/* Distance */}
+        <div className="rounded-3xl border border-border/50 bg-card p-5 shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+          <Label
+            htmlFor="distance-km"
+            className="block text-center text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            Distance
+          </Label>
+          <div className="mt-2 flex items-baseline justify-center gap-2">
+            <input
+              id="distance-km"
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0.1"
+              max="1000"
+              placeholder="0"
+              value={distanceKm}
+              onChange={(e) => setDistanceKm(e.target.value)}
+              style={{ width: `${Math.max(1, distanceKm.length) + 0.6}ch` }}
+              className="app-distance-input min-w-[1.6ch] max-w-[7ch] bg-transparent text-center font-display text-[56px] font-black leading-none tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35"
+              required
+            />
+            <span className="text-2xl font-bold text-muted-foreground">km</span>
+          </div>
+          <div className="mt-4 grid grid-cols-6 gap-1.5">
+            {presets.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => handleSetDistance(preset)}
+                className={cn(
+                  "h-10 rounded-full border text-[14px] font-semibold",
+                  Number(distanceKm) === preset
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-foreground",
+                )}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Date */}
+        <div className="space-y-2">
+          <p className="px-1 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Quand ?
+          </p>
+          <div className="flex gap-1 rounded-2xl bg-muted p-1">
+            <button
+              type="button"
+              disabled={joiningGroup}
+              className={pill(dateMode === "today")}
+              onClick={() => {
+                setAppOtherDate(false);
+                setRideDate(today);
+              }}
+            >
+              Aujourd&apos;hui
+            </button>
+            <button
+              type="button"
+              disabled={joiningGroup || yesterday < CHALLENGE_START}
+              className={pill(dateMode === "yesterday")}
+              onClick={() => {
+                setAppOtherDate(false);
+                setRideDate(yesterday);
+              }}
+            >
+              Hier
+            </button>
+            <button
+              type="button"
+              disabled={joiningGroup}
+              className={pill(dateMode === "other")}
+              onClick={() => setAppOtherDate(true)}
+            >
+              Autre jour
+            </button>
+          </div>
+          {dateMode === "other" && (
+            <Input
+              id="ride-date"
+              type="date"
+              value={rideDate}
+              onChange={(e) => setRideDate(e.target.value)}
+              disabled={joiningGroup}
+              className="h-12 rounded-2xl bg-card text-[16px]"
+              min={CHALLENGE_START}
+              max={today}
+              required
+            />
+          )}
+        </div>
+
+        {/* Preuve */}
+        <div className="space-y-2">
+          <p className="px-1 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Preuve
+          </p>
+          <div className="space-y-3 rounded-3xl border border-border/50 bg-card p-4 shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+            <div className="flex gap-1 rounded-2xl bg-muted p-1">
+              <button
+                type="button"
+                className={pill(activeTab === "strava")}
+                onClick={() => setActiveTab("strava")}
+              >
+                Lien Strava
+              </button>
+              <button
+                type="button"
+                className={pill(activeTab === "photo")}
+                onClick={() => setActiveTab("photo")}
+              >
+                Photo
+              </button>
+            </div>
+            {activeTab === "strava" ? (
+              <>
+                <Input
+                  inputMode="url"
+                  placeholder="Colle le lien de ton activité Strava"
+                  value={stravaUrl}
+                  onChange={(e) => setStravaUrl(e.target.value)}
+                  className="h-12 rounded-2xl text-[16px]"
+                />
+                <p className="flex items-center gap-1.5 px-1 text-[13px] text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                  Validée tout de suite
+                </p>
+              </>
+            ) : (
+              <>
+                <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-border px-3 text-[15px] font-semibold text-foreground">
+                  {proofPreview ? (
+                    <img src={proofPreview} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                  ) : (
+                    <Upload className="h-5 w-5 text-primary" />
+                  )}
+                  <span className="truncate">
+                    {proofFile ? proofFile.name : "Ajouter une photo ou une capture"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+                <p className="flex items-center gap-1.5 px-1 text-[13px] text-muted-foreground">
+                  <Clock className="h-4 w-4 shrink-0 text-amber-500" />
+                  Vérifiée par le staff
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Patrouille */}
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-2">
+          <span className="text-[14px] text-muted-foreground">Pour la patrouille</span>
+          <Select
+            value={selectedPatrolId}
+            onValueChange={(val) => setSelectedPatrolId(val)}
+            disabled={loadingPatrols || submitting}
+          >
+            <SelectTrigger
+              id="patrol-select"
+              className="h-10 w-auto min-w-0 gap-1.5 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus:ring-0"
+            >
+              <SelectValue placeholder={loadingPatrols ? "Chargement…" : "Choisir"} />
+            </SelectTrigger>
+            <SelectContent className="max-h-80 rounded-xl">
+              {patrols.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="py-2.5 text-[15px]">
+                  {getPatrolEmblem(p.name)} {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Détails facultatifs */}
+        <div className="rounded-3xl border border-border/50 bg-card shadow-[0_1px_3px_rgb(0_0_0/0.05)]">
+          <button
+            type="button"
+            onClick={() => setAppDetailsOpen(!appDetailsOpen)}
+            aria-expanded={appDetailsOpen}
+            className="flex min-h-[60px] w-full items-center gap-3 px-4 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold text-foreground">
+                Plus de détails
+                {detailCount > 0 && (
+                  <span className="ml-2 rounded-full bg-primary/12 px-2 py-0.5 text-[12px] font-bold text-primary">
+                    {detailCount}
+                  </span>
+                )}
+              </span>
+              <span className="block truncate text-[13px] text-muted-foreground">
+                Dénivelé, sortie à plusieurs
+                {sportChallenges.length > 0 ? ", défi" : ""}, trace GPX, commentaire
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                appDetailsOpen && "rotate-180",
+              )}
+            />
+          </button>
+          {appDetailsOpen && (
+            <div className="space-y-5 border-t border-border/60 p-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="elevation-m" className="text-[14px] font-semibold">
+                  Dénivelé positif (m)
+                </Label>
+                <Input
+                  id="elevation-m"
+                  type="number"
+                  inputMode="numeric"
+                  step="1"
+                  min="0"
+                  max="20000"
+                  placeholder="ex : 350"
+                  value={elevationM}
+                  onChange={(e) => setElevationM(e.target.value)}
+                  className="h-12 rounded-2xl text-[16px]"
+                />
+                <p className="text-[12px] text-muted-foreground">Compte pour le maillot à pois.</p>
+              </div>
+              {challengeBlock}
+              <GroupRidePicker
+                key={pickerKey}
+                userId={user?.id}
+                value={groupChoice}
+                onChange={handleGroupChoice}
+              />
+              {gpxBlock}
+              <div className="space-y-1.5">
+                <Label htmlFor="ride-note" className="text-[14px] font-semibold">
+                  Commentaire
+                </Label>
+                <Input
+                  id="ride-note"
+                  placeholder="ex : tour du lac avec la patrouille"
+                  value={rideNote}
+                  onChange={(e) => setRideNote(e.target.value)}
+                  className="h-12 rounded-2xl text-[16px]"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bouton d'envoi */}
+        <div className="pt-1">
+          <Button
+            type="submit"
+            disabled={submitting}
+            className={cn(
+              "h-14 w-full rounded-2xl text-[17px] font-bold shadow-sm",
+              sport === "course"
+                ? "bg-purple-600 text-white hover:bg-purple-700"
+                : sport === "marche"
+                  ? "bg-sky-600 text-white hover:bg-sky-700"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90",
+            )}
+          >
+            {submitting ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Enregistrement…
+              </>
+            ) : (
+              <>Enregistrer{distanceKm ? ` ${distanceKm} km` : ""}</>
+            )}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
+  if (variant === "app") {
+    return renderAppForm();
+  }
+
   return (
     <>
       <Card className={cn("overflow-hidden border-border/80 shadow-md", className)}>
@@ -948,44 +1403,7 @@ export function DailyDistanceForm({
               </p>
             </div>
 
-            {openChallenges.filter((c) => c.sport === sport).length > 0 && (
-              <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-                <Label className="font-bold">Cette sortie réalise un défi ?</Label>
-                <Select
-                  value={selectedChallengeId || "none"}
-                  onValueChange={(v) => setSelectedChallengeId(v === "none" ? "" : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choisir un défi (facultatif)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun défi</SelectItem>
-                    {openChallenges
-                      .filter((c) => c.sport === sport)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.title} · {c.proposed_points} pts ·{" "}
-                          {c.gpx_template_path || c.route_validation
-                            ? "parcours à tracer"
-                            : [
-                                c.target_km !== null
-                                  ? `${c.exact_distance ? "exactement" : "≥"} ${c.target_km} km`
-                                  : null,
-                                c.target_elevation !== null ? `≥ ${c.target_elevation} m D+` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" + ")}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Les critères sont vérifiés à l’enregistrement. Les points sont attribués au
-                  premier scout dont la sortie est validée. Pour les défis de parcours, joins le GPX
-                  de ta sortie : le staff vérifie la consigne.
-                </p>
-              </div>
-            )}
+            {challengeBlock}
 
             <GroupRidePicker
               key={pickerKey}
@@ -1077,50 +1495,7 @@ export function DailyDistanceForm({
               )}
             </div>
 
-            {/* CHAMP OPTIONNEL GPX POUR LA CARTE DE LA TROUPE */}
-            <div className="space-y-2 rounded-xl border border-border/70 bg-card/60 p-4">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-primary" />
-                {selectedChallengeForForm?.route_validation ||
-                selectedChallengeForForm?.gpx_template_path
-                  ? "Fichier GPX requis pour ce défi"
-                  : "Fichier GPX du parcours (optionnel pour la carte de la troupe)"}
-              </Label>
-              <div className="flex items-center gap-3">
-                <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground transition-all">
-                  <Upload className="h-4 w-4 text-primary" />
-                  <span>
-                    {gpxFile
-                      ? gpxFile.name
-                      : selectedChallengeForForm?.route_validation ||
-                          selectedChallengeForForm?.gpx_template_path
-                        ? "Ajouter le GPX de ta sortie"
-                        : "Ajouter un fichier .gpx (optionnel)"}
-                  </span>
-                  <input
-                    type="file"
-                    accept=".gpx,application/gpx+xml"
-                    className="hidden"
-                    onChange={handleGpxChange}
-                  />
-                </label>
-                {gpxFile && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setGpxFile(null)}
-                    className="text-xs text-destructive hover:bg-destructive/10"
-                  >
-                    Retirer
-                  </Button>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                🔒 <strong>Vie privée :</strong> Les 200 premiers et derniers mètres de ton tracé
-                GPX seront automatiquement rognés pour masquer ton départ et ton arrivée.
-              </p>
-            </div>
+            {gpxBlock}
 
             <div className="space-y-1.5">
               <Label htmlFor="ride-note" className="text-xs font-semibold text-muted-foreground">

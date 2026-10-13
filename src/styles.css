@@ -1181,3 +1181,135 @@ body {
     animation: none;
   }
 }
+
+/* =====================================================================
+   APPLICATION INSTALLÉE UNIQUEMENT (classe .app-standalone sur <html>/<body>)
+   Le site web n'est pas concerné par ces règles.
+   ===================================================================== */
+.app-tabbar {
+  display: none;
+}
+
+.app-standalone {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-standalone body {
+  padding-bottom: 0;
+  background: var(--background);
+}
+
+/* La mascotte flottante cache le contenu sur un petit écran */
+.app-standalone .mobile-mascot {
+  display: none;
+}
+
+.app-standalone main.app-screen {
+  padding: 0;
+}
+
+.app-standalone .app-tabbar {
+  position: fixed;
+  z-index: 70;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  padding: 0.35rem 0.5rem max(0.55rem, env(safe-area-inset-bottom));
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: saturate(1.6) blur(20px);
+  -webkit-backdrop-filter: saturate(1.6) blur(20px);
+}
+
+.app-standalone .app-tab {
+  display: flex;
+  min-height: 3.1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  color: var(--muted-foreground);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.app-standalone .app-tab-active {
+  color: var(--primary);
+}
+
+.app-standalone .app-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+.app-standalone .app-tab-record {
+  justify-content: center;
+}
+
+.app-standalone .app-record-button {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-top: -1.4rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow:
+    0 6px 16px color-mix(in srgb, var(--primary) 38%, transparent),
+    0 0 0 4px var(--card);
+  transition: transform 120ms ease;
+}
+
+.app-standalone .app-tab-record:active .app-record-button {
+  transform: scale(0.94);
+}
+
+.app-standalone .app-record-button-active {
+  transform: rotate(45deg);
+}
+
+/* Pages du site encore ouvertes dans l'app : place pour la barre d'onglets */
+.app-standalone .min-h-screen:not(.app-screen) {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-standalone .app-record-button {
+    transition: none;
+  }
+}
+
+.app-standalone .site-footer {
+  display: none;
+}
+
+/* Textes de l'app : prioritaires sur les réglages mobiles génériques du site */
+.app-standalone main.app-screen h1 {
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.app-standalone main.app-screen .app-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.app-standalone main.app-screen input.app-distance-input {
+  font-size: 56px;
+  line-height: 1;
+}
+
+/* Un panneau ou une fenêtre est ouvert : la barre d'onglets s'efface */
+body:has([role="dialog"][data-state="open"]) .app-tabbar {
+  display: none;
+}
