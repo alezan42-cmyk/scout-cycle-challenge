@@ -111,6 +111,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "ALEZAN 42 — Le défi vélo des patrouilles" },
       { property: "og:description", content: "Quelle patrouille roulera le plus cette semaine ?" },
     ],
+    // Adresse officielle (le site répond aussi sur alezan42-cycling.pages.dev)
+    links: [{ rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/" }],
   }),
   component: Index,
 });
