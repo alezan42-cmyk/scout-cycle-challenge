@@ -14,7 +14,7 @@ import nodemailer from "npm:nodemailer@6.9.16";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SITE_URL = "https://alezan42-cycling.pages.dev";
+const SITE_URL = "https://alezan42-cycling.lesscoutsdemoustier.be";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
