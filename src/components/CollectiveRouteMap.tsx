@@ -31,6 +31,21 @@ export interface Waypoint {
   y: number;
 }
 
+const kmFmt = new Intl.NumberFormat("fr-BE", { maximumFractionDigits: 0 });
+const fmtKm = (km: number) => kmFmt.format(km);
+
+/** Place les étapes en zigzag régulier sur la carte (quel que soit leur nombre). */
+function layoutWaypoints(list: Waypoint[]): Waypoint[] {
+  const n = list.length;
+  const left = 60;
+  const right = 880;
+  return list.map((wp, i) => ({
+    ...wp,
+    x: n > 1 ? Math.round(left + ((right - left) * i) / (n - 1)) : 470,
+    y: i % 2 === 0 ? 285 : 165,
+  }));
+}
+
 export interface CollectiveRouteMapProps {
   className?: string;
   overrideKm?: number;
@@ -51,10 +66,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
         .select("*")
         .order("target_km", { ascending: true });
       if (data && data.length > 0) {
-        setWaypoints(data);
-        if (!selectedWaypointId) {
-          setSelectedWaypointId(data[1]?.id || data[0]?.id);
-        }
+        setWaypoints(layoutWaypoints(data as Waypoint[]));
       }
     } catch (err) {
       console.warn("Erreur chargement des waypoints :", err);
@@ -106,16 +118,37 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
     previousStage,
     kmToNext,
     stageProgressPercent,
-    overallProgressPercent,
+    mapProgressPercent,
   } = useMemo(() => {
     if (waypoints.length === 0) {
       return {
         currentStageIndex: 0,
-        nextStage: { id: "", name: "", subtitle: "", target_km: 0, description: "", badge_name: "", badge_emoji: "", x: 0, y: 0 },
-        previousStage: { id: "", name: "", subtitle: "", target_km: 0, description: "", badge_name: "", badge_emoji: "", x: 0, y: 0 },
+        nextStage: {
+          id: "",
+          name: "",
+          subtitle: "",
+          target_km: 0,
+          description: "",
+          badge_name: "",
+          badge_emoji: "",
+          x: 0,
+          y: 0,
+        },
+        previousStage: {
+          id: "",
+          name: "",
+          subtitle: "",
+          target_km: 0,
+          description: "",
+          badge_name: "",
+          badge_emoji: "",
+          x: 0,
+          y: 0,
+        },
         kmToNext: 0,
         stageProgressPercent: 0,
         overallProgressPercent: 0,
+        mapProgressPercent: 0,
       };
     }
 
@@ -135,6 +168,15 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
 
     const maxExpeditionKm = waypoints[waypoints.length - 1].target_km || 1;
     const overallPercent = Math.min(100, Math.max(0, (totalKm / maxExpeditionKm) * 100));
+    // Tracé coloré : avance d'étape en étape (les étapes sont régulièrement espacées)
+    const prevIdx = Math.max(0, nextIdx - 1);
+    const mapPercent =
+      waypoints.length > 1
+        ? Math.min(
+            100,
+            ((prevIdx + (nextIdx > 0 ? stagePercent / 100 : 0)) / (waypoints.length - 1)) * 100,
+          )
+        : 100;
 
     return {
       currentStageIndex: nextIdx,
@@ -143,14 +185,16 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
       kmToNext: Math.round(kmRemaining * 10) / 10,
       stageProgressPercent: Math.round(stagePercent),
       overallProgressPercent: Math.round(overallPercent * 10) / 10,
+      mapProgressPercent: mapPercent,
     };
   }, [totalKm, waypoints]);
 
   useEffect(() => {
-    if (nextStage && nextStage.id && !selectedWaypointId) {
+    // Par défaut : la prochaine destination (une fois les km chargés)
+    if (!loading && nextStage && nextStage.id && !selectedWaypointId) {
       setSelectedWaypointId(nextStage.id);
     }
-  }, [nextStage, selectedWaypointId]);
+  }, [loading, nextStage, selectedWaypointId]);
 
   const cyclistPosition = useMemo(() => {
     if (!previousStage.id || !nextStage.id) return { x: 100, y: 350 };
@@ -173,8 +217,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
     }, "");
   }, [waypoints]);
 
-  const selectedWaypoint =
-    waypoints.find((wp) => wp.id === selectedWaypointId) || nextStage;
+  const selectedWaypoint = waypoints.find((wp) => wp.id === selectedWaypointId) || nextStage;
 
   const isSelectedWaypointReached = totalKm >= (selectedWaypoint?.target_km || 0);
 
@@ -191,12 +234,15 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
             <div>
               <CardTitle className="font-display text-xl font-bold flex items-center gap-2">
                 <span>Le Grand Périple Scout</span>
-                <Badge variant="outline" className="text-[10px] font-bold border-emerald-500/40 text-emerald-600">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-bold border-emerald-500/40 text-emerald-600"
+                >
                   Carte Collective
                 </Badge>
               </CardTitle>
               <CardDescription className="text-xs">
-                Chaque kilomètre fait avancer la troupe sur la route des sommets
+                Chaque kilomètre fait avancer la troupe, de Moustier jusqu&apos;au tour du monde
               </CardDescription>
             </div>
           </div>
@@ -237,7 +283,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                   {nextStage.name}
                 </h3>
                 <span className="text-xs font-semibold text-muted-foreground">
-                  ({nextStage.target_km} km)
+                  ({fmtKm(nextStage.target_km)} km)
                 </span>
               </div>
 
@@ -262,7 +308,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
           <div className="mt-3.5 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-muted-foreground">
-                Depuis {previousStage.name} ({previousStage.target_km} km)
+                Depuis {previousStage.name} ({fmtKm(previousStage.target_km)} km)
               </span>
               <span className="font-mono font-bold text-primary">
                 {stageProgressPercent}% complété
@@ -276,7 +322,11 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
       <CardContent className="p-4 sm:p-6 space-y-6">
         <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card to-muted/20 shadow-inner">
           <div className="w-full overflow-x-auto">
-            <svg viewBox="0 0 940 440" className="w-full h-auto min-w-[720px] select-none" style={{ maxHeight: "420px" }}>
+            <svg
+              viewBox="0 0 940 440"
+              className="w-full h-auto min-w-[720px] select-none"
+              style={{ maxHeight: "420px" }}
+            >
               <defs>
                 <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#10b981" />
@@ -288,15 +338,24 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                 </filter>
               </defs>
 
-              <path d={pathD} fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="6" strokeLinecap="round" strokeDasharray="8 8" />
+              <path
+                d={pathD}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.2"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeDasharray="8 8"
+              />
               <path
                 d={pathD}
                 fill="none"
                 stroke="url(#routeGradient)"
                 strokeWidth="5"
                 strokeLinecap="round"
-                strokeDasharray="940"
-                strokeDashoffset={940 - (940 * overallProgressPercent) / 100}
+                pathLength={100}
+                strokeDasharray="100"
+                strokeDashoffset={100 - mapProgressPercent}
                 className="transition-all duration-700 ease-out"
               />
 
@@ -316,23 +375,71 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                     className="cursor-pointer transition-transform hover:scale-110 origin-center"
                     transform={`translate(${wp.x}, ${wp.y})`}
                   >
-                    {isNext && <circle r="22" fill="none" stroke="#f59e0b" strokeWidth="2" opacity="0.6" className="animate-ping" />}
-                    {isSelected && <circle r="20" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" className="animate-spin text-primary" style={{ animationDuration: "12s" }} />}
-                    <circle r="14" fill={fillColor} filter="url(#pinShadow)" stroke="#ffffff" strokeWidth="2.5" />
+                    {isNext && (
+                      <circle
+                        r="22"
+                        fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth="2"
+                        opacity="0.6"
+                        className="animate-ping"
+                      />
+                    )}
+                    {isSelected && (
+                      <circle
+                        r="20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeDasharray="3 3"
+                        className="animate-spin text-primary"
+                        style={{ animationDuration: "12s" }}
+                      />
+                    )}
+                    <circle
+                      r="14"
+                      fill={fillColor}
+                      filter="url(#pinShadow)"
+                      stroke="#ffffff"
+                      strokeWidth="2.5"
+                    />
                     <text textAnchor="middle" dy="4" fontSize="10" fontWeight="bold" fill="#ffffff">
                       {isReached ? "✓" : idx}
                     </text>
-                    <text y={idx % 2 === 0 ? 28 : -22} textAnchor="middle" className={cn("text-[11px] font-bold select-none", isSelected ? "fill-primary font-black" : isReached ? "fill-foreground" : "fill-muted-foreground")}>
-                      {wp.name.split(" ")[0]} ({wp.target_km}k)
+                    <title>{`${wp.name} – ${fmtKm(wp.target_km)} km`}</title>
+                    <text
+                      y={idx % 2 === 0 ? 32 : -24}
+                      textAnchor="middle"
+                      className={cn(
+                        "text-[11px] font-bold select-none",
+                        isSelected
+                          ? "fill-primary font-black"
+                          : isReached
+                            ? "fill-foreground"
+                            : "fill-muted-foreground",
+                      )}
+                    >
+                      {wp.badge_emoji} {fmtKm(wp.target_km)} km
                     </text>
                   </g>
                 );
               })}
 
-              <g transform={`translate(${cyclistPosition.x}, ${cyclistPosition.y})`} className="transition-all duration-700 ease-out">
+              <g
+                transform={`translate(${cyclistPosition.x}, ${cyclistPosition.y})`}
+                className="transition-all duration-700 ease-out"
+              >
                 <circle r="18" fill="#10b981" opacity="0.25" className="animate-ping" />
-                <circle r="12" fill="#f97316" stroke="#ffffff" strokeWidth="2" filter="url(#pinShadow)" />
-                <text textAnchor="middle" dy="4" fontSize="10">🚴</text>
+                <circle
+                  r="12"
+                  fill="#f97316"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  filter="url(#pinShadow)"
+                />
+                <text textAnchor="middle" dy="4" fontSize="10">
+                  🚴
+                </text>
               </g>
             </svg>
           </div>
@@ -359,13 +466,20 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                         <Flame className="h-3 w-3 mr-1" /> Actuelle
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground font-semibold">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] text-muted-foreground font-semibold"
+                      >
                         <Lock className="h-3 w-3 mr-1" /> Verrouillé
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Distance requise : <strong>{selectedWaypoint.target_km} km</strong>
+                    Distance requise : <strong>{fmtKm(selectedWaypoint.target_km)} km</strong>
+                    {selectedWaypoint.subtitle &&
+                      selectedWaypoint.subtitle !== selectedWaypoint.name && (
+                        <> · {selectedWaypoint.subtitle}</>
+                      )}
                   </p>
                 </div>
               </div>
@@ -373,13 +487,26 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
               <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs">
                 <Award className="h-4 w-4 text-amber-500" />
                 <div>
-                  <span className="text-[10px] text-muted-foreground block font-medium">Badge Troupe</span>
+                  <span className="text-[10px] text-muted-foreground block font-medium">
+                    Badge Troupe
+                  </span>
                   <span className="font-bold text-foreground">{selectedWaypoint.badge_name}</span>
                 </div>
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground leading-relaxed">{selectedWaypoint.description}</p>
+            {selectedWaypoint.description &&
+              selectedWaypoint.description !== selectedWaypoint.name && (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {selectedWaypoint.description}
+                </p>
+              )}
+            {!isSelectedWaypointReached && (
+              <p className="text-xs font-semibold text-primary">
+                Encore {fmtKm(Math.ceil(selectedWaypoint.target_km - totalKm))} km pour
+                l&apos;atteindre !
+              </p>
+            )}
           </div>
         )}
 
@@ -390,11 +517,14 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
               <span>Carnet de route de l&apos;Expédition</span>
             </h4>
             <span className="text-[11px] text-muted-foreground">
-              Progression globale : <strong>{overallProgressPercent}%</strong>
+              <strong>
+                {Math.max(0, waypoints.filter((wp) => totalKm >= wp.target_km).length - 1)}
+              </strong>{" "}
+              étapes franchies sur {waypoints.length - 1}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {waypoints.map((wp) => {
               const isReached = totalKm >= wp.target_km;
               const isNext = wp.id === nextStage?.id;
@@ -407,14 +537,25 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                   onClick={() => setSelectedWaypointId(wp.id)}
                   className={cn(
                     "flex flex-col text-left p-3 rounded-xl border transition-all text-xs",
-                    isSelected ? "border-primary bg-primary/5 shadow-xs" : isReached ? "border-emerald-500/30 bg-emerald-500/5" : "border-border/60 bg-card/60"
+                    isSelected
+                      ? "border-primary bg-primary/5 shadow-xs"
+                      : isNext
+                        ? "border-amber-500/50 bg-amber-500/5"
+                        : isReached
+                          ? "border-emerald-500/30 bg-emerald-500/5"
+                          : "border-border/60 bg-card/60",
                   )}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="text-base">{wp.badge_emoji}</span>
-                    <span className="font-mono font-black text-[11px] text-muted-foreground">{wp.target_km} km</span>
+                    <span className="font-mono font-black text-[11px] text-muted-foreground">
+                      {fmtKm(wp.target_km)} km
+                    </span>
                   </div>
-                  <div className="font-bold text-foreground truncate mt-1.5">{wp.name}</div>
+                  <div className="font-bold text-foreground truncate mt-1.5" title={wp.name}>
+                    {isReached && <CheckCircle2 className="mr-1 inline h-3 w-3 text-emerald-600" />}
+                    {wp.name}
+                  </div>
                   <div className="text-[10px] text-muted-foreground truncate">{wp.badge_name}</div>
                 </button>
               );
