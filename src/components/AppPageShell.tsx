@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import { isStandalone } from "@/lib/standalone";
+import { isAppMode, websitePathFor } from "@/lib/standalone";
 import { cn } from "@/lib/utils";
 
 /**
  * Écran de l'application installée : grand titre, sous-titre court, contenu aéré.
- * `root` = écran d'un onglet (pas de bouton retour). Hors application, renvoie vers le site.
+ * `root` = écran d'un onglet (pas de bouton retour). Hors app sur téléphone, renvoie vers le site.
  */
 export function AppPageShell({
   title,
@@ -29,9 +29,10 @@ export function AppPageShell({
   const router = useRouter();
   const [standalone, setStandalone] = useState<boolean | null>(null);
   useEffect(() => {
-    const installed = isStandalone();
-    setStandalone(installed);
-    if (!installed) window.location.replace("/");
+    // Hors app sur téléphone (navigateur, ou app installée sur ordinateur) : page du site
+    const app = isAppMode();
+    setStandalone(app);
+    if (!app) window.location.replace(websitePathFor(window.location.pathname));
   }, []);
 
   if (standalone !== true) return <div className="min-h-screen bg-background" />;
