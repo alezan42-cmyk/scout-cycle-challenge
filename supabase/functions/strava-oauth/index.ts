@@ -5,7 +5,7 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const clientId = Deno.env.get("STRAVA_CLIENT_ID");
 const clientSecret = Deno.env.get("STRAVA_CLIENT_SECRET");
 const redirectUri = Deno.env.get("STRAVA_REDIRECT_URI") ?? `${supabaseUrl}/functions/v1/strava-oauth`;
-const siteUrl = Deno.env.get("SITE_URL") ?? "https://alezan42-cycling.pages.dev";
+const siteUrl = Deno.env.get("SITE_URL") ?? "https://alezan42-cycling.lesscoutsdemoustier.be";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
