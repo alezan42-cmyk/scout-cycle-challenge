@@ -39,7 +39,7 @@ interface NavItem {
 type AppMenu = "home" | "km" | "profile" | "more";
 
 interface AppMenuLink {
-  to: "/" | "/mes-km" | "/timeline" | "/profil" | "/admin" | "/solidarite" | "/auth";
+  to: "/" | "/mes-km" | "/timeline" | "/profil" | "/admin" | "/solidarite" | "/auth" | "/app/maillots" | "/app/sorties" | "/app/classement" | "/app/defis" | "/app/compte-a-rebours" | "/app/mes-kms" | "/app/enregistrer" | "/app/trophees";
   hash?: string;
   label: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -162,19 +162,19 @@ export function SiteHeader() {
     home: {
       title: "Accueil",
       links: [
-        { to: "/", hash: "maillots", label: "Maillots jaune et à pois", icon: Trophy },
-        { to: "/mes-km", hash: "historique", label: "Kms enregistrés", icon: Bike },
-        { to: "/", hash: "classement", label: "Classement", icon: Medal },
-        { to: "/", hash: "defis", label: "Défis", icon: Award },
+        { to: "/app/maillots", label: "Maillots jaune et à pois", icon: Trophy },
+        { to: "/app/sorties", label: "Kms enregistrés", icon: Bike },
+        { to: "/app/classement", label: "Classement", icon: Medal },
+        { to: "/app/defis", label: "Défis", icon: Award },
       ],
     },
     km: {
       title: "Mes km",
       links: user
         ? [
-            { to: "/mes-km", hash: "historique", label: "Mes kms enregistrés", icon: History },
-            { to: "/mes-km", hash: "enregistrer", label: "Enregistrer mes kms", icon: Bike },
-            { to: "/mes-km", hash: "trophees", label: "Mes trophées", icon: Award },
+            { to: "/app/mes-kms", label: "Mes kms enregistrés", icon: History },
+            { to: "/app/enregistrer", label: "Enregistrer mes kms", icon: Bike },
+            { to: "/app/trophees", label: "Mes trophées", icon: Award },
           ]
         : [{ to: "/auth", label: "Me connecter", icon: LogIn }],
     },
@@ -191,7 +191,7 @@ export function SiteHeader() {
       title: "À découvrir",
       links: [
         { to: "/timeline", label: "Ligne du temps", icon: History },
-        { to: "/", hash: "compte-a-rebours", label: "Compte à rebours", icon: Clock3 },
+        { to: "/app/compte-a-rebours", label: "Compte à rebours", icon: Clock3 },
       ],
     },
   };
