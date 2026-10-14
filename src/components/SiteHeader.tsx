@@ -14,7 +14,6 @@ import {
   ChevronRight,
   House,
   MoreHorizontal,
-  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -39,7 +38,6 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isInstalledApp, setIsInstalledApp] = useState(false);
-  const [isMobileApp, setIsMobileApp] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // La page est pré-rendue sur « / » : on ne marque la page active qu'une fois
   // dans le navigateur, sinon « Classement » resterait surligné partout.
@@ -47,17 +45,13 @@ export function SiteHeader() {
   useEffect(() => setMounted(true), []);
   const currentPath = mounted ? location.pathname : null;
 
-  // App installée : navigation d'app sur tous les écrans, en-tête masqué seulement sur téléphone.
+  // Mode « app » : installée ET écran de téléphone (sur ordinateur, on garde le site)
   useEffect(() => {
     const update = () => {
       const app = isAppMode();
-      const mobile = window.matchMedia(`(max-width: ${APP_MAX_WIDTH}px)`).matches;
       setIsInstalledApp(app);
-      setIsMobileApp(app && mobile);
       document.body.classList.toggle("app-standalone", app);
       document.documentElement.classList.toggle("app-standalone", app);
-      document.body.classList.toggle("app-desktop", app && !mobile);
-      document.documentElement.classList.toggle("app-desktop", app && !mobile);
     };
     update();
     const mq = window.matchMedia(`(max-width: ${APP_MAX_WIDTH}px)`);
@@ -65,8 +59,6 @@ export function SiteHeader() {
     return () => {
       mq.removeEventListener("change", update);
       document.body.classList.remove("app-standalone");
-      document.body.classList.remove("app-desktop");
-      document.documentElement.classList.remove("app-desktop");
     };
   }, []);
 
@@ -146,36 +138,6 @@ export function SiteHeader() {
     return true;
   });
 
-  const appDesktopItems: NavItem[] = [
-    { to: "/app", label: "Accueil", description: "Accueil de l'application", icon: House },
-    {
-      to: "/app/classement",
-      label: "Classement",
-      description: "Classement de la troupe",
-      icon: Trophy,
-    },
-    {
-      to: "/app/sorties",
-      label: "Sorties",
-      description: "Dernières sorties de la troupe",
-      icon: History,
-    },
-    { to: "/app/defis", label: "Défis", description: "Défis en cours", icon: Award },
-    {
-      to: user ? "/app/mes-kms" : "/auth",
-      label: "Mes km",
-      description: "Mes sorties enregistrées",
-      icon: Bike,
-    },
-    {
-      to: "/app/plus",
-      label: "Plus",
-      description: "Autres pages de l'application",
-      icon: MoreHorizontal,
-    },
-  ];
-  const desktopItems = isInstalledApp ? appDesktopItems : visibleItems;
-
   const mobileItems = user
     ? visibleItems.filter((item) => ["/", "/mes-km", "/carte", "/profil"].includes(item.to))
     : visibleItems.filter((item) => ["/", "/timeline", "/solidarite"].includes(item.to));
@@ -193,7 +155,7 @@ export function SiteHeader() {
       <header
         className={cn(
           "site-header sticky top-0 z-50 w-full border-b border-white/10 bg-[var(--header)]/95 text-white shadow-lg backdrop-blur-md",
-          isMobileApp && "app-shell-header-hidden",
+          isInstalledApp && "app-shell-header-hidden",
         )}
       >
         <HeaderTrim />
@@ -234,7 +196,7 @@ export function SiteHeader() {
           {/* ============================================================== */}
           <nav className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1">
-              {desktopItems.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.to;
 
