@@ -8,6 +8,51 @@ export type Database = {
   };
   public: {
     Tables: {
+      app_notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          href: string;
+          dedupe_key: string | null;
+          created_at: string;
+          read_at: string | null;
+          push_sent_at: string | null;
+          push_attempts: number;
+          push_last_error: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          href?: string;
+          dedupe_key?: string | null;
+          created_at?: string;
+          read_at?: string | null;
+          push_sent_at?: string | null;
+          push_attempts?: number;
+          push_last_error?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: string;
+          title?: string;
+          body?: string;
+          href?: string;
+          dedupe_key?: string | null;
+          created_at?: string;
+          read_at?: string | null;
+          push_sent_at?: string | null;
+          push_attempts?: number;
+          push_last_error?: string | null;
+        };
+        Relationships: [];
+      };
       activities: {
         Row: {
           created_at: string;
