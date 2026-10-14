@@ -17,7 +17,6 @@ import {
   Award,
   Palette,
   BrushCleaning,
-  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +53,6 @@ import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
 import { AdminChallenges } from "@/components/AdminChallenges";
 import { AdminDistanceAwards } from "@/components/AdminDistanceAwards";
 import { ChallengesPanel } from "@/components/ChallengesPanel";
-import { AdminAppNotifications } from "@/components/AdminAppNotifications";
 
 const TAB_TRIGGER = "shrink-0 rounded-lg px-3 py-2 text-xs font-bold gap-1.5 md:py-1";
 
@@ -390,7 +388,7 @@ function Admin() {
 
         <Tabs defaultValue="validations" className="space-y-5 md:space-y-6">
           {/* Mobile : une seule ligne qui défile, collée sous l'en-tête ; ordinateur : 6 colonnes */}
-          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-9 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
+          <TabsList className="sticky top-[58px] z-30 -mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b bg-muted/95 p-1.5 backdrop-blur [scrollbar-width:none] md:static md:mx-0 md:grid md:w-full md:grid-cols-8 md:rounded-xl md:border-0 md:p-1 [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="validations" className={TAB_TRIGGER}>
               <Check className="h-4 w-4" />
               Sorties ({pending.length})
@@ -406,10 +404,6 @@ function Admin() {
             <TabsTrigger value="countdown" className={TAB_TRIGGER}>
               <Clock className="h-4 w-4" />
               Comptes à rebours
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className={TAB_TRIGGER}>
-              <Bell className="h-4 w-4" />
-              Notifications
             </TabsTrigger>
             <TabsTrigger value="patrols" className={TAB_TRIGGER}>
               <Crown className="h-4 w-4" />
@@ -731,10 +725,6 @@ function Admin() {
                 </div>
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="notifications" className="space-y-6">
-            <AdminAppNotifications />
           </TabsContent>
 
           {/* Tab 4: Patrols Management */}

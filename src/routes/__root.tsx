@@ -12,7 +12,6 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
-import { AppNotifications } from "@/components/AppNotifications";
 import { AlezanMascot } from "@/components/AlezanMascot";
 import { AuthProvider } from "@/context/AuthContext";
 import { SeasonalThemeProvider } from "@/context/SeasonalThemeContext";
@@ -174,7 +173,6 @@ function RootComponent() {
       <SeasonalThemeProvider>
         <AuthProvider>
           <SiteHeader />
-          <AppNotifications />
           <AlezanMascot />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
