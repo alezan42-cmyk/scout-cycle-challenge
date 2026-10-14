@@ -57,7 +57,6 @@ function ExpeditionScreen() {
   const stage = stages[i]!;
   const prog = stageProgress(stages, i, km);
   const reached = stages.filter((s) => km >= s.target_km).length;
-  const prevKm = i > 0 ? (stages[i - 1]?.target_km ?? 0) : 0;
   const select = (j: number) => {
     setIndex(j);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -145,8 +144,8 @@ function ExpeditionScreen() {
                   />
                 </div>
                 <p className="mt-1.5 text-[12px] text-muted-foreground">
-                  {Math.floor(prog.fraction * 100)} % depuis l'étape précédente (
-                  {formatStageKm(prevKm)} km)
+                  {Math.floor(prog.fraction * 100)} % de l&apos;objectif · {formatStageKm(km)} /{" "}
+                  {formatStageKm(stage.target_km)} km
                 </p>
               </>
             )}
