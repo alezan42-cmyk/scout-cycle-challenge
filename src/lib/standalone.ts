@@ -28,4 +28,4 @@ export function websitePathFor(appPath: string): string {
  * Exécuté avant l'affichage. Dans l'app installée, marque <html> comme « app »
  * et envoie « / » vers « /app », sur téléphone comme sur ordinateur.
  */
-export const APP_BOOT_SCRIPT = `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;if(!s)return;document.documentElement.classList.add('app-standalone');if(location.pathname==='/'){location.replace('/app'+location.search+location.hash);}}catch(e){}})();`;
+export const APP_BOOT_SCRIPT = `(function(){try{var s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;if(!s)return;document.documentElement.classList.add('app-standalone');if(!window.matchMedia('(max-width: ${APP_MAX_WIDTH}px)').matches)document.documentElement.classList.add('app-desktop');if(location.pathname==='/'){location.replace('/app'+location.search+location.hash);}}catch(e){}})();`;
