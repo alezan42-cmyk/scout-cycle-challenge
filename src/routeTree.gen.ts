@@ -23,6 +23,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppClassementRouteImport } from './routes/app/classement'
 import { Route as AppCompteAReboursRouteImport } from './routes/app/compte-a-rebours'
 import { Route as AppDefisRouteImport } from './routes/app/defis'
+import { Route as AppExpeditionRouteImport } from './routes/app/expedition'
 import { Route as AppMaillotsRouteImport } from './routes/app/maillots'
 import { Route as AppPlusRouteImport } from './routes/app/plus'
 import { Route as AppSortiesRouteImport } from './routes/app/sorties'
@@ -100,6 +101,11 @@ const AppDefisRoute = AppDefisRouteImport.update({
   path: '/app/defis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppExpeditionRoute = AppExpeditionRouteImport.update({
+  id: '/app/expedition',
+  path: '/app/expedition',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppMaillotsRoute = AppMaillotsRouteImport.update({
   id: '/app/maillots',
   path: '/app/maillots',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
+  '/app/expedition': typeof AppExpeditionRoute
   '/app/maillots': typeof AppMaillotsRoute
   '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
+  '/app/expedition': typeof AppExpeditionRoute
   '/app/maillots': typeof AppMaillotsRoute
   '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
+  '/app/expedition': typeof AppExpeditionRoute
   '/app/maillots': typeof AppMaillotsRoute
   '/app/plus': typeof AppPlusRoute
   '/app/sorties': typeof AppSortiesRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
+    | '/app/expedition'
     | '/app/maillots'
     | '/app/plus'
     | '/app/sorties'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
+    | '/app/expedition'
     | '/app/maillots'
     | '/app/plus'
     | '/app/sorties'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
+    | '/app/expedition'
     | '/app/maillots'
     | '/app/plus'
     | '/app/sorties'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   AppClassementRoute: typeof AppClassementRoute
   AppCompteAReboursRoute: typeof AppCompteAReboursRoute
   AppDefisRoute: typeof AppDefisRoute
+  AppExpeditionRoute: typeof AppExpeditionRoute
   AppMaillotsRoute: typeof AppMaillotsRoute
   AppPlusRoute: typeof AppPlusRoute
   AppSortiesRoute: typeof AppSortiesRoute
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDefisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/expedition': {
+      id: '/app/expedition'
+      path: '/app/expedition'
+      fullPath: '/app/expedition'
+      preLoaderRoute: typeof AppExpeditionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/maillots': {
       id: '/app/maillots'
       path: '/app/maillots'
@@ -478,6 +498,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppClassementRoute: AppClassementRoute,
   AppCompteAReboursRoute: AppCompteAReboursRoute,
   AppDefisRoute: AppDefisRoute,
+  AppExpeditionRoute: AppExpeditionRoute,
   AppMaillotsRoute: AppMaillotsRoute,
   AppPlusRoute: AppPlusRoute,
   AppSortiesRoute: AppSortiesRoute,

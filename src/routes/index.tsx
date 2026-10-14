@@ -54,7 +54,7 @@ import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
 import { CumulativeDistanceBadges, NearestDistanceTrophy } from "@/components/DistanceTrophies";
 import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
-import { WorldTourProgress } from "@/components/WorldTourProgress";
+import { ExpeditionGoal } from "@/components/ExpeditionGoal";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
@@ -197,6 +197,8 @@ function Index() {
     "patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges"
   >("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
+  // Étape de l'Expédition à afficher quand on clique sur la case « objectif »
+  const [mapFocus, setMapFocus] = useState<{ id: string; at: number } | null>(null);
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
 
@@ -915,7 +917,20 @@ function Index() {
               </Link>
             )}
           </section>
-          <WorldTourProgress totalKm={troopTotalKm} compact />
+          <ExpeditionGoal
+            totalKm={troopTotalKm}
+            onOpen={(id) => {
+              setView("map");
+              setMapFocus({ id, at: Date.now() });
+              window.setTimeout(
+                () =>
+                  document
+                    .getElementById("expedition")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                80,
+              );
+            }}
+          />
         </div>
 
         {/* Stats Grid */}
@@ -1224,7 +1239,13 @@ function Index() {
         {view === "challenges" ? (
           <ChallengesPanel />
         ) : view === "map" ? (
-          <CollectiveRouteMap />
+          <div id="expedition" className="scroll-mt-24">
+            <CollectiveRouteMap
+              overrideKm={troopTotalKm}
+              focusWaypointId={mapFocus?.id}
+              focusKey={mapFocus?.at}
+            />
+          </div>
         ) : view === "chart" ? (
           <PatrolDailyContributionChart />
         ) : isLeaderboardLoading ? (

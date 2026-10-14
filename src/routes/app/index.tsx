@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
   Award,
@@ -29,7 +29,7 @@ import { useDistanceAwards } from "@/lib/useDistanceAwards";
 import { getNextDistanceTrophy } from "@/lib/distanceTrophies";
 import { getActivitySport, getPatrolEmblem, SPORT_INFO } from "@/lib/database";
 import { cn } from "@/lib/utils";
-import { WorldTourProgress } from "@/components/WorldTourProgress";
+import { ExpeditionGoal } from "@/components/ExpeditionGoal";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import hero from "@/assets/hero.jpg";
 
@@ -70,6 +70,7 @@ function AppHome() {
   );
 
   const troopKm = useMemo(() => troopTotal(troop.data, "all"), [troop.data]);
+  const navigate = useNavigate();
   const patrols = useMemo(() => rankPatrols(troop.data, "week", "all"), [troop.data]);
   const myPatrolRank = profile?.patrol_id
     ? rankOf(patrols, (p) => p.id === profile.patrol_id)
@@ -97,7 +98,7 @@ function AppHome() {
         <>
           {/* Mon mois */}
           <AppCard className="p-5">
-            <div className="grid grid-cols-[minmax(0,1fr)_6.25rem] items-center gap-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-1">
               <div className="min-w-0">
                 <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Mes km ce mois-ci
@@ -117,7 +118,13 @@ function AppHome() {
                   )}
                 </p>
               </div>
-              <WorldTourProgress totalKm={troopKm} mini />
+              <ExpeditionGoal
+                totalKm={troopKm}
+                variant="mini"
+                onOpen={(id) =>
+                  void navigate({ to: "/app/expedition", search: { etape: id } } as never)
+                }
+              />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
               <div>

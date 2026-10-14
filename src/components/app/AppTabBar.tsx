@@ -40,9 +40,13 @@ export function AppTabBar() {
         ["/profil", "/admin", "/solidarite", "/timeline", "/carte"].some((p) =>
           pathname.startsWith(p),
         ) ||
-        ["/app/maillots", "/app/defis", "/app/sorties", "/app/compte-a-rebours"].some((p) =>
-          pathname.startsWith(p),
-        ),
+        [
+          "/app/maillots",
+          "/app/defis",
+          "/app/sorties",
+          "/app/compte-a-rebours",
+          "/app/expedition",
+        ].some((p) => pathname.startsWith(p)),
     },
   ] as const;
 
