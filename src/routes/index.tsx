@@ -53,6 +53,7 @@ import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
 import { CumulativeDistanceBadges, NearestDistanceTrophy } from "@/components/DistanceTrophies";
 import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
+import { WorldTourProgress } from "@/components/WorldTourProgress";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
@@ -217,6 +218,39 @@ function Index() {
         .eq("status", "approved");
       if (error) throw error;
       return count ?? 0;
+    },
+  });
+
+  const currentWeek = weekRange(0);
+  const { data: myWeekKm = 0 } = useQuery<number>({
+    queryKey: ["my-approved-week-km", user?.id, currentWeek.from, currentWeek.to],
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km")
+        .eq("user_id", user!.id)
+        .eq("status", "approved")
+        .gte("ride_date", currentWeek.from)
+        .lte("ride_date", currentWeek.to);
+      if (error) throw error;
+      return (data ?? []).reduce((sum, activity) => sum + Number(activity.km || 0), 0);
+    },
+  });
+
+  const { data: troopTotalKm = 0 } = useQuery<number>({
+    queryKey: ["troop-approved-km-all-time"],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km")
+        .eq("status", "approved");
+      if (error) throw error;
+      return (data ?? []).reduce((sum, activity) => sum + Number(activity.km || 0), 0);
     },
   });
 
@@ -845,6 +879,33 @@ function Index() {
                   : SPORT_INFO[sportMode].short}
             </span>
           </div>
+        </div>
+
+        <div className="grid grid-cols-[0.8fr_1.2fr] gap-3 sm:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)] sm:gap-4">
+          <section
+            aria-label="Mes kilomètres validés cette semaine"
+            className="flex min-h-24 flex-col justify-center rounded-2xl border border-border/80 bg-card p-3 shadow-sm sm:p-4"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">
+              Mes km cette semaine
+            </div>
+            {user ? (
+              <>
+                <div className="mt-1 font-display text-2xl font-black text-foreground sm:text-3xl">
+                  {myWeekKm.toLocaleString("fr-BE", { maximumFractionDigits: 1 })}
+                  <span className="ml-1 text-sm font-semibold text-muted-foreground">km</span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+                  sorties validées
+                </p>
+              </>
+            ) : (
+              <Link to="/auth" className="mt-2 text-xs font-semibold text-primary hover:underline">
+                Connecte-toi pour voir tes km
+              </Link>
+            )}
+          </section>
+          <WorldTourProgress totalKm={troopTotalKm} compact />
         </div>
 
         {/* Stats Grid */}
