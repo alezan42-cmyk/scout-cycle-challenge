@@ -3,6 +3,7 @@ import {
   Award,
   CalendarClock,
   CircleUserRound,
+  Compass,
   HandHeart,
   History,
   LogIn,
@@ -66,6 +67,13 @@ function MoreScreen() {
             iconClassName="bg-amber-500/15 text-amber-600"
             title="Maillots"
             subtitle="Jaune et à pois"
+          />
+          <AppListRow
+            to="/app/expedition"
+            icon={Compass}
+            iconClassName="bg-sky-500/12 text-sky-600"
+            title="Expédition"
+            subtitle="Les étapes jusqu'au tour du monde"
           />
           <AppListRow
             to="/app/defis"

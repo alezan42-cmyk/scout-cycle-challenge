@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { stageArt } from "@/lib/expedition";
 
 export interface Waypoint {
   id: string;
@@ -49,14 +50,51 @@ function layoutWaypoints(list: Waypoint[]): Waypoint[] {
 export interface CollectiveRouteMapProps {
   className?: string;
   overrideKm?: number;
+  /** Étape à sélectionner à l'ouverture (clic sur la case « objectif ») */
+  focusWaypointId?: string;
+  /** Change à chaque clic pour re-sélectionner la même étape */
+  focusKey?: number;
 }
 
-export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMapProps) {
+/** Illustration ronde d'une étape (même image que la case « objectif »). */
+function StageBadge({ wp, className }: { wp: Waypoint; className?: string }) {
+  const art = stageArt(wp);
+  return (
+    <span
+      className={cn(
+        "grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br shadow-xs",
+        art.bg,
+        className,
+      )}
+    >
+      {art.src ? (
+        <img
+          src={art.src}
+          alt=""
+          className={cn("h-full w-full", art.photo ? "object-cover" : "object-contain p-[14%]")}
+          loading="lazy"
+        />
+      ) : (
+        <span>{wp.badge_emoji}</span>
+      )}
+    </span>
+  );
+}
+
+export function CollectiveRouteMap({
+  className,
+  overrideKm,
+  focusWaypointId,
+  focusKey,
+}: CollectiveRouteMapProps) {
   const [totalKm, setTotalKm] = useState<number>(0);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedWaypointId, setSelectedWaypointId] = useState<string>("");
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string>(focusWaypointId ?? "");
+  useEffect(() => {
+    if (focusWaypointId) setSelectedWaypointId(focusWaypointId);
+  }, [focusWaypointId, focusKey]);
 
   // Charger les étapes depuis Supabase
   const loadWaypoints = async () => {
@@ -449,9 +487,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
           <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
               <div className="flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-2xl shadow-xs border border-primary/20">
-                  {selectedWaypoint.badge_emoji}
-                </span>
+                <StageBadge wp={selectedWaypoint} className="h-14 w-14 text-2xl" />
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="font-display text-lg font-bold text-foreground">
@@ -547,7 +583,7 @@ export function CollectiveRouteMap({ className, overrideKm }: CollectiveRouteMap
                   )}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="text-base">{wp.badge_emoji}</span>
+                    <StageBadge wp={wp} className="h-8 w-8 text-base" />
                     <span className="font-mono font-black text-[11px] text-muted-foreground">
                       {fmtKm(wp.target_km)} km
                     </span>
