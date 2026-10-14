@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
-import { Check, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Flag, Lock } from "lucide-react";
 import {
   formatStageKm,
   nextStageIndex,
@@ -230,6 +230,10 @@ function NavButton({
   );
 }
 
+/**
+ * Version site : même présentation que l'ancienne case « tour du monde »
+ * (image ronde + anneau à gauche, textes à droite) ; seule la partie objectif change.
+ */
 function Compact({
   stage,
   prog,
@@ -248,70 +252,130 @@ function Compact({
   onOpen: (id: string) => void;
 }) {
   const swipe = useSwipe(go);
+  const art = stageArt(stage);
+  const fraction = prog.status === "done" ? 1 : prog.fraction;
   return (
     <section
       aria-label="Objectifs de l'Expédition"
-      className="relative flex min-h-24 min-w-0 flex-col rounded-2xl border border-border/80 bg-card p-2.5 shadow-sm sm:p-3"
+      className="relative flex min-h-24 min-w-0 items-center rounded-2xl border border-border/80 bg-card p-2.5 shadow-sm sm:p-3"
       {...swipe}
     >
-      <div className="flex items-center justify-between gap-1">
-        <span
-          className={cn(
-            "truncate text-[9px] font-bold uppercase leading-tight tracking-wide sm:text-[10px]",
-            prog.status === "done"
-              ? "text-emerald-600 dark:text-emerald-400"
-              : prog.status === "next"
-                ? "text-primary"
-                : "text-muted-foreground",
-          )}
-        >
-          <span className="sm:hidden">
-            {prog.status === "next" ? "Objectif" : prog.status === "done" ? "Atteint" : "À venir"}
-          </span>
-          <span className="hidden sm:inline">{STATUS_LABEL[prog.status]}</span>
-        </span>
-        <div className="flex shrink-0 items-center">
-          <NavButton dir="prev" disabled={i === 0} onClick={() => go(-1)} className="h-7 w-7" />
-          <span className="min-w-[2.2rem] text-center text-[10px] font-semibold tabular-nums text-muted-foreground">
-            {i + 1}/{n}
-          </span>
-          <NavButton dir="next" disabled={i === n - 1} onClick={() => go(1)} className="h-7 w-7" />
-        </div>
-      </div>
       <button
         type="button"
         key={stage.id}
         onClick={() => onOpen(stage.id)}
-        className="group mt-0.5 flex flex-1 animate-in items-center gap-2.5 rounded-xl text-left fade-in-0 duration-300 sm:gap-3.5"
         title="Voir le détail dans l'Expédition"
+        className="group flex min-w-0 flex-1 animate-in items-center gap-2 text-left fade-in-0 duration-300 sm:gap-3"
       >
-        <StageVisual stage={stage} prog={prog} size="md" />
-        <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 font-display text-[15px] font-black leading-tight text-foreground group-hover:text-primary sm:text-lg">
-            {stage.name.trim()}
-          </span>
-          <span
+        <div className="relative grid h-[76px] w-[76px] shrink-0 place-items-center sm:h-20 sm:w-20">
+          <div
             className={cn(
-              "mt-0.5 block text-[11px] font-bold leading-tight sm:text-xs",
+              "absolute h-16 w-16 overflow-hidden rounded-full bg-gradient-to-br shadow-[0_0_20px_rgba(59,130,246,0.18)] sm:h-[68px] sm:w-[68px]",
+              art.bg,
+              prog.status === "locked" && "saturate-[0.55]",
+            )}
+          >
+            {art.src ? (
+              <img
+                src={art.src}
+                alt=""
+                className={cn(
+                  "h-full w-full",
+                  art.photo ? "object-cover" : "object-contain p-[15%] drop-shadow-md",
+                )}
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <span className="grid h-full w-full place-items-center text-3xl">
+                {stage.badge_emoji}
+              </span>
+            )}
+          </div>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 160 160"
+            className="absolute inset-0 h-full w-full -rotate-90"
+          >
+            <circle
+              cx="80"
+              cy="80"
+              r={RING_R}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="5"
+              className="text-muted/70"
+            />
+            <circle
+              cx="80"
+              cy="80"
+              r={RING_R}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={RING_LEN}
+              strokeDashoffset={RING_LEN * (1 - fraction)}
+              className={cn(
+                prog.status === "done" ? "text-emerald-500" : "text-primary",
+                "transition-[stroke-dashoffset] duration-700",
+              )}
+            />
+          </svg>
+          {prog.status !== "next" && (
+            <span
+              className={cn(
+                "absolute bottom-0.5 right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-card",
+                prog.status === "done"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {prog.status === "done" ? (
+                <Check className="h-3 w-3" strokeWidth={3} />
+              ) : (
+                <Lock className="h-2.5 w-2.5" />
+              )}
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 pr-11 text-[9px] font-bold uppercase leading-tight tracking-wide text-muted-foreground sm:text-[10px]">
+            <Flag aria-hidden="true" className="hidden h-3 w-3 shrink-0 text-primary sm:block" />
+            <span className="truncate sm:hidden">
+              {prog.status === "next" ? "Objectif" : prog.status === "done" ? "Atteint" : "À venir"}
+            </span>
+            <span className="hidden truncate sm:inline">{STATUS_LABEL[prog.status]}</span>
+          </div>
+          <p className="mt-1 line-clamp-2 font-display text-lg font-black leading-tight text-foreground group-hover:text-primary sm:text-xl">
+            {stage.name.trim()}
+          </p>
+          <p
+            className={cn(
+              "mt-0.5 text-[10px] font-semibold leading-tight sm:text-xs",
               prog.status === "done" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground",
             )}
           >
             {statusLine(stage, prog)}
-          </span>
-          <span className="mt-0.5 block truncate text-[10px] leading-tight text-muted-foreground sm:text-[11px]">
-            {prog.status === "done"
-              ? stage.subtitle && stage.subtitle !== stage.name
-                ? stage.subtitle
-                : stage.badge_name && stage.badge_name !== stage.name
-                  ? `Badge ${stage.badge_name}`
+          </p>
+          <p className="mt-0.5 truncate text-[9px] leading-tight text-muted-foreground sm:text-[10px]">
+            {prog.status === "next"
+              ? `${formatStageKm(km)} / ${formatStageKm(stage.target_km)} km · ${Math.floor(prog.fraction * 100)} %`
+              : prog.status === "done"
+                ? stage.subtitle && stage.subtitle !== stage.name
+                  ? stage.subtitle
                   : "Bravo la troupe !"
-              : `${formatStageKm(km)} / ${formatStageKm(stage.target_km)} km`}
-          </span>
-          <span className="mt-1 hidden text-[10px] font-semibold text-primary group-hover:underline sm:block">
-            Voir l'Expédition →
-          </span>
-        </span>
+                : `${formatStageKm(km)} / ${formatStageKm(stage.target_km)} km`}
+          </p>
+        </div>
       </button>
+
+      {/* Étapes précédentes / suivantes, une seule à la fois */}
+      <div className="absolute right-1.5 top-1.5 flex items-center">
+        <NavButton dir="prev" disabled={i === 0} onClick={() => go(-1)} className="h-6 w-6" />
+        <NavButton dir="next" disabled={i === n - 1} onClick={() => go(1)} className="h-6 w-6" />
+      </div>
     </section>
   );
 }
