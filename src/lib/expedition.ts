@@ -89,7 +89,7 @@ export type StageStatus = "done" | "next" | "locked";
 
 export interface StageProgress {
   status: StageStatus;
-  /** Avancée vers cette étape depuis la précédente (0 → 1) */
+  /** Avancée cumulée depuis 0 km vers cette étape (0 → 1) */
   fraction: number;
   /** Km restants pour l'atteindre */
   remaining: number;
@@ -106,11 +106,9 @@ export function stageProgress(stages: ExpeditionStage[], index: number, km: numb
   if (!stage) return { status: "locked", fraction: 0, remaining: 0 };
   if (km >= stage.target_km) return { status: "done", fraction: 1, remaining: 0 };
   const next = nextStageIndex(stages, km);
-  const prevKm = index > 0 ? (stages[index - 1]?.target_km ?? 0) : 0;
-  const span = stage.target_km - prevKm;
   return {
     status: index === next ? "next" : "locked",
-    fraction: index === next && span > 0 ? Math.min(1, Math.max(0, (km - prevKm) / span)) : 0,
+    fraction: index === next ? Math.min(1, Math.max(0, km / stage.target_km)) : 0,
     remaining: Math.max(0, stage.target_km - km),
   };
 }

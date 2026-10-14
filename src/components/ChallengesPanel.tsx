@@ -149,8 +149,9 @@ export function ChallengesPanel() {
     () =>
       challenges.filter(
         (c) =>
-          c.challenger_id === user?.id ||
-          participants.some((p) => p.challenge_id === c.id && p.user_id === user?.id),
+          c.status === "open" &&
+          (c.challenger_id === user?.id ||
+            participants.some((p) => p.challenge_id === c.id && p.user_id === user?.id)),
       ),
     [challenges, participants, user?.id],
   );
@@ -323,7 +324,7 @@ export function ChallengesPanel() {
                   );
                 })
               ) : (
-                <p className="text-sm text-muted-foreground">Aucun défi pour le moment.</p>
+                <p className="text-sm text-muted-foreground">Aucun défi en cours.</p>
               )}
             </div>
           )}
