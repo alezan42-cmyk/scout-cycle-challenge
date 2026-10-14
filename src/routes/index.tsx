@@ -197,8 +197,6 @@ function Index() {
     "patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges"
   >("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
-  // Étape de l'Expédition à afficher quand on clique sur la case « objectif »
-  const [mapFocus, setMapFocus] = useState<{ id: string; at: number } | null>(null);
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
 
@@ -919,13 +917,12 @@ function Index() {
           </section>
           <ExpeditionGoal
             totalKm={troopTotalKm}
-            onOpen={(id) => {
+            onOpen={() => {
               setView("map");
-              setMapFocus({ id, at: Date.now() });
               window.setTimeout(
                 () =>
                   document
-                    .getElementById("expedition")
+                    .getElementById("classement")
                     ?.scrollIntoView({ behavior: "smooth", block: "start" }),
                 80,
               );
@@ -1239,13 +1236,7 @@ function Index() {
         {view === "challenges" ? (
           <ChallengesPanel />
         ) : view === "map" ? (
-          <div id="expedition" className="scroll-mt-24">
-            <CollectiveRouteMap
-              overrideKm={troopTotalKm}
-              focusWaypointId={mapFocus?.id}
-              focusKey={mapFocus?.at}
-            />
-          </div>
+          <CollectiveRouteMap />
         ) : view === "chart" ? (
           <PatrolDailyContributionChart />
         ) : isLeaderboardLoading ? (
