@@ -47,6 +47,7 @@ import { ExportDialog } from "@/components/ExportDialog";
 import { CATEGORY_LABELS, type PatrolCategory, TROOP_STAFF_PATROL_NAME } from "@/lib/categories";
 import { SeasonalThemeAdmin } from "@/components/SeasonalThemeAdmin";
 import { CleanupAdmin } from "@/components/CleanupAdmin";
+import { PendingAlertAdmin } from "@/components/PendingAlertAdmin";
 import { ScoutSportifAdmin, type SportifBadge } from "@/components/ScoutSportifAdmin";
 import { SportBadge } from "@/components/SportIcon";
 import { AdminActivitiesManager } from "@/components/AdminActivitiesManager";
@@ -425,6 +426,7 @@ function Admin() {
 
           {/* Tab 1: Pending Validations */}
           <TabsContent value="validations" className="space-y-4">
+            <PendingAlertAdmin />
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-foreground">
                 Sorties en attente de validation ({pending.length})
