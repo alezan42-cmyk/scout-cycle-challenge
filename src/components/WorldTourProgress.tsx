@@ -9,9 +9,12 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 export function WorldTourProgress({
   totalKm,
   compact = false,
+  mini = false,
 }: {
   totalKm: number;
   compact?: boolean;
+  /** Version très compacte pour tenir dans la carte d'accueil de l'app. */
+  mini?: boolean;
 }) {
   const progress = useMemo(() => {
     const safeKm = Math.max(0, Number.isFinite(totalKm) ? totalKm : 0);
@@ -27,6 +30,60 @@ export function WorldTourProgress({
       ringOffset: RING_LENGTH * (1 - degreesInCurrentLap / 360),
     };
   }, [totalKm]);
+
+  if (mini) {
+    return (
+      <section
+        aria-label={`Tour du monde de la troupe : ${progress.safeKm.toLocaleString("fr-BE", { maximumFractionDigits: 1 })} km parcourus sur 40 075 km, soit ${progress.totalDegrees.toLocaleString("fr-BE", { maximumFractionDigits: 1 })} degrés sur 360`}
+        className="flex min-w-0 flex-col items-center justify-center gap-1 text-center"
+        title="Kilomètres parcourus ÷ 40 075 × 360°"
+      >
+        <div className="relative grid h-[68px] w-[68px] shrink-0 place-items-center">
+          <img
+            src="/earth-blue-marble.webp"
+            alt=""
+            className="absolute h-[54px] w-[54px] rounded-full object-cover shadow-[0_0_18px_rgba(59,130,246,0.28)]"
+            loading="lazy"
+            decoding="async"
+          />
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 160 160"
+            className="absolute inset-0 h-full w-full -rotate-90"
+          >
+            <circle
+              cx="80"
+              cy="80"
+              r={RING_RADIUS}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="6"
+              className="text-muted/70"
+            />
+            <circle
+              cx="80"
+              cy="80"
+              r={RING_RADIUS}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={RING_LENGTH}
+              strokeDashoffset={progress.ringOffset}
+              className="text-primary transition-[stroke-dashoffset] duration-700"
+            />
+          </svg>
+          <span className="relative rounded-full bg-black/55 px-1 text-[10px] font-black leading-tight text-white shadow-sm">
+            {progress.totalDegrees.toLocaleString("fr-BE", { maximumFractionDigits: 1 })}°
+          </span>
+        </div>
+        <p className="text-[9px] font-semibold leading-tight text-foreground">
+          {progress.safeKm.toLocaleString("fr-BE", { maximumFractionDigits: 1 })} / 40 075 km
+        </p>
+        <p className="text-[9px] leading-tight text-muted-foreground">sur 360°</p>
+      </section>
+    );
+  }
 
   return (
     <section

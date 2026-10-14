@@ -29,6 +29,7 @@ import { useDistanceAwards } from "@/lib/useDistanceAwards";
 import { getNextDistanceTrophy } from "@/lib/distanceTrophies";
 import { getActivitySport, getPatrolEmblem, SPORT_INFO } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { WorldTourProgress } from "@/components/WorldTourProgress";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import hero from "@/assets/hero.jpg";
 
@@ -96,22 +97,28 @@ function AppHome() {
         <>
           {/* Mon mois */}
           <AppCard className="p-5">
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Mes km ce mois-ci
-            </p>
-            <p className="mt-1 font-display text-[44px] font-black leading-none tracking-tight text-foreground">
-              {formatKm(stats.km)}
-              <span className="ml-1.5 text-xl font-bold text-muted-foreground">km</span>
-            </p>
-            <p className="mt-2 text-[14px] text-muted-foreground">
-              {stats.rides} sortie{stats.rides > 1 ? "s" : ""} validée{stats.rides > 1 ? "s" : ""}
-              {stats.pending > 0 && (
-                <span className="text-amber-700 dark:text-amber-400">
-                  {" "}
-                  · {formatKm(stats.pending)} km en attente
-                </span>
-              )}
-            </p>
+            <div className="grid grid-cols-[minmax(0,1fr)_6.25rem] items-center gap-1">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Mes km ce mois-ci
+                </p>
+                <p className="mt-1 font-display text-[44px] font-black leading-none tracking-tight text-foreground">
+                  {formatKm(stats.km)}
+                  <span className="ml-1.5 text-xl font-bold text-muted-foreground">km</span>
+                </p>
+                <p className="mt-2 text-[14px] text-muted-foreground">
+                  {stats.rides} sortie{stats.rides > 1 ? "s" : ""} validée
+                  {stats.rides > 1 ? "s" : ""}
+                  {stats.pending > 0 && (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      {" "}
+                      · {formatKm(stats.pending)} km en attente
+                    </span>
+                  )}
+                </p>
+              </div>
+              <WorldTourProgress totalKm={troopKm} mini />
+            </div>
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
               <div>
                 <p className="font-display text-[22px] font-black leading-none tabular-nums text-foreground">
