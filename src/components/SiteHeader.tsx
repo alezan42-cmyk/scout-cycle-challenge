@@ -56,6 +56,8 @@ export function SiteHeader() {
       setIsMobileApp(app && mobile);
       document.body.classList.toggle("app-standalone", app);
       document.documentElement.classList.toggle("app-standalone", app);
+      document.body.classList.toggle("app-desktop", app && !mobile);
+      document.documentElement.classList.toggle("app-desktop", app && !mobile);
     };
     update();
     const mq = window.matchMedia(`(max-width: ${APP_MAX_WIDTH}px)`);
@@ -63,6 +65,8 @@ export function SiteHeader() {
     return () => {
       mq.removeEventListener("change", update);
       document.body.classList.remove("app-standalone");
+      document.body.classList.remove("app-desktop");
+      document.documentElement.classList.remove("app-desktop");
     };
   }, []);
 

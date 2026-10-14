@@ -1236,6 +1236,39 @@ body {
   }
 }
 
+/* Mise en page large réservée à l'application installée sur ordinateur. */
+@media (min-width: 768px) {
+  .app-standalone.app-desktop main.app-screen > div.mx-auto,
+  .app-standalone.app-desktop main.app-screen > .relative.isolate > div.mx-auto,
+  .app-standalone.app-desktop main.app-screen > .relative.mx-auto {
+    width: calc(100% - 4rem);
+    max-width: 88rem;
+  }
+
+  .app-standalone.app-desktop main.app-screen > div.mx-auto {
+    padding: 2.5rem 0 calc(8rem + env(safe-area-inset-bottom));
+  }
+
+  .app-standalone.app-desktop main.app-screen > .relative.isolate > div.mx-auto {
+    min-height: 22rem;
+    padding: 2rem 0 5rem;
+  }
+
+  .app-standalone.app-desktop main.app-screen > .relative.mx-auto {
+    padding: 0 0 calc(8rem + env(safe-area-inset-bottom));
+  }
+
+  .app-standalone.app-desktop .app-tabbar {
+    right: 0;
+    left: 0;
+    width: auto;
+    transform: none;
+    border-radius: 1rem 1rem 0 0;
+    padding-right: max(2rem, calc((100vw - 88rem) / 2));
+    padding-left: max(2rem, calc((100vw - 88rem) / 2));
+  }
+}
+
 .app-standalone .app-tab {
   display: flex;
   min-height: 3.1rem;
