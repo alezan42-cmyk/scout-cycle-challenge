@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Écran de l'application installée : grand titre, sous-titre court, contenu aéré.
- * `root` = écran d'un onglet (pas de bouton retour). Hors app installée, renvoie vers le site.
+ * `root` = écran d'un onglet (pas de bouton retour). Hors app sur téléphone, renvoie vers le site.
  */
 export function AppPageShell({
   title,
@@ -29,7 +29,7 @@ export function AppPageShell({
   const router = useRouter();
   const [standalone, setStandalone] = useState<boolean | null>(null);
   useEffect(() => {
-    // Hors app installée : page du site
+    // Hors app sur téléphone (navigateur, ou app installée sur ordinateur) : page du site
     const app = isAppMode();
     setStandalone(app);
     if (!app) window.location.replace(websitePathFor(window.location.pathname));
