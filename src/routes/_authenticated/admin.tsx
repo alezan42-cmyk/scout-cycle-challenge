@@ -828,7 +828,7 @@ function Admin() {
 
           {/* Tab 6: Thème de fête */}
           <TabsContent value="fetes" className="space-y-6">
-            <SeasonalThemeAdmin />
+            <SeasonalThemeAdmin profiles={profiles} patrols={patrols} onRefresh={load} />
           </TabsContent>
 
           <TabsContent value="menage" className="space-y-6">
