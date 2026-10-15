@@ -52,12 +52,15 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
     },
   });
   const birthdayCelebrants = birthdays.filter((birthday) => birthday.days_until === 0);
-  const birthdayMode = birthdayCelebrants.length > 0;
-  const birthdayGreeting = birthdayMode
-    ? birthdayCelebrants.some((birthday) => birthday.user_id === user?.id)
-      ? "Joyeux anniversaire à toi et à la troupe ! 🎉"
-      : `Aujourd’hui, on fête ${birthdayCelebrants.map((birthday) => birthday.display_name).join(", ")} ! 🎉`
-    : quote;
+  const birthdayMode = birthdayCelebrants.length > 0 || currentTheme === "anniversaire";
+  const birthdayGreeting =
+    birthdayCelebrants.length > 0
+      ? birthdayCelebrants.some((birthday) => birthday.user_id === user?.id)
+        ? "Joyeux anniversaire à toi et à la troupe ! 🎉"
+        : `Aujourd’hui, on fête ${birthdayCelebrants.map((birthday) => birthday.display_name).join(", ")} ! 🎉`
+      : birthdayMode
+        ? "Joyeux anniversaire au staff de la troupe ! 🎉"
+        : quote;
 
   const currentImage = birthdayMode
     ? alezanAnniversaire

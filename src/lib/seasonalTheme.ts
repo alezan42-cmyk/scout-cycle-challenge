@@ -15,7 +15,8 @@ export type SeasonalThemeId =
   | "carnaval"
   | "nationale"
   | "foot"
-  | "tennis";
+  | "tennis"
+  | "anniversaire";
 
 export type ThemeMode = "auto" | "manuel";
 export type ThemeIntensity = "festif" | "discret";
@@ -30,6 +31,32 @@ export interface SeasonalThemeMeta {
   /** Aperçu dans le panneau admin : fond, couleur principale, accent. */
   swatch: [string, string, string];
 }
+
+/** Période annuelle, au format MM-DD. La fin peut être avant le début (Noël). */
+export interface ThemeDateRange {
+  start: string;
+  end: string;
+}
+export type ThemeCalendar = Partial<Record<SeasonalThemeId, ThemeDateRange[]>>;
+/** Date annuelle (MM-DD) d'un anniversaire du staff, sans nom ni année de naissance. */
+export type StaffBirthday = string;
+
+/** Priorité des fêtes si plusieurs périodes se chevauchent. */
+export const CALENDAR_THEME_PRIORITY: SeasonalThemeId[] = [
+  "course24h",
+  "paques",
+  "carnaval",
+  "valentin",
+  "nationale",
+  "halloween",
+  "noel",
+  "hiver",
+  "automne",
+  "ete",
+  "printemps",
+];
+
+export const EDITABLE_CALENDAR_THEMES: SeasonalThemeId[] = [...CALENDAR_THEME_PRIORITY];
 
 export const SEASONAL_THEMES: SeasonalThemeMeta[] = [
   {
@@ -144,6 +171,14 @@ export const SEASONAL_THEMES: SeasonalThemeMeta[] = [
     period: "Manuel : le jour du match",
     swatch: ["#f5fbf3", "#1f6b3b", "#d9f23d"],
   },
+  {
+    id: "anniversaire",
+    label: "Anniversaire",
+    emoji: "🎂",
+    description: "Rose festif, gâteau et confettis pour célébrer le staff",
+    period: "Dates choisies par les admins",
+    swatch: ["#fff0f6", "#db2777", "#fbbf24"],
+  },
 ];
 
 export const SEASONAL_THEME_STORAGE_KEY = "alezan_theme";
@@ -158,6 +193,74 @@ export function isSeasonalThemeId(value: unknown): value is SeasonalThemeId {
 
 export function themeMeta(id: SeasonalThemeId): SeasonalThemeMeta {
   return SEASONAL_THEMES.find((t) => t.id === id) ?? SEASONAL_THEMES[0]!;
+}
+
+const mmddString = (date: Date) =>
+  `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+/** Calendrier de départ identique aux dates actuelles, que les admins peuvent ensuite modifier. */
+export function defaultThemeCalendar(year: number): ThemeCalendar {
+  const easter = easterSunday(year);
+  const date = (offset: number) => {
+    const d = new Date(year, easter.getMonth(), easter.getDate() + offset);
+    return mmddString(d);
+  };
+  const mardiGras = new Date(year, easter.getMonth(), easter.getDate() - 47);
+  const carnavalStart = new Date(year, mardiGras.getMonth(), mardiGras.getDate() - 4);
+  return {
+    course24h: [{ start: "03-13", end: "03-21" }],
+    paques: [{ start: date(-6), end: date(1) }],
+    carnaval: [{ start: mmddString(carnavalStart), end: mmddString(mardiGras) }],
+    valentin: [{ start: "02-07", end: "02-14" }],
+    nationale: [{ start: "07-18", end: "07-21" }],
+    halloween: [{ start: "10-20", end: "11-02" }],
+    noel: [{ start: "12-01", end: "01-06" }],
+    hiver: [{ start: "01-07", end: "03-12" }],
+    automne: [
+      { start: "09-21", end: "10-19" },
+      { start: "11-03", end: "11-30" },
+    ],
+    ete: [{ start: "06-21", end: "09-20" }],
+    printemps: [{ start: "03-21", end: "06-20" }],
+  };
+}
+
+function validAnnualDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{2}-\d{2}$/.test(value)) return false;
+  const [month, day] = value.split("-").map(Number);
+  const date = new Date(2000, month - 1, day);
+  return date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+export function parseThemeCalendar(value: string | undefined): ThemeCalendar | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const calendar: ThemeCalendar = {};
+    for (const id of EDITABLE_CALENDAR_THEMES) {
+      const ranges = parsed[id];
+      if (!Array.isArray(ranges)) continue;
+      calendar[id] = ranges.flatMap((range) => {
+        if (!range || typeof range !== "object") return [];
+        const { start, end } = range as Record<string, unknown>;
+        return validAnnualDate(start) && validAnnualDate(end) ? [{ start, end }] : [];
+      });
+    }
+    return calendar;
+  } catch {
+    return null;
+  }
+}
+
+export function parseStaffBirthdays(value: string | undefined): StaffBirthday[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(validAnnualDate);
+  } catch {
+    return [];
+  }
 }
 
 /** Dimanche de Pâques (calendrier grégorien, algorithme de Meeus). */
@@ -187,9 +290,39 @@ const inRange = (v: number, from: number, to: number) => v >= from && v <= to;
  * Thème du calendrier automatique pour une date (heure locale).
  * Les fêtes courtes passent avant les saisons.
  */
-export function themeForDate(date: Date): SeasonalThemeId {
+export function themeForDate(
+  date: Date,
+  calendar: ThemeCalendar | null = null,
+  staffBirthdays: StaffBirthday[] = [],
+): SeasonalThemeId {
   const v = mmdd(date);
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const recurringDate = mmddString(day);
+  const leapYear =
+    date.getFullYear() % 4 === 0 &&
+    (date.getFullYear() % 100 !== 0 || date.getFullYear() % 400 === 0);
+  if (
+    staffBirthdays.includes(recurringDate) ||
+    (!leapYear && recurringDate === "02-28" && staffBirthdays.includes("02-29"))
+  ) {
+    return "anniversaire";
+  }
+
+  // Un calendrier enregistré est complet : les périodes retirées par l'admin ne réapparaissent
+  // pas en arrière-plan via l'ancien calendrier codé en dur.
+  if (calendar) {
+    for (const id of CALENDAR_THEME_PRIORITY) {
+      const matches = calendar[id]?.some(({ start, end }) => {
+        const value = Number(recurringDate.replace("-", ""));
+        const from = Number(start.replace("-", ""));
+        const to = Number(end.replace("-", ""));
+        return from <= to ? value >= from && value <= to : value >= from || value <= to;
+      });
+      if (matches) return id;
+    }
+    return "default";
+  }
 
   // 24h vélo : la semaine avant la course (20–21 mars)
   if (inRange(v, 313, 321)) return "course24h";

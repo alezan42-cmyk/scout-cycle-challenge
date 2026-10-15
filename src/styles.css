@@ -403,6 +403,30 @@
   --success: oklch(0.6 0.14 150);
   --header: #14472a;
 }
+[data-theme="anniversaire"] {
+  --background: oklch(0.98 0.025 350);
+  --foreground: oklch(0.3 0.07 350);
+  --card: oklch(0.998 0.01 350);
+  --card-foreground: oklch(0.3 0.07 350);
+  --popover: oklch(0.998 0.01 350);
+  --popover-foreground: oklch(0.3 0.07 350);
+  --primary: oklch(0.62 0.22 350);
+  --primary-foreground: oklch(0.99 0.01 350);
+  --secondary: oklch(0.94 0.05 350);
+  --secondary-foreground: oklch(0.3 0.07 350);
+  --muted: oklch(0.95 0.025 350);
+  --muted-foreground: oklch(0.5 0.07 350);
+  --accent: oklch(0.86 0.14 85);
+  --accent-foreground: oklch(0.3 0.07 350);
+  --destructive: oklch(0.58 0.22 25);
+  --border: oklch(0.89 0.05 350);
+  --input: oklch(0.89 0.05 350);
+  --ring: oklch(0.62 0.22 350);
+  --bark: oklch(0.3 0.07 350);
+  --bark-foreground: oklch(0.98 0.02 350);
+  --success: oklch(0.58 0.14 150);
+  --header: #6f1744;
+}
 
 /* Menu du haut : icônes et page active aux couleurs du thème.
    Définis sur :root (= <html>, qui porte aussi data-theme) : var(--primary) y
@@ -473,6 +497,10 @@
 [data-theme="tennis"] {
   --cta-2: oklch(0.9 0.19 115);
   --cta-2-foreground: oklch(0.28 0.08 140);
+}
+[data-theme="anniversaire"] {
+  --cta-2: oklch(0.54 0.2 350);
+  --cta-2-foreground: #fff;
 }
 
 body {
@@ -714,7 +742,8 @@ body {
 }
 .festive-trim-valentin,
 .festive-trim-paques,
-.festive-trim-automne {
+.festive-trim-automne,
+.festive-trim-anniversaire {
   height: 22px;
   font-size: 14px;
   line-height: 22px;

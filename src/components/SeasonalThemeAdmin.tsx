@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarClock,
   Check,
@@ -8,6 +8,7 @@ import {
   Loader2,
   Palette,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -16,8 +17,13 @@ import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import {
   SEASONAL_THEMES,
+  defaultThemeCalendar,
+  EDITABLE_CALENDAR_THEMES,
   themeForDate,
   themeMeta,
+  type StaffBirthday,
+  type ThemeCalendar,
+  type ThemeDateRange,
   type SeasonalThemeId,
   type ThemeIntensity,
   type ThemeMode,
@@ -26,6 +32,32 @@ import { cn } from "@/lib/utils";
 
 const supabase = supabaseClient as unknown as SupabaseClient;
 const BUCKET = "backgrounds";
+const ANNUAL_DATE = /^\d{2}-\d{2}$/;
+
+function annualDateInput(value: string, year: number, end?: boolean, start?: string) {
+  const wraps = !!end && !!start && value < start;
+  const inputYear = value === "02-29" ? 2028 : year + (wraps ? 1 : 0);
+  return `${inputYear}-${value}`;
+}
+
+function fromAnnualDateInput(value: string) {
+  return value.length >= 10 ? value.slice(5, 10) : "";
+}
+
+function annualDateLabel(value: string) {
+  return ANNUAL_DATE.test(value) ? `${value.slice(3, 5)}/${value.slice(0, 2)}` : "—";
+}
+
+function idPeriod(id: SeasonalThemeId, calendar: ThemeCalendar) {
+  if (id === "anniversaire") return "Dates configurées dans la section anniversaire";
+  if (id === "foot" || id === "tennis") return "Manuel : le jour du match";
+  const ranges = calendar[id] ?? [];
+  return ranges.length
+    ? ranges
+        .map(({ start, end }) => `${annualDateLabel(start)} → ${annualDateLabel(end)}`)
+        .join(" · ")
+    : "Désactivé dans le calendrier";
+}
 
 /** Réduit la photo (2000 px de large max, JPEG) pour que l'accueil reste rapide. */
 async function compressImage(file: File): Promise<Blob> {
@@ -92,10 +124,25 @@ export function SeasonalThemeAdmin() {
   const { settings, preview, setPreview, saveSetting } = useSeasonalTheme();
   const [saving, setSaving] = useState<string | null>(null);
   const [uploading, setUploading] = useState<SeasonalThemeId | null>(null);
+  const year = new Date().getFullYear();
+  const [calendarDraft, setCalendarDraft] = useState<ThemeCalendar>(() =>
+    defaultThemeCalendar(year),
+  );
+  const [birthdayDraft, setBirthdayDraft] = useState<StaffBirthday[]>(settings.staffBirthdays);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<SeasonalThemeId>("default");
 
-  const todayTheme = themeForDate(new Date());
+  const calendarValue = JSON.stringify(settings.calendar);
+  const birthdayValue = JSON.stringify(settings.staffBirthdays);
+  useEffect(() => {
+    const saved = JSON.parse(calendarValue) as ThemeCalendar | null;
+    setCalendarDraft(saved ?? defaultThemeCalendar(year));
+  }, [calendarValue, year]);
+  useEffect(() => {
+    setBirthdayDraft(JSON.parse(birthdayValue) as StaffBirthday[]);
+  }, [birthdayValue]);
+
+  const todayTheme = themeForDate(new Date(), settings.calendar, settings.staffBirthdays);
   const siteTheme = settings.mode === "auto" ? todayTheme : settings.theme;
 
   const save = async (key: string, value: string | null, success: string) => {
@@ -175,6 +222,50 @@ export function SeasonalThemeAdmin() {
     } finally {
       setUploading(null);
     }
+  };
+
+  const updateRange = (
+    id: SeasonalThemeId,
+    index: number,
+    field: keyof ThemeDateRange,
+    value: string,
+  ) => {
+    setCalendarDraft((current) => {
+      const ranges = [...(current[id] ?? [])];
+      ranges[index] = {
+        ...(ranges[index] ?? { start: "01-01", end: "01-01" }),
+        [field]: fromAnnualDateInput(value),
+      };
+      return { ...current, [id]: ranges };
+    });
+  };
+
+  const saveCalendar = async () => {
+    const invalid = EDITABLE_CALENDAR_THEMES.some((id) =>
+      (calendarDraft[id] ?? []).some(
+        (range) => !ANNUAL_DATE.test(range.start) || !ANNUAL_DATE.test(range.end),
+      ),
+    );
+    if (invalid) {
+      toast.error("Choisis une date de début et de fin pour chaque période");
+      return;
+    }
+    const complete = Object.fromEntries(
+      EDITABLE_CALENDAR_THEMES.map((id) => [id, calendarDraft[id] ?? []]),
+    ) as ThemeCalendar;
+    await save("theme_calendar", JSON.stringify(complete), "Calendrier des fêtes enregistré");
+  };
+
+  const saveBirthdays = async () => {
+    if (birthdayDraft.some((date) => !ANNUAL_DATE.test(date))) {
+      toast.error("Choisis une date valide pour chaque anniversaire");
+      return;
+    }
+    await save(
+      "theme_staff_birthdays",
+      JSON.stringify([...new Set(birthdayDraft)]),
+      "Anniversaires du staff enregistrés",
+    );
   };
 
   return (
@@ -258,6 +349,158 @@ export function SeasonalThemeAdmin() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-xl border border-border/80 bg-background/70 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display font-bold text-foreground">
+                Dates du calendrier automatique
+              </h3>
+              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                Ces périodes reviennent chaque année. Pâques et Carnaval changent de date selon
+                l&apos;année : pense à ajuster leurs périodes. Les fêtes qui se chevauchent suivent
+                l&apos;ordre de priorité ci-dessous; les périodes supprimées ne seront plus
+                activées.
+              </p>
+            </div>
+            <Button size="sm" onClick={saveCalendar} disabled={saving !== null}>
+              {saving === "theme_calendar" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Enregistrer les dates"
+              )}
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {EDITABLE_CALENDAR_THEMES.map((id) => {
+              const theme = themeMeta(id);
+              const ranges = calendarDraft[id] ?? [];
+              return (
+                <div key={id} className="rounded-lg border bg-card p-3">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-bold">
+                    <span>{theme.emoji}</span>
+                    <span>{theme.label}</span>
+                    {ranges.length === 0 && (
+                      <span className="text-xs font-normal text-muted-foreground">Désactivé</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {ranges.map((range, index) => (
+                      <div
+                        key={`${id}-${index}`}
+                        className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+                      >
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Début
+                          <input
+                            type="date"
+                            value={annualDateInput(range.start, year)}
+                            onChange={(event) =>
+                              updateRange(id, index, "start", event.target.value)
+                            }
+                            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Fin
+                          <input
+                            type="date"
+                            value={annualDateInput(range.end, year, true, range.start)}
+                            onChange={(event) => updateRange(id, index, "end", event.target.value)}
+                            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                          />
+                        </label>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Retirer une période ${theme.label}`}
+                          onClick={() =>
+                            setCalendarDraft((current) => ({
+                              ...current,
+                              [id]: (current[id] ?? []).filter((_, i) => i !== index),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                    onClick={() =>
+                      setCalendarDraft((current) => ({
+                        ...current,
+                        [id]: [...(current[id] ?? []), { start: "01-01", end: "01-01" }],
+                      }))
+                    }
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter une période
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-pink-200 bg-pink-50/50 p-4 dark:border-pink-900 dark:bg-pink-950/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display font-bold text-foreground">Mode anniversaire du staff</h3>
+              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                Ajoute les dates récurrentes des anniversaires du staff. Le thème Anniversaire et le
+                message d&apos;Alezan s&apos;activeront automatiquement ces jours-là.
+              </p>
+            </div>
+            <Button size="sm" onClick={saveBirthdays} disabled={saving !== null}>
+              {saving === "theme_staff_birthdays" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Enregistrer les anniversaires"
+              )}
+            </Button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {birthdayDraft.map((birthday, index) => (
+              <div key={index} className="grid grid-cols-[1fr_auto] items-end gap-2">
+                <label className="text-[11px] font-medium text-muted-foreground">
+                  Date annuelle
+                  <input
+                    type="date"
+                    value={annualDateInput(birthday, year)}
+                    onChange={(event) =>
+                      setBirthdayDraft((current) =>
+                        current.map((item, i) =>
+                          i === index ? fromAnnualDateInput(event.target.value) : item,
+                        ),
+                      )
+                    }
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                  />
+                </label>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Retirer la date ${annualDateLabel(birthday)}`}
+                  onClick={() =>
+                    setBirthdayDraft((current) => current.filter((_, i) => i !== index))
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBirthdayDraft((current) => [...current, "01-01"])}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un anniversaire
+            </Button>
+          </div>
+        </div>
+
         <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
           {SEASONAL_THEMES.map((t) => {
             const isSite = t.id === siteTheme;
@@ -284,7 +527,7 @@ export function SeasonalThemeAdmin() {
                 </p>
                 <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
                   <CalendarClock className="mr-1 inline h-3 w-3" />
-                  {t.period}
+                  {idPeriod(t.id, calendarDraft)}
                 </p>
                 <div className="mt-3 hidden gap-1.5 sm:flex">
                   {t.swatch.map((c) => (

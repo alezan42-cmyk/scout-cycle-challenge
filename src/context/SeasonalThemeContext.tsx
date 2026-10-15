@@ -15,7 +15,11 @@ import {
   SEASONAL_THEME_STORAGE_KEY,
   THEME_PREVIEW_STORAGE_KEY,
   isSeasonalThemeId,
+  parseStaffBirthdays,
+  parseThemeCalendar,
   themeForDate,
+  type StaffBirthday,
+  type ThemeCalendar,
   type SeasonalThemeId,
   type ThemeIntensity,
   type ThemeMode,
@@ -28,6 +32,10 @@ export interface ThemeSettings {
   intensity: ThemeIntensity;
   /** Photo d'accueil par thème (URL publique) */
   backgrounds: Partial<Record<SeasonalThemeId, string>>;
+  /** Calendrier annuel personnalisé, défini par les admins. */
+  calendar: ThemeCalendar | null;
+  /** Anniversaires récurrents du staff, définis par les admins. */
+  staffBirthdays: StaffBirthday[];
 }
 
 interface SeasonalThemeContextValue {
@@ -56,6 +64,8 @@ const DEFAULT_SETTINGS: ThemeSettings = {
   mode: "manuel",
   intensity: "festif",
   backgrounds: {},
+  calendar: null,
+  staffBirthdays: [],
 };
 
 const SeasonalThemeContext = createContext<SeasonalThemeContextValue>({
@@ -94,12 +104,14 @@ function writeStorage(storage: "local" | "session", key: string, value: string |
 }
 
 function parseSettings(rows: { key: string; value: string }[]): ThemeSettings {
-  const s: ThemeSettings = { ...DEFAULT_SETTINGS, backgrounds: {} };
+  const s: ThemeSettings = { ...DEFAULT_SETTINGS, backgrounds: {}, staffBirthdays: [] };
   for (const { key, value } of rows) {
     if (key === "theme" && isSeasonalThemeId(value)) s.theme = value;
     else if (key === "theme_mode" && (value === "auto" || value === "manuel")) s.mode = value;
     else if (key === "theme_intensity" && (value === "festif" || value === "discret"))
       s.intensity = value;
+    else if (key === "theme_calendar") s.calendar = parseThemeCalendar(value);
+    else if (key === "theme_staff_birthdays") s.staffBirthdays = parseStaffBirthdays(value);
     else if (key.startsWith("background:")) {
       const id = key.slice("background:".length);
       if (isSeasonalThemeId(id) && /^https:\/\//.test(value)) s.backgrounds[id] = value;
@@ -165,8 +177,11 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const siteTheme: SeasonalThemeId = useMemo(
-    () => (settings.mode === "auto" ? themeForDate(new Date(today)) : settings.theme),
-    [settings.mode, settings.theme, today],
+    () =>
+      settings.mode === "auto"
+        ? themeForDate(new Date(today), settings.calendar, settings.staffBirthdays)
+        : settings.theme,
+    [settings.mode, settings.theme, settings.calendar, settings.staffBirthdays, today],
   );
   const theme = preview ?? siteTheme;
 
