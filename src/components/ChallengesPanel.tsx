@@ -369,8 +369,9 @@ export function ChallengesPanel() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Nom du défi</Label>
+                <Label htmlFor="defi-nom">Nom du défi</Label>
                 <Input
+                  id="defi-nom"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={120}
@@ -379,9 +380,9 @@ export function ChallengesPanel() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Type d’activité</Label>
+                <Label htmlFor="defi-sport">Type d’activité</Label>
                 <Select value={sport} onValueChange={(v) => setSport(v as ActivitySport)}>
-                  <SelectTrigger>
+                  <SelectTrigger id="defi-sport">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -429,11 +430,12 @@ export function ChallengesPanel() {
               ) : (
                 <div className="space-y-3 rounded-xl border p-3">
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
+                    <Label htmlFor="defi-km" className="flex items-center gap-2">
                       <Bike className="h-4 w-4" />
                       Distance (facultative)
                     </Label>
                     <Input
+                      id="defi-km"
                       type="number"
                       min="0.1"
                       max="1000"
@@ -450,7 +452,7 @@ export function ChallengesPanel() {
                         value={distanceRule}
                         onValueChange={(v) => setDistanceRule(v as "min" | "exact")}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Au moins ou tout pile">
                           <SelectValue placeholder="Choisir au moins ou tout pile" />
                         </SelectTrigger>
                         <SelectContent>
@@ -461,11 +463,12 @@ export function ChallengesPanel() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
+                    <Label htmlFor="defi-dplus" className="flex items-center gap-2">
                       <Mountain className="h-4 w-4" />
                       D+ (facultatif)
                     </Label>
                     <Input
+                      id="defi-dplus"
                       type="number"
                       min="1"
                       max="20000"
@@ -483,8 +486,11 @@ export function ChallengesPanel() {
               )}
               {!gpxMode && (
                 <div className="space-y-2">
-                  <Label>{gpxMode ? "Consigne du parcours" : "Description (facultative)"}</Label>
+                  <Label htmlFor="defi-description">
+                    {gpxMode ? "Consigne du parcours" : "Description (facultative)"}
+                  </Label>
                   <Textarea
+                    id="defi-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     maxLength={500}
@@ -493,8 +499,9 @@ export function ChallengesPanel() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Points proposés</Label>
+                <Label htmlFor="defi-points">Points proposés</Label>
                 <Input
+                  id="defi-points"
                   type="number"
                   min={1}
                   max={1000}

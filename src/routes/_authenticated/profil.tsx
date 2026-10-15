@@ -94,7 +94,10 @@ function Profil() {
   useEffect(() => {
     const result = new URLSearchParams(window.location.search).get("strava");
     if (!result) return;
-    if (result === "connected") toast.success("Compte Strava associé ! Les nouvelles sorties publiques seront synchronisées.");
+    if (result === "connected")
+      toast.success(
+        "Compte Strava associé ! Les nouvelles sorties publiques seront synchronisées.",
+      );
     else if (result === "refused") toast.info("Connexion Strava annulée.");
     else toast.error("La connexion Strava a échoué. Réessaie plus tard.");
     window.history.replaceState({}, "", window.location.pathname);
@@ -351,7 +354,7 @@ function Profil() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Patrouille *</Label>
+              <Label htmlFor="profil-patrouille">Patrouille *</Label>
               <Select
                 value={f.patrol_id}
                 onValueChange={(v) => {
@@ -361,7 +364,7 @@ function Profil() {
                   });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id="profil-patrouille">
                   <SelectValue placeholder="Sélectionne ta patrouille" />
                 </SelectTrigger>
                 <SelectContent>
@@ -392,9 +395,9 @@ function Profil() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Année scout</Label>
+                <Label htmlFor="profil-annee">Année scout</Label>
                 <Select value={f.scout_year} onValueChange={(v) => setF({ ...f, scout_year: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="profil-annee">
                     <SelectValue placeholder="Sélectionne ton année dans la troupe" />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,7 +476,8 @@ function Profil() {
             <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/20">
               <p className="text-sm font-semibold">Synchronise tes sorties Strava</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Associe ton compte pour importer automatiquement tes nouvelles sorties visibles par l’application.
+                Associe ton compte pour importer automatiquement tes nouvelles sorties visibles par
+                l’application.
               </p>
               <Button
                 type="button"
