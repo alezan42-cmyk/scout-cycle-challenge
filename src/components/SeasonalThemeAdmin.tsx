@@ -34,6 +34,20 @@ import type { Patrol, Profile } from "@/lib/database";
 const supabase = supabaseClient as unknown as SupabaseClient;
 const BUCKET = "backgrounds";
 const ANNUAL_DATE = /^\d{2}-\d{2}$/;
+const MONTH_OPTIONS = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
+];
 
 function annualDateInput(value: string, year: number, end?: boolean, start?: string) {
   const wraps = !!end && !!start && value < start;
@@ -49,9 +63,9 @@ function annualDateLabel(value: string) {
   return ANNUAL_DATE.test(value) ? `${value.slice(3, 5)}/${value.slice(0, 2)}` : "—";
 }
 
-function profileBirthdayInput(profile: Profile) {
+function profileBirthdayValue(profile: Profile) {
   if (!profile.birth_day || !profile.birth_month) return "";
-  return `2000-${String(profile.birth_month).padStart(2, "0")}-${String(profile.birth_day).padStart(2, "0")}`;
+  return `${String(profile.birth_month).padStart(2, "0")}-${String(profile.birth_day).padStart(2, "0")}`;
 }
 
 function idPeriod(id: SeasonalThemeId, calendar: ThemeCalendar) {
@@ -142,6 +156,7 @@ export function SeasonalThemeAdmin({
   const [calendarDraft, setCalendarDraft] = useState<ThemeCalendar>(() =>
     defaultThemeCalendar(year),
   );
+  const [birthdayDrafts, setBirthdayDrafts] = useState<Record<string, string>>({});
   const [updatingBirthdayId, setUpdatingBirthdayId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<SeasonalThemeId>("default");
@@ -151,6 +166,11 @@ export function SeasonalThemeAdmin({
     const saved = JSON.parse(calendarValue) as ThemeCalendar | null;
     setCalendarDraft(saved ?? defaultThemeCalendar(year));
   }, [calendarValue, year]);
+  useEffect(() => {
+    setBirthdayDrafts(
+      Object.fromEntries(profiles.map((profile) => [profile.id, profileBirthdayValue(profile)])),
+    );
+  }, [profiles]);
   const troopStaffPatrolIds = new Set(
     patrols.filter(isTroopStaffPatrol).map((patrol) => patrol.id),
   );
@@ -283,8 +303,13 @@ export function SeasonalThemeAdmin({
   };
 
   const updateStaffBirthday = async (profile: Profile, value: string) => {
-    const birthDay = value ? Number(value.slice(8, 10)) : null;
-    const birthMonth = value ? Number(value.slice(5, 7)) : null;
+    const [monthValue, dayValue] = value.split("-");
+    if (Boolean(monthValue) !== Boolean(dayValue)) {
+      toast.error("Choisis un mois et un jour pour cet anniversaire");
+      return;
+    }
+    const birthDay = dayValue ? Number(dayValue) : null;
+    const birthMonth = monthValue ? Number(monthValue) : null;
     setUpdatingBirthdayId(profile.id);
     const { error } = await supabase
       .from("profiles")
@@ -297,6 +322,30 @@ export function SeasonalThemeAdmin({
       await Promise.all([onRefresh(), refresh()]);
     }
     setUpdatingBirthdayId(null);
+  };
+
+  const editBirthdayMonth = (profileId: string, monthValue: string) => {
+    setBirthdayDrafts((current) => {
+      const [, previousDay] = (current[profileId] ?? "").split("-");
+      if (!monthValue || monthValue === "none") return { ...current, [profileId]: "" };
+      const maxDay = new Date(2000, Number(monthValue), 0).getDate();
+      const day = previousDay ? Math.min(Number(previousDay), maxDay) : "";
+      return {
+        ...current,
+        [profileId]: `${monthValue.padStart(2, "0")}-${day ? String(day).padStart(2, "0") : ""}`,
+      };
+    });
+  };
+
+  const editBirthdayDay = (profileId: string, dayValue: string) => {
+    setBirthdayDrafts((current) => {
+      const [monthValue] = (current[profileId] ?? "").split("-");
+      return {
+        ...current,
+        [profileId]:
+          monthValue && dayValue !== "none" ? `${monthValue}-${dayValue.padStart(2, "0")}` : "",
+      };
+    });
   };
 
   return (
@@ -531,9 +580,8 @@ export function SeasonalThemeAdmin({
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.65fr)]">
                   <div>
                     <p className="mb-3 text-xs text-muted-foreground">
-                      Les dates viennent des profils de la patrouille Staff troupe et reviennent
-                      automatiquement chaque année. Modifie-les ici pour les enregistrer dans le
-                      profil.
+                      Choisis simplement le mois et le jour. La date est enregistrée dans le profil
+                      et revient chaque année ; aucune année de naissance n&apos;est conservée.
                     </p>
                     {troopStaff.length === 0 ? (
                       <p className="rounded-lg bg-background p-3 text-sm text-muted-foreground">
@@ -541,34 +589,107 @@ export function SeasonalThemeAdmin({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {troopStaff.map((profile) => (
-                          <label
-                            key={profile.id}
-                            className="flex items-center justify-between gap-3 rounded-lg border bg-background p-2 text-sm"
-                          >
-                            <span className="min-w-0 truncate font-medium">
-                              {profile.totem ||
-                                profile.full_name ||
-                                profile.email ||
-                                "Membre du staff"}
-                            </span>
-                            <span className="flex shrink-0 items-center gap-2">
-                              <input
-                                type="date"
-                                value={profileBirthdayInput(profile)}
-                                disabled={updatingBirthdayId === profile.id}
-                                onChange={(event) =>
-                                  void updateStaffBirthday(profile, event.target.value)
-                                }
-                                className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                                aria-label={`Anniversaire de ${profile.totem || profile.full_name || "ce membre"}`}
-                              />
-                              {updatingBirthdayId === profile.id && (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              )}
-                            </span>
-                          </label>
-                        ))}
+                        {troopStaff.map((profile) => {
+                          const value = birthdayDrafts[profile.id] ?? profileBirthdayValue(profile);
+                          const [monthValue = "", dayValue = ""] = value.split("-");
+                          const savedValue = profileBirthdayValue(profile);
+                          const maxDay = monthValue
+                            ? new Date(2000, Number(monthValue), 0).getDate()
+                            : 0;
+                          const hasCompleteDate = value === "" || ANNUAL_DATE.test(value);
+                          const savingProfile = updatingBirthdayId === profile.id;
+                          return (
+                            <div key={profile.id} className="rounded-xl border bg-background p-3">
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="min-w-0 truncate font-semibold">
+                                  {profile.totem ||
+                                    profile.full_name ||
+                                    profile.email ||
+                                    "Membre du staff"}
+                                </span>
+                                {savedValue && (
+                                  <span className="shrink-0 text-xs text-muted-foreground">
+                                    {annualDateLabel(savedValue)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="text-xs font-medium text-muted-foreground">
+                                  Mois
+                                  <select
+                                    value={monthValue || "none"}
+                                    disabled={savingProfile}
+                                    onChange={(event) =>
+                                      editBirthdayMonth(profile.id, event.target.value)
+                                    }
+                                    className="mt-1 h-10 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground"
+                                  >
+                                    <option value="none">Choisir un mois</option>
+                                    {MONTH_OPTIONS.map((month, index) => (
+                                      <option
+                                        key={month}
+                                        value={String(index + 1).padStart(2, "0")}
+                                      >
+                                        {month}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="text-xs font-medium text-muted-foreground">
+                                  Jour
+                                  <select
+                                    value={dayValue || "none"}
+                                    disabled={!monthValue || savingProfile}
+                                    onChange={(event) =>
+                                      editBirthdayDay(profile.id, event.target.value)
+                                    }
+                                    className="mt-1 h-10 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground disabled:opacity-50"
+                                  >
+                                    <option value="none">Choisir un jour</option>
+                                    {Array.from({ length: maxDay }, (_, index) => index + 1).map(
+                                      (day) => (
+                                        <option key={day} value={String(day)}>
+                                          {day}
+                                        </option>
+                                      ),
+                                    )}
+                                  </select>
+                                </label>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                {value && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={savingProfile}
+                                    onClick={() =>
+                                      setBirthdayDrafts((current) => ({
+                                        ...current,
+                                        [profile.id]: "",
+                                      }))
+                                    }
+                                  >
+                                    Effacer
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="ml-auto"
+                                  disabled={
+                                    savingProfile || value === savedValue || !hasCompleteDate
+                                  }
+                                  onClick={() => void updateStaffBirthday(profile, value)}
+                                >
+                                  {savingProfile ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    "Enregistrer"
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
