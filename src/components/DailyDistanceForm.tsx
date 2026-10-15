@@ -445,8 +445,12 @@ export function DailyDistanceForm({
       // 5. Envoi de l'image de preuve vers Supabase Storage
       let proofPublicUrl: string | null = null;
       if (proofFile && activeTab === "photo") {
-        const fileExt = proofFile.name.split(".").pop() || "jpg";
-        const fileName = `${targetUserId}_${Date.now()}.${fileExt}`;
+        const fileExt =
+          (proofFile.name.split(".").pop() || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "")
+            .slice(0, 5) || "jpg";
+        const fileName = `${targetUserId}_${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from("proofs")
@@ -468,7 +472,7 @@ export function DailyDistanceForm({
         try {
           const croppedContent = await processAndCropGpx(gpxFile);
           const gpxBlob = new Blob([croppedContent], { type: "application/gpx+xml" });
-          const gpxFileName = `${targetUserId}_${Date.now()}.gpx`;
+          const gpxFileName = `${targetUserId}_${Date.now()}_${crypto.randomUUID()}.gpx`;
 
           const { error: gpxUploadError } = await supabase.storage
             .from("proofs")
@@ -1006,6 +1010,7 @@ export function DailyDistanceForm({
           >
             <SelectTrigger
               id="patrol-select"
+              aria-label="Pour la patrouille"
               className="h-10 w-auto min-w-0 gap-1.5 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus:ring-0"
             >
               <SelectValue placeholder={loadingPatrols ? "Chargement…" : "Choisir"} />
