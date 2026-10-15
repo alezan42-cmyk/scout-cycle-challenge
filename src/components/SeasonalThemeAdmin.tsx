@@ -21,7 +21,6 @@ import {
   EDITABLE_CALENDAR_THEMES,
   themeForDate,
   themeMeta,
-  type StaffBirthday,
   type ThemeCalendar,
   type ThemeDateRange,
   type SeasonalThemeId,
@@ -29,6 +28,8 @@ import {
   type ThemeMode,
 } from "@/lib/seasonalTheme";
 import { cn } from "@/lib/utils";
+import { isTroopStaffPatrol } from "@/lib/categories";
+import type { Patrol, Profile } from "@/lib/database";
 
 const supabase = supabaseClient as unknown as SupabaseClient;
 const BUCKET = "backgrounds";
@@ -46,6 +47,11 @@ function fromAnnualDateInput(value: string) {
 
 function annualDateLabel(value: string) {
   return ANNUAL_DATE.test(value) ? `${value.slice(3, 5)}/${value.slice(0, 2)}` : "—";
+}
+
+function profileBirthdayInput(profile: Profile) {
+  if (!profile.birth_day || !profile.birth_month) return "";
+  return `2000-${String(profile.birth_month).padStart(2, "0")}-${String(profile.birth_day).padStart(2, "0")}`;
 }
 
 function idPeriod(id: SeasonalThemeId, calendar: ThemeCalendar) {
@@ -120,27 +126,37 @@ function Segmented<T extends string>({
 }
 
 /** Onglet « Fêtes » du panneau admin : thème, calendrier, intensité, fonds d'écran. */
-export function SeasonalThemeAdmin() {
-  const { settings, preview, setPreview, saveSetting } = useSeasonalTheme();
+export function SeasonalThemeAdmin({
+  profiles,
+  patrols,
+  onRefresh,
+}: {
+  profiles: Profile[];
+  patrols: Patrol[];
+  onRefresh: () => void | Promise<void>;
+}) {
+  const { settings, preview, setPreview, saveSetting, refresh } = useSeasonalTheme();
   const [saving, setSaving] = useState<string | null>(null);
   const [uploading, setUploading] = useState<SeasonalThemeId | null>(null);
   const year = new Date().getFullYear();
   const [calendarDraft, setCalendarDraft] = useState<ThemeCalendar>(() =>
     defaultThemeCalendar(year),
   );
-  const [birthdayDraft, setBirthdayDraft] = useState<StaffBirthday[]>(settings.staffBirthdays);
+  const [updatingBirthdayId, setUpdatingBirthdayId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<SeasonalThemeId>("default");
 
   const calendarValue = JSON.stringify(settings.calendar);
-  const birthdayValue = JSON.stringify(settings.staffBirthdays);
   useEffect(() => {
     const saved = JSON.parse(calendarValue) as ThemeCalendar | null;
     setCalendarDraft(saved ?? defaultThemeCalendar(year));
   }, [calendarValue, year]);
-  useEffect(() => {
-    setBirthdayDraft(JSON.parse(birthdayValue) as StaffBirthday[]);
-  }, [birthdayValue]);
+  const troopStaffPatrolIds = new Set(
+    patrols.filter(isTroopStaffPatrol).map((patrol) => patrol.id),
+  );
+  const troopStaff = profiles.filter(
+    (profile) => profile.patrol_id && troopStaffPatrolIds.has(profile.patrol_id),
+  );
 
   const todayTheme = themeForDate(new Date(), settings.calendar, settings.staffBirthdays);
   const siteTheme = settings.mode === "auto" ? todayTheme : settings.theme;
@@ -151,7 +167,12 @@ export function SeasonalThemeAdmin() {
       await saveSetting(key, value);
       toast.success(success);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer");
+      const detail = e as { code?: string; message?: string };
+      toast.error(
+        detail.code === "23514"
+          ? "La base Supabase n'accepte pas encore ce réglage. Applique la dernière migration Supabase."
+          : (detail.message ?? (e instanceof Error ? e.message : "Impossible d'enregistrer")),
+      );
     } finally {
       setSaving(null);
     }
@@ -167,7 +188,12 @@ export function SeasonalThemeAdmin() {
         id === "default" ? "Thème standard activé" : `Thème « ${themeMeta(id).label} » activé`,
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible de changer le thème");
+      const detail = e as { code?: string; message?: string };
+      toast.error(
+        detail.code === "23514"
+          ? "La base Supabase n'accepte pas encore le thème Anniversaire. Applique la dernière migration Supabase."
+          : (detail.message ?? (e instanceof Error ? e.message : "Impossible de changer le thème")),
+      );
     } finally {
       setSaving(null);
     }
@@ -256,16 +282,21 @@ export function SeasonalThemeAdmin() {
     await save("theme_calendar", JSON.stringify(complete), "Calendrier des fêtes enregistré");
   };
 
-  const saveBirthdays = async () => {
-    if (birthdayDraft.some((date) => !ANNUAL_DATE.test(date))) {
-      toast.error("Choisis une date valide pour chaque anniversaire");
-      return;
+  const updateStaffBirthday = async (profile: Profile, value: string) => {
+    const birthDay = value ? Number(value.slice(8, 10)) : null;
+    const birthMonth = value ? Number(value.slice(5, 7)) : null;
+    setUpdatingBirthdayId(profile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ birth_day: birthDay, birth_month: birthMonth })
+      .eq("id", profile.id);
+    if (error) {
+      toast.error(`Impossible d'enregistrer la date du profil : ${error.message}`);
+    } else {
+      toast.success("Date de profil enregistrée ; elle revient chaque année");
+      await Promise.all([onRefresh(), refresh()]);
     }
-    await save(
-      "theme_staff_birthdays",
-      JSON.stringify([...new Set(birthdayDraft)]),
-      "Anniversaires du staff enregistrés",
-    );
+    setUpdatingBirthdayId(null);
   };
 
   return (
@@ -374,130 +405,217 @@ export function SeasonalThemeAdmin() {
             {EDITABLE_CALENDAR_THEMES.map((id) => {
               const theme = themeMeta(id);
               const ranges = calendarDraft[id] ?? [];
+              const photo = settings.backgrounds[id];
+              const isUploading = uploading === id;
               return (
-                <div key={id} className="rounded-lg border bg-card p-3">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-bold">
-                    <span>{theme.emoji}</span>
-                    <span>{theme.label}</span>
+                <article key={id} className="overflow-hidden rounded-xl border bg-card">
+                  <div className="flex items-center justify-between gap-3 border-b bg-background/50 p-3">
+                    <div className="flex items-center gap-2 text-sm font-bold">
+                      <span className="text-xl">{theme.emoji}</span>
+                      <span>{theme.label}</span>
+                    </div>
                     {ranges.length === 0 && (
-                      <span className="text-xs font-normal text-muted-foreground">Désactivé</span>
+                      <span className="text-xs text-muted-foreground">Désactivé</span>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {ranges.map((range, index) => (
-                      <div
-                        key={`${id}-${index}`}
-                        className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+                  <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.65fr)]">
+                    <div>
+                      <div className="space-y-2">
+                        {ranges.map((range, index) => (
+                          <div
+                            key={`${id}-${index}`}
+                            className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+                          >
+                            <label className="text-[11px] font-medium text-muted-foreground">
+                              Début
+                              <input
+                                type="date"
+                                value={annualDateInput(range.start, year)}
+                                onChange={(event) =>
+                                  updateRange(id, index, "start", event.target.value)
+                                }
+                                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                              />
+                            </label>
+                            <label className="text-[11px] font-medium text-muted-foreground">
+                              Fin
+                              <input
+                                type="date"
+                                value={annualDateInput(range.end, year, true, range.start)}
+                                onChange={(event) =>
+                                  updateRange(id, index, "end", event.target.value)
+                                }
+                                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                              />
+                            </label>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Retirer une période ${theme.label}`}
+                              onClick={() =>
+                                setCalendarDraft((current) => ({
+                                  ...current,
+                                  [id]: (current[id] ?? []).filter((_, i) => i !== index),
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() =>
+                          setCalendarDraft((current) => ({
+                            ...current,
+                            [id]: [...(current[id] ?? []), { start: "01-01", end: "01-01" }],
+                          }))
+                        }
                       >
-                        <label className="text-[11px] font-medium text-muted-foreground">
-                          Début
-                          <input
-                            type="date"
-                            value={annualDateInput(range.start, year)}
-                            onChange={(event) =>
-                              updateRange(id, index, "start", event.target.value)
-                            }
-                            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                          />
-                        </label>
-                        <label className="text-[11px] font-medium text-muted-foreground">
-                          Fin
-                          <input
-                            type="date"
-                            value={annualDateInput(range.end, year, true, range.start)}
-                            onChange={(event) => updateRange(id, index, "end", event.target.value)}
-                            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                          />
-                        </label>
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter une période
+                      </Button>
+                    </div>
+                    <div className="flex min-h-24 flex-col overflow-hidden rounded-lg border bg-background">
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={`Photo ${theme.label}`}
+                          className="h-24 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="grid h-24 place-items-center text-xs text-muted-foreground">
+                          Aucune photo
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 p-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          disabled={uploading !== null}
+                          onClick={() => pickFile(id)}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <ImagePlus className="mr-1 h-3.5 w-3.5" /> Photo
+                            </>
+                          )}
+                        </Button>
+                        {photo && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Retirer la photo ${theme.label}`}
+                            disabled={uploading !== null}
+                            onClick={() => void removeBackground(id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+            <article className="overflow-hidden rounded-xl border border-pink-200 bg-card dark:border-pink-900">
+              <div className="flex items-center gap-2 border-b bg-pink-50/60 p-3 text-sm font-bold dark:bg-pink-950/20">
+                <span className="text-xl">🎂</span> Anniversaire — Staff troupe
+              </div>
+              <div className="p-3">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.65fr)]">
+                  <div>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Les dates viennent des profils de la patrouille Staff troupe et reviennent
+                      automatiquement chaque année. Modifie-les ici pour les enregistrer dans le
+                      profil.
+                    </p>
+                    {troopStaff.length === 0 ? (
+                      <p className="rounded-lg bg-background p-3 text-sm text-muted-foreground">
+                        Aucun membre dans la patrouille Staff troupe.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {troopStaff.map((profile) => (
+                          <label
+                            key={profile.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border bg-background p-2 text-sm"
+                          >
+                            <span className="min-w-0 truncate font-medium">
+                              {profile.totem ||
+                                profile.full_name ||
+                                profile.email ||
+                                "Membre du staff"}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <input
+                                type="date"
+                                value={profileBirthdayInput(profile)}
+                                disabled={updatingBirthdayId === profile.id}
+                                onChange={(event) =>
+                                  void updateStaffBirthday(profile, event.target.value)
+                                }
+                                className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                                aria-label={`Anniversaire de ${profile.totem || profile.full_name || "ce membre"}`}
+                              />
+                              {updatingBirthdayId === profile.id && (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              )}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col overflow-hidden rounded-lg border bg-background">
+                    {settings.backgrounds.anniversaire ? (
+                      <img
+                        src={settings.backgrounds.anniversaire}
+                        alt="Photo Anniversaire"
+                        className="h-24 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-24 place-items-center text-xs text-muted-foreground">
+                        Aucune photo
+                      </div>
+                    )}
+                    <div className="flex gap-1.5 p-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        disabled={uploading !== null}
+                        onClick={() => pickFile("anniversaire")}
+                      >
+                        {uploading === "anniversaire" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <ImagePlus className="mr-1 h-3.5 w-3.5" /> Photo
+                          </>
+                        )}
+                      </Button>
+                      {settings.backgrounds.anniversaire && (
                         <Button
                           size="icon"
                           variant="ghost"
-                          aria-label={`Retirer une période ${theme.label}`}
-                          onClick={() =>
-                            setCalendarDraft((current) => ({
-                              ...current,
-                              [id]: (current[id] ?? []).filter((_, i) => i !== index),
-                            }))
-                          }
+                          aria-label="Retirer la photo Anniversaire"
+                          disabled={uploading !== null}
+                          onClick={() => void removeBackground("anniversaire")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    ))}
+                      )}
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2"
-                    onClick={() =>
-                      setCalendarDraft((current) => ({
-                        ...current,
-                        [id]: [...(current[id] ?? []), { start: "01-01", end: "01-01" }],
-                      }))
-                    }
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter une période
-                  </Button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-xl border border-pink-200 bg-pink-50/50 p-4 dark:border-pink-900 dark:bg-pink-950/20">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="font-display font-bold text-foreground">Mode anniversaire du staff</h3>
-              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-                Ajoute les dates récurrentes des anniversaires du staff. Le thème Anniversaire et le
-                message d&apos;Alezan s&apos;activeront automatiquement ces jours-là.
-              </p>
-            </div>
-            <Button size="sm" onClick={saveBirthdays} disabled={saving !== null}>
-              {saving === "theme_staff_birthdays" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Enregistrer les anniversaires"
-              )}
-            </Button>
-          </div>
-          <div className="mt-3 space-y-2">
-            {birthdayDraft.map((birthday, index) => (
-              <div key={index} className="grid grid-cols-[1fr_auto] items-end gap-2">
-                <label className="text-[11px] font-medium text-muted-foreground">
-                  Date annuelle
-                  <input
-                    type="date"
-                    value={annualDateInput(birthday, year)}
-                    onChange={(event) =>
-                      setBirthdayDraft((current) =>
-                        current.map((item, i) =>
-                          i === index ? fromAnnualDateInput(event.target.value) : item,
-                        ),
-                      )
-                    }
-                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                  />
-                </label>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Retirer la date ${annualDateLabel(birthday)}`}
-                  onClick={() =>
-                    setBirthdayDraft((current) => current.filter((_, i) => i !== index))
-                  }
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
-            ))}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setBirthdayDraft((current) => [...current, "01-01"])}
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un anniversaire
-            </Button>
+            </article>
           </div>
         </div>
 
@@ -572,11 +690,13 @@ export function SeasonalThemeAdmin() {
         <div className="flex items-center gap-2 border-b pb-4">
           <ImagePlus className="h-5 w-5 text-primary" />
           <div>
-            <h2 className="font-display text-lg font-bold text-foreground">Fonds d&apos;écran</h2>
+            <h2 className="font-display text-lg font-bold text-foreground">
+              Photos des thèmes manuels
+            </h2>
             <p className="text-xs text-muted-foreground">
-              Photo de l&apos;accueil, sous le voile aux couleurs du thème. Sans photo propre, un
-              thème utilise celle du thème Standard, sinon la photo d&apos;origine. Les photos sont
-              publiques : pas de visage de scout reconnaissable sans accord.
+              Le Standard et les thèmes de match n&apos;ont pas de dates automatiques. Les photos
+              des fêtes sont modifiables directement sur leur carte. Les photos sont publiques : pas
+              de visage de scout reconnaissable sans accord.
             </p>
           </div>
         </div>
@@ -588,61 +708,63 @@ export function SeasonalThemeAdmin() {
           onChange={onFile}
         />
         <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-          {SEASONAL_THEMES.map((t) => {
-            const url = settings.backgrounds[t.id];
-            const busy = uploading === t.id;
-            return (
-              <div key={t.id} className="overflow-hidden rounded-xl border bg-background">
-                <div className="relative h-20 bg-muted sm:h-28">
-                  {url ? (
-                    <>
-                      <img src={url} alt="" className="h-full w-full object-cover opacity-70" />
-                      <div
-                        className="absolute inset-0 mix-blend-multiply"
-                        style={{ backgroundColor: t.swatch[1], opacity: 0.35 }}
-                      />
-                    </>
-                  ) : (
-                    <div className="grid h-full place-items-center text-xs text-muted-foreground">
-                      Pas de photo
-                    </div>
-                  )}
-                  <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-bold text-white">
-                    {t.emoji} {t.label}
-                  </span>
-                </div>
-                <div className="flex gap-2 p-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    disabled={uploading !== null}
-                    onClick={() => pickFile(t.id)}
-                  >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : url ? (
-                      "Remplacer"
+          {SEASONAL_THEMES.filter((theme) => ["default", "foot", "tennis"].includes(theme.id)).map(
+            (t) => {
+              const url = settings.backgrounds[t.id];
+              const busy = uploading === t.id;
+              return (
+                <div key={t.id} className="overflow-hidden rounded-xl border bg-background">
+                  <div className="relative h-20 bg-muted sm:h-28">
+                    {url ? (
+                      <>
+                        <img src={url} alt="" className="h-full w-full object-cover opacity-70" />
+                        <div
+                          className="absolute inset-0 mix-blend-multiply"
+                          style={{ backgroundColor: t.swatch[1], opacity: 0.35 }}
+                        />
+                      </>
                     ) : (
-                      "Envoyer"
+                      <div className="grid h-full place-items-center text-xs text-muted-foreground">
+                        Pas de photo
+                      </div>
                     )}
-                  </Button>
-                  {url && (
+                    <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-bold text-white">
+                      {t.emoji} {t.label}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 p-2">
                     <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Retirer le fond"
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
                       disabled={uploading !== null}
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => removeBackground(t.id)}
+                      onClick={() => pickFile(t.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {busy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : url ? (
+                        "Remplacer"
+                      ) : (
+                        "Envoyer"
+                      )}
                     </Button>
-                  )}
+                    {url && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Retirer le fond"
+                        disabled={uploading !== null}
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => removeBackground(t.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </div>
       </div>
     </div>

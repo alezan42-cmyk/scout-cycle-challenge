@@ -294,6 +294,10 @@ export type Database = {
       };
     };
     Functions: {
+      staff_birthday_dates: {
+        Args: Record<PropertyKey, never>;
+        Returns: { birth_day: number; birth_month: number }[];
+      };
       upcoming_birthdays: {
         Args: { _days?: number };
         Returns: {
