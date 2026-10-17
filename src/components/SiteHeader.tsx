@@ -14,6 +14,7 @@ import {
   ChevronRight,
   House,
   MoreHorizontal,
+  CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/useAuth";
@@ -102,6 +103,13 @@ export function SiteHeader() {
       label: "Carte",
       description: "Carte interactive des zones roulées et courues (-200m protégés)",
       icon: MapPinned,
+      requiresAuth: true,
+    },
+    {
+      to: "/sorties-prevues",
+      label: "Sorties prévues",
+      description: "Proposer une sortie de groupe et s'inscrire",
+      icon: CalendarClock,
       requiresAuth: true,
     },
     {

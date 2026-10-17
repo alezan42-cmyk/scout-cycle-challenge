@@ -19,6 +19,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedCarteRouteImport } from './routes/_authenticated/carte'
 import { Route as AuthenticatedMesKmRouteImport } from './routes/_authenticated/mes-km'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
+import { Route as AuthenticatedSortiesPrevuesRouteImport } from './routes/_authenticated/sorties-prevues'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppClassementRouteImport } from './routes/app/classement'
 import { Route as AppCompteAReboursRouteImport } from './routes/app/compte-a-rebours'
@@ -30,6 +31,7 @@ import { Route as AppSortiesRouteImport } from './routes/app/sorties'
 import { Route as ScoutScoutIdRouteImport } from './routes/scout.$scoutId'
 import { Route as AuthenticatedAppEnregistrerRouteImport } from './routes/_authenticated/app/enregistrer'
 import { Route as AuthenticatedAppMesKmsRouteImport } from './routes/_authenticated/app/mes-kms'
+import { Route as AuthenticatedAppSortiesPrevuesRouteImport } from './routes/_authenticated/app/sorties-prevues'
 import { Route as AuthenticatedAppTropheesRouteImport } from './routes/_authenticated/app/trophees'
 
 const IndexRoute = IndexRouteImport.update({
@@ -81,6 +83,12 @@ const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   path: '/profil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSortiesPrevuesRoute =
+  AuthenticatedSortiesPrevuesRouteImport.update({
+    id: '/sorties-prevues',
+    path: '/sorties-prevues',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/app/',
   path: '/app/',
@@ -137,6 +145,12 @@ const AuthenticatedAppMesKmsRoute = AuthenticatedAppMesKmsRouteImport.update({
   path: '/app/mes-kms',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAppSortiesPrevuesRoute =
+  AuthenticatedAppSortiesPrevuesRouteImport.update({
+    id: '/app/sorties-prevues',
+    path: '/app/sorties-prevues',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppTropheesRoute =
   AuthenticatedAppTropheesRouteImport.update({
     id: '/app/trophees',
@@ -154,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/carte': typeof AuthenticatedCarteRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/sorties-prevues': typeof AuthenticatedSortiesPrevuesRoute
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
@@ -165,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
+  '/app/sorties-prevues': typeof AuthenticatedAppSortiesPrevuesRoute
   '/app/trophees': typeof AuthenticatedAppTropheesRoute
 }
 export interface FileRoutesByTo {
@@ -177,6 +193,7 @@ export interface FileRoutesByTo {
   '/carte': typeof AuthenticatedCarteRoute
   '/mes-km': typeof AuthenticatedMesKmRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/sorties-prevues': typeof AuthenticatedSortiesPrevuesRoute
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
@@ -188,6 +205,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
+  '/app/sorties-prevues': typeof AuthenticatedAppSortiesPrevuesRoute
   '/app/trophees': typeof AuthenticatedAppTropheesRoute
 }
 export interface FileRoutesById {
@@ -202,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/carte': typeof AuthenticatedCarteRoute
   '/_authenticated/mes-km': typeof AuthenticatedMesKmRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
+  '/_authenticated/sorties-prevues': typeof AuthenticatedSortiesPrevuesRoute
   '/app/classement': typeof AppClassementRoute
   '/app/compte-a-rebours': typeof AppCompteAReboursRoute
   '/app/defis': typeof AppDefisRoute
@@ -213,6 +232,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/_authenticated/app/enregistrer': typeof AuthenticatedAppEnregistrerRoute
   '/_authenticated/app/mes-kms': typeof AuthenticatedAppMesKmsRoute
+  '/_authenticated/app/sorties-prevues': typeof AuthenticatedAppSortiesPrevuesRoute
   '/_authenticated/app/trophees': typeof AuthenticatedAppTropheesRoute
 }
 export interface FileRouteTypes {
@@ -227,6 +247,7 @@ export interface FileRouteTypes {
     | '/carte'
     | '/mes-km'
     | '/profil'
+    | '/sorties-prevues'
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
@@ -238,6 +259,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/enregistrer'
     | '/app/mes-kms'
+    | '/app/sorties-prevues'
     | '/app/trophees'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -250,6 +272,7 @@ export interface FileRouteTypes {
     | '/carte'
     | '/mes-km'
     | '/profil'
+    | '/sorties-prevues'
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
@@ -261,6 +284,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/enregistrer'
     | '/app/mes-kms'
+    | '/app/sorties-prevues'
     | '/app/trophees'
   id:
     | '__root__'
@@ -274,6 +298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/carte'
     | '/_authenticated/mes-km'
     | '/_authenticated/profil'
+    | '/_authenticated/sorties-prevues'
     | '/app/classement'
     | '/app/compte-a-rebours'
     | '/app/defis'
@@ -285,6 +310,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/_authenticated/app/enregistrer'
     | '/_authenticated/app/mes-kms'
+    | '/_authenticated/app/sorties-prevues'
     | '/_authenticated/app/trophees'
   fileRoutesById: FileRoutesById
 }
@@ -378,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sorties-prevues': {
+      id: '/_authenticated/sorties-prevues'
+      path: '/sorties-prevues'
+      fullPath: '/sorties-prevues'
+      preLoaderRoute: typeof AuthenticatedSortiesPrevuesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/app/': {
       id: '/app/'
       path: '/app'
@@ -455,6 +488,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMesKmsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/sorties-prevues': {
+      id: '/_authenticated/app/sorties-prevues'
+      path: '/app/sorties-prevues'
+      fullPath: '/app/sorties-prevues'
+      preLoaderRoute: typeof AuthenticatedAppSortiesPrevuesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/app/trophees': {
       id: '/_authenticated/app/trophees'
       path: '/app/trophees'
@@ -470,8 +510,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCarteRoute: typeof AuthenticatedCarteRoute
   AuthenticatedMesKmRoute: typeof AuthenticatedMesKmRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
+  AuthenticatedSortiesPrevuesRoute: typeof AuthenticatedSortiesPrevuesRoute
   AuthenticatedAppEnregistrerRoute: typeof AuthenticatedAppEnregistrerRoute
   AuthenticatedAppMesKmsRoute: typeof AuthenticatedAppMesKmsRoute
+  AuthenticatedAppSortiesPrevuesRoute: typeof AuthenticatedAppSortiesPrevuesRoute
   AuthenticatedAppTropheesRoute: typeof AuthenticatedAppTropheesRoute
 }
 
@@ -480,8 +522,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCarteRoute: AuthenticatedCarteRoute,
   AuthenticatedMesKmRoute: AuthenticatedMesKmRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
+  AuthenticatedSortiesPrevuesRoute: AuthenticatedSortiesPrevuesRoute,
   AuthenticatedAppEnregistrerRoute: AuthenticatedAppEnregistrerRoute,
   AuthenticatedAppMesKmsRoute: AuthenticatedAppMesKmsRoute,
+  AuthenticatedAppSortiesPrevuesRoute: AuthenticatedAppSortiesPrevuesRoute,
   AuthenticatedAppTropheesRoute: AuthenticatedAppTropheesRoute,
 }
 
