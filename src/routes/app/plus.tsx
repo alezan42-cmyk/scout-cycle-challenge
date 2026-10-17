@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Award,
   CalendarClock,
+  CalendarDays,
   CircleUserRound,
   Compass,
   HandHeart,
@@ -67,6 +68,13 @@ function MoreScreen() {
             iconClassName="bg-amber-500/15 text-amber-600"
             title="Maillots"
             subtitle="Jaune et à pois"
+          />
+          <AppListRow
+            to={user ? "/app/sorties-prevues" : "/auth"}
+            icon={CalendarDays}
+            iconClassName="bg-primary/12 text-primary"
+            title="Sorties prévues"
+            subtitle="Proposer une sortie, s'inscrire"
           />
           <AppListRow
             to="/app/expedition"
