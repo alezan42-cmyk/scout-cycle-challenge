@@ -41,6 +41,7 @@ function JerseysScreen() {
           patrol_name: p.patrols?.name ?? "",
           category: staff ? "staff" : p.patrols?.category === "femme" ? "femme" : "homme",
           is_chef: staff,
+          scout_year: p.scout_year,
           km: t.km,
           dplus: t.dplus,
         },
@@ -52,7 +53,7 @@ function JerseysScreen() {
   return (
     <AppPageShell
       title="Maillots"
-      description="Jaune : le plus de km. À pois : le plus de dénivelé."
+      description="Jaune : le plus de km. À pois : le plus de dénivelé. Blanc : le meilleur des 1re et 2e années."
     >
       <TextTabs
         value={period}
@@ -84,6 +85,17 @@ function JerseysScreen() {
                     : undefined
                 }
               />
+              {c.id !== "staff" && (
+                <JerseyRow
+                  kind="white"
+                  name={h.white?.display_name}
+                  detail={
+                    h.white
+                      ? `${h.white.patrol_name} · ${formatKm(h.white.km)} km · ${h.white.scout_year}${h.white.scout_year === 1 ? "re" : "e"} année`
+                      : undefined
+                  }
+                />
+              )}
             </AppCard>
           </AppSection>
         );
@@ -97,7 +109,7 @@ function JerseyRow({
   name,
   detail,
 }: {
-  kind: "yellow" | "climber";
+  kind: "yellow" | "climber" | "white";
   name: string | undefined;
   detail: string | undefined;
 }) {
@@ -105,6 +117,10 @@ function JerseyRow({
     <div className="flex min-h-[68px] items-center gap-3.5 px-4 py-3">
       {kind === "yellow" ? (
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-yellow-400 text-lg">
+          👕
+        </span>
+      ) : kind === "white" ? (
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-slate-300 bg-white text-lg shadow-sm">
           👕
         </span>
       ) : (
@@ -119,7 +135,11 @@ function JerseyRow({
       )}
       <div className="min-w-0 flex-1">
         <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {kind === "yellow" ? "Maillot jaune" : "Maillot à pois"}
+          {kind === "yellow"
+            ? "Maillot jaune"
+            : kind === "white"
+              ? "Maillot blanc · 1re et 2e"
+              : "Maillot à pois"}
         </p>
         <p className="truncate text-[16px] font-semibold text-foreground">
           {name ?? <span className="font-normal text-muted-foreground">Pas encore attribué</span>}
