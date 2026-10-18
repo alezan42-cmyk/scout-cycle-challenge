@@ -1,7 +1,9 @@
 /**
  * Maillots du défi, calculés pour chaque catégorie (Garçons, Filles, Staff) :
  * - maillot jaune : le plus de kilomètres ;
- * - maillot à pois (grimpeur) : le plus de dénivelé positif (D+).
+ * - maillot à pois (grimpeur) : le plus de dénivelé positif (D+) ;
+ * - maillot blanc (meilleur jeune) : le plus de kilomètres parmi les scouts de
+ *   1re et 2e année (Garçons et Filles uniquement, jamais le staff).
  *
  * Seules les sorties validées sont comptées (le calcul reçoit des totaux déjà filtrés
  * par période, sport et statut).
@@ -17,6 +19,7 @@ export interface JerseyCandidate {
   patrol_name: string;
   category: string;
   is_chef?: boolean;
+  scout_year?: number | null | undefined;
   km: number;
   dplus: number;
 }
@@ -24,7 +27,15 @@ export interface JerseyCandidate {
 export interface JerseyHolders {
   yellow: JerseyCandidate | null;
   climber: JerseyCandidate | null;
+  /** Maillot blanc : meilleur 1re/2e année (toujours null pour le staff) */
+  white: JerseyCandidate | null;
 }
+
+/** Années qui peuvent porter le maillot blanc */
+export const WHITE_JERSEY_YEARS = [1, 2];
+
+export const isWhiteJerseyEligible = (c: Pick<JerseyCandidate, "scout_year">) =>
+  WHITE_JERSEY_YEARS.includes(Number(c.scout_year));
 
 /** Catégorie de maillot d'un participant : le staff a ses propres maillots. */
 export function jerseyCategoryOf(c: Pick<JerseyCandidate, "category" | "is_chef">): JerseyCategory {
@@ -76,6 +87,14 @@ export function computeJerseys(
         (c) => c.dplus,
         (c) => c.km,
       ),
+      white:
+        cat === "staff"
+          ? null
+          : best(
+              inCat.filter(isWhiteJerseyEligible),
+              (c) => c.km,
+              (c) => c.dplus,
+            ),
     };
   }
   return result;

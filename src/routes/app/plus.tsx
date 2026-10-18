@@ -67,7 +67,7 @@ function MoreScreen() {
             icon={Shirt}
             iconClassName="bg-amber-500/15 text-amber-600"
             title="Maillots"
-            subtitle="Jaune et à pois"
+            subtitle="Jaune, à pois et blanc"
           />
           <AppListRow
             to={user ? "/app/sorties-prevues" : "/auth"}

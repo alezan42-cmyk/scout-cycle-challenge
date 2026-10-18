@@ -575,11 +575,13 @@ function Index() {
   const jerseyHolderIds = useMemo(() => {
     const yellow = new Set<string>();
     const climber = new Set<string>();
+    const white = new Set<string>();
     for (const h of Object.values(jerseys)) {
       if (h.yellow) yellow.add(h.yellow.user_id);
       if (h.climber) climber.add(h.climber.user_id);
+      if (h.white) white.add(h.white.user_id);
     }
-    return { yellow, climber };
+    return { yellow, climber, white };
   }, [jerseys]);
 
   const rankedScouts = useMemo(() => {
@@ -1416,6 +1418,7 @@ function Index() {
                     distanceTotals={s.distanceTotals}
                     yellowJersey={jerseyHolderIds.yellow.has(s.user_id)}
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
+                    whiteJersey={jerseyHolderIds.white.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
                     sportMode={sportMode}
                     onClick={() => openScoutProfile(s)}
@@ -1629,6 +1632,7 @@ function ScoutLeaderboardRow({
   distanceTotals,
   yellowJersey = false,
   climberJersey = false,
+  whiteJersey = false,
   maxKm,
   sportMode = "velo",
   onClick,
@@ -1643,6 +1647,7 @@ function ScoutLeaderboardRow({
   distanceTotals: Record<ActivitySport, number>;
   yellowJersey?: boolean;
   climberJersey?: boolean;
+  whiteJersey?: boolean;
   maxKm: number;
   sportMode?: SportMode;
   onClick: () => void;
@@ -1704,6 +1709,11 @@ function ScoutLeaderboardRow({
             {climberJersey && (
               <span className="rounded-full border border-red-500 bg-white px-2 py-0.5 text-[10px] font-bold text-red-600">
                 Maillot à pois
+              </span>
+            )}
+            {whiteJersey && (
+              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                Maillot blanc
               </span>
             )}
           </div>
