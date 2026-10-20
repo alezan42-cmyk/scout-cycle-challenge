@@ -62,6 +62,7 @@ const notificationType: Record<string, string> = {
   activity_pending: "Sortie à valider (Aquila)",
   weekly_reminder: "Rappel du dimanche",
   new_signup: "Nouvelle inscription",
+  challenge_received: "Défi reçu",
 };
 
 export function AdminAppNotifications() {
