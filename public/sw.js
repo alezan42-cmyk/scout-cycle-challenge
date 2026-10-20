@@ -29,6 +29,48 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = { body: event.data?.text() ?? "" };
+  }
+  const title = typeof payload.title === "string" ? payload.title : "ALEZAN 42";
+  const body = typeof payload.body === "string" ? payload.body : "Tu as une nouvelle notification.";
+  const requestedTarget =
+    typeof payload.url === "string" ? new URL(payload.url, self.location.origin) : new URL("/app", self.location.origin);
+  const target =
+    requestedTarget.origin === self.location.origin
+      ? requestedTarget.href
+      : new URL("/app", self.location.origin).href;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: target },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/app", self.location.origin);
+  const target =
+    targetUrl.origin === self.location.origin ? targetUrl.href : new URL("/app", self.location.origin).href;
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+      const appWindow = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (appWindow) {
+        await appWindow.navigate(target);
+        return appWindow.focus();
+      }
+      return clients.openWindow(target);
+    }),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);

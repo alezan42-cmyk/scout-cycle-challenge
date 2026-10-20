@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.strava-webhook]
 verify_jwt = false
+
+[functions.app-notifications]
+verify_jwt = false
