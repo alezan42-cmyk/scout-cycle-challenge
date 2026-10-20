@@ -393,6 +393,9 @@ export function AdminChallenges() {
                                 .join(" + ")}{" "}
                           · {challenge.proposed_points} pts proposés
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          Lancé par {name(challenge.challenger_id)}
+                        </p>
                         {challenge.description && (
                           <p className="mt-1 text-sm">{challenge.description}</p>
                         )}

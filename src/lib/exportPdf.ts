@@ -161,9 +161,8 @@ export async function generatePdf(report: Report): Promise<string> {
   const custom = report.customLabel?.trim();
   const title = [formatDateSlash(now), typeLabel, custom].filter(Boolean).join(" - ");
 
-  const wide = report.type === "profils" && report.fields.length > 5;
   const doc: any = new jsPDF({
-    orientation: wide ? "landscape" : "portrait",
+    orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
