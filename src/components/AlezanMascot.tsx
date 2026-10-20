@@ -34,7 +34,7 @@ interface AlezanMascotProps {
   context?: AlezanContext;
 }
 
-/** Le compagnon de route Alezan accueille les scouts avec un mot lié à la page. */
+/** Alezouille accueille les scouts avec un message lié à la page. */
 export function AlezanMascot({ context }: AlezanMascotProps) {
   const { pathname } = useLocation();
   const { user } = useAuth();
@@ -76,14 +76,14 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
 
   return (
     <aside
-      aria-label="Le mot d'Alezan"
+      aria-label="Le message d'Alezouille"
       className="mobile-mascot pointer-events-none fixed bottom-4 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3"
     >
       <div
         className={`relative mb-6 ${birthdayMode ? "max-w-[min(8rem,calc(100vw-12rem))] sm:max-w-[min(13rem,calc(100vw-13rem))]" : "max-w-[min(13rem,calc(100vw-9rem))]"} rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-lg shadow-black/10 backdrop-blur-sm after:absolute after:-right-1.5 after:bottom-4 after:h-3 after:w-3 after:rotate-45 after:border-r after:border-t after:border-border/80 after:bg-card`}
       >
         <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
-          {birthdayMode ? "Mode anniversaire" : "Alezan te glisse un mot"}
+          {birthdayMode ? "Mode anniversaire" : "Alezouille te glisse un message"}
         </p>
         <p
           role="status"
@@ -94,7 +94,7 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
       </div>
       <img
         src={currentImage}
-        alt="Alezan, le compagnon de route de la troupe"
+        alt="Alezouille, le compagnon de route de la troupe"
         className={
           birthdayMode
             ? "h-20 w-36 shrink-0 object-contain drop-shadow-md sm:h-28 sm:w-52"
