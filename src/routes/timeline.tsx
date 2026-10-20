@@ -35,7 +35,82 @@ export type TimelineEvent = {
   image_url: string | null;
   drive_url: string | null;
   tag: string;
+  automatic?: boolean;
 };
+
+type ApprovedActivity = {
+  id: string | null;
+  user_id: string | null;
+  km: number | null;
+  ride_date: string | null;
+  created_at: string | null;
+};
+
+type PublicProfileName = {
+  id: string | null;
+  full_name: string | null;
+  totem: string | null;
+};
+
+const TIMELINE_PAGE_SIZE = 1000;
+const DISTANCE_MILESTONE_KM = 1000;
+
+async function fetchAllApprovedActivities(): Promise<ApprovedActivity[]> {
+  const activities: ApprovedActivity[] = [];
+  for (let from = 0; ; from += TIMELINE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("activities_public")
+      .select("id,user_id,km,ride_date,created_at")
+      .eq("status", "approved")
+      .order("ride_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(from, from + TIMELINE_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as ApprovedActivity[];
+    activities.push(...page);
+    if (page.length < TIMELINE_PAGE_SIZE) return activities;
+  }
+}
+
+function buildDistanceMilestones(
+  activities: ApprovedActivity[],
+  profiles: PublicProfileName[],
+): TimelineEvent[] {
+  const names = new Map(
+    profiles
+      .filter((profile): profile is PublicProfileName & { id: string } => Boolean(profile.id))
+      .map((profile) => [profile.id, profile.totem || profile.full_name || "Un scout"]),
+  );
+  const totals = new Map<string, number>();
+  const events: TimelineEvent[] = [];
+
+  for (const activity of activities) {
+    if (!activity.user_id || !activity.ride_date || !activity.km || activity.km <= 0) continue;
+    const previous = totals.get(activity.user_id) ?? 0;
+    const next = previous + activity.km;
+    const firstMilestone = Math.floor(previous / DISTANCE_MILESTONE_KM) + 1;
+    const lastMilestone = Math.floor(next / DISTANCE_MILESTONE_KM);
+    for (let milestone = firstMilestone; milestone <= lastMilestone; milestone += 1) {
+      const reachedKm = milestone * DISTANCE_MILESTONE_KM;
+      const [yearText] = activity.ride_date.split("-");
+      const year = Number(yearText);
+      events.push({
+        id: `distance-milestone:${activity.user_id}:${reachedKm}`,
+        year,
+        date_str: activity.ride_date,
+        title: `${names.get(activity.user_id) ?? "Un scout"} franchit ${reachedKm.toLocaleString("fr-FR")} km`,
+        description: `Un nouveau palier de ${reachedKm.toLocaleString("fr-FR")} km cumulés est atteint grâce à cette sortie validée.`,
+        image_url: null,
+        drive_url: null,
+        tag: "Palier de distance",
+        automatic: true,
+      });
+    }
+    totals.set(activity.user_id, next);
+  }
+
+  return events;
+}
 
 export const Route = createFileRoute("/timeline")({
   ssr: false,
@@ -78,17 +153,21 @@ function TimelinePage() {
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("timeline")
-        .select("*")
-        .order("date_str", { ascending: false }); // Tri chronologique basé sur la vraie date
+      const [{ data, error }, activities, { data: profiles, error: profilesError }] =
+        await Promise.all([
+          supabase.from("timeline").select("*").order("date_str", { ascending: false }),
+          fetchAllApprovedActivities(),
+          supabase.from("profiles_public").select("id,full_name,totem"),
+        ]);
 
-      if (error) {
-        console.warn("Erreur chargement timeline Supabase :", error.message);
-        setEvents([]);
-      } else {
-        setEvents(data || []);
-      }
+      if (error) throw error;
+      if (profilesError) throw profilesError;
+      setEvents(
+        [
+          ...buildDistanceMilestones(activities, (profiles ?? []) as PublicProfileName[]),
+          ...((data ?? []) as TimelineEvent[]),
+        ].sort((a, b) => b.date_str.localeCompare(a.date_str)),
+      );
     } catch (err) {
       console.warn("Erreur réseau timeline :", err);
       setEvents([]);
@@ -361,7 +440,7 @@ function TimelinePage() {
                             {item.tag}
                           </span>
                         )}
-                        {isAdmin && (
+                        {isAdmin && !item.automatic && (
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => openEditModal(item)}
