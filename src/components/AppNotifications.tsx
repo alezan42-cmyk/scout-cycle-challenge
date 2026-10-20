@@ -278,7 +278,8 @@ export function AppNotifications() {
         size="icon"
         variant="secondary"
         aria-label={`Notifications${unread ? `, ${unread} non lue(s)` : ""}`}
-        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] h-11 w-11 rounded-full border bg-card shadow-lg"
+        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] h-11 w-11 rounded-full border border-white/30 text-white shadow-lg"
+        style={{ backgroundColor: "var(--header)" }}
         onClick={() => {
           setOpen(true);
           setMessage("");
@@ -286,23 +287,35 @@ export function AppNotifications() {
       >
         {unread ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
         {unread > 0 && (
-          <Badge className="absolute -right-1 -top-1 h-5 min-w-5 justify-center rounded-full px-1 text-[10px]">
+          <Badge className="absolute -right-1 -top-1 h-5 min-w-5 justify-center rounded-full border border-white/70 bg-white px-1 text-[10px] text-[var(--header)]">
             {unread > 9 ? "9+" : unread}
           </Badge>
         )}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85dvh] overflow-hidden p-0 sm:max-w-lg">
-          <DialogHeader className="border-b p-5 pr-12 text-left">
+        <DialogContent
+          className="max-h-[85dvh] overflow-hidden p-0 sm:max-w-lg"
+          style={{ borderColor: "var(--header)" }}
+        >
+          <DialogHeader
+            className="border-b p-5 pr-12 text-left text-white"
+            style={{ backgroundColor: "var(--header)" }}
+          >
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className="font-display text-xl font-black">Notifications</DialogTitle>
               {unread > 0 && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => void markAllRead()}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/10 hover:text-white"
+                  onClick={() => void markAllRead()}
+                >
                   <CheckCheck className="h-4 w-4" /> Tout lire
                 </Button>
               )}
             </div>
-            <DialogDescription>
+            <DialogDescription className="text-white/80">
               Rappels du dimanche (si activés), paliers de kilomètres franchis et messages du staff.
             </DialogDescription>
           </DialogHeader>
@@ -338,11 +351,18 @@ export function AppNotifications() {
                     key={item.id}
                     type="button"
                     onClick={() => void markRead(item)}
-                    className={`w-full rounded-2xl border p-4 text-left transition-colors hover:bg-muted/50 ${item.read_at ? "bg-card" : "border-primary/30 bg-primary/5"}`}
+                    className="w-full rounded-2xl border p-4 text-left transition-colors hover:brightness-[0.98]"
+                    style={{
+                      borderColor: item.read_at ? undefined : "var(--header)",
+                      backgroundColor: item.read_at
+                        ? undefined
+                        : "color-mix(in srgb, var(--header) 9%, var(--card))",
+                    }}
                   >
                     <div className="flex items-start gap-3">
                       <span
-                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.read_at ? "bg-muted-foreground/30" : "bg-primary"}`}
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.read_at ? "bg-muted-foreground/30" : ""}`}
+                        style={item.read_at ? undefined : { backgroundColor: "var(--header)" }}
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block font-bold">{item.title}</span>
