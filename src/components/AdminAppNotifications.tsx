@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Bell, Send, Trash2, Users } from "lucide-react";
+import { Bell, CalendarClock, Gauge, Send, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,35 @@ type AdminNotification = {
   title: string;
   body: string;
   created_at: string;
+  kind: string;
+};
+type NotificationSettings = {
+  distance_enabled: boolean;
+  distance_interval_km: number;
+  distance_title: string;
+  distance_body: string;
+  weekly_enabled: boolean;
+  weekly_hour: number;
+  weekly_title: string;
+  weekly_body: string;
+};
+const DEFAULT_SETTINGS: NotificationSettings = {
+  distance_enabled: true,
+  distance_interval_km: 1000,
+  distance_title: "Nouveau palier !",
+  distance_body: "Tu viens de franchir le palier des {km} km cumulés. Bravo !",
+  weekly_enabled: true,
+  weekly_hour: 9,
+  weekly_title: "Pense à tes kilomètres !",
+  weekly_body: "Pense à enregistrer tes kms de la semaine.",
 };
 const displayName = (scout?: Scout) => scout?.totem || scout?.full_name || "Scout";
+const notificationType: Record<string, string> = {
+  manual: "Message du staff",
+  distance_milestone: "Palier de kilomètres",
+  weekly_reminder: "Rappel du dimanche",
+  new_signup: "Nouvelle inscription",
+};
 
 export function AdminAppNotifications() {
   const [scouts, setScouts] = useState<Scout[]>([]);
@@ -25,22 +52,34 @@ export function AdminAppNotifications() {
   const [body, setBody] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const scoutById = useMemo(() => new Map(scouts.map((scout) => [scout.id, scout])), [scouts]);
 
   const load = useCallback(async () => {
-    const [profileResult, notificationResult] = await Promise.all([
+    const [profileResult, notificationResult, settingsResult] = await Promise.all([
       supabase.from("profiles_public").select("id,full_name,totem").order("full_name"),
       supabase
         .from("app_notifications")
-        .select("id,user_id,title,body,created_at")
-        .eq("kind", "manual")
+        .select("id,user_id,title,body,created_at,kind")
         .order("created_at", { ascending: false })
-        .limit(100),
+        .limit(200),
+      supabase
+        .from("app_notification_settings")
+        .select(
+          "distance_enabled,distance_interval_km,distance_title,distance_body,weekly_enabled,weekly_hour,weekly_title,weekly_body",
+        )
+        .eq("singleton", true)
+        .maybeSingle(),
     ]);
     if (profileResult.error) toast.error("Impossible de charger les scouts.");
     if (notificationResult.error) toast.error("Impossible de charger les notifications.");
+    if (settingsResult.error) toast.error("Impossible de charger les réglages automatiques.");
     setScouts((profileResult.data ?? []).filter((scout) => scout.id) as Scout[]);
     setNotifications((notificationResult.data ?? []) as AdminNotification[]);
+    if (settingsResult.data) setSettings(settingsResult.data as NotificationSettings);
+    setSettingsLoading(false);
   }, []);
   useEffect(() => {
     void load();
@@ -55,6 +94,18 @@ export function AdminAppNotifications() {
     setSelected((current) =>
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
     );
+
+  const saveSettings = async (event: FormEvent) => {
+    event.preventDefault();
+    setSettingsSaving(true);
+    const { error } = await supabase
+      .from("app_notification_settings")
+      .update({ ...settings, updated_at: new Date().toISOString() })
+      .eq("singleton", true);
+    setSettingsSaving(false);
+    if (error) toast.error("Impossible d’enregistrer les réglages : " + error.message);
+    else toast.success("Réglages des notifications enregistrés.");
+  };
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -97,6 +148,140 @@ export function AdminAppNotifications() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border bg-card p-4 sm:p-6">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Gauge className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-display text-lg font-bold">
+              Réglages des notifications automatiques
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Choisis les paliers, le contenu et l’horaire du rappel hebdomadaire.
+            </p>
+          </div>
+        </div>
+        {settingsLoading ? (
+          <p className="text-sm text-muted-foreground">Chargement des réglages…</p>
+        ) : (
+          <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
+            <div className="rounded-xl border p-4">
+              <label className="flex cursor-pointer items-center gap-3 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.distance_enabled}
+                  onChange={(event) =>
+                    setSettings({ ...settings, distance_enabled: event.target.checked })
+                  }
+                />
+                <span>Paliers de kilomètres</span>
+              </label>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="notification-distance-interval">Notifier tous les … km</Label>
+                  <Input
+                    id="notification-distance-interval"
+                    type="number"
+                    min={1}
+                    max={100000}
+                    required
+                    value={settings.distance_interval_km}
+                    onChange={(event) =>
+                      setSettings({ ...settings, distance_interval_km: Number(event.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notification-distance-title">Titre</Label>
+                  <Input
+                    id="notification-distance-title"
+                    maxLength={100}
+                    required
+                    value={settings.distance_title}
+                    onChange={(event) =>
+                      setSettings({ ...settings, distance_title: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="notification-distance-body">Message</Label>
+                  <Textarea
+                    id="notification-distance-body"
+                    maxLength={300}
+                    required
+                    value={settings.distance_body}
+                    onChange={(event) =>
+                      setSettings({ ...settings, distance_body: event.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Utilise <code>{"{km}"}</code> pour insérer automatiquement le palier atteint.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <label className="flex cursor-pointer items-center gap-3 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.weekly_enabled}
+                  onChange={(event) =>
+                    setSettings({ ...settings, weekly_enabled: event.target.checked })
+                  }
+                />
+                <CalendarClock className="h-4 w-4 text-primary" />
+                <span>Rappel du dimanche</span>
+              </label>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="notification-weekly-hour">Heure (Bruxelles)</Label>
+                  <Input
+                    id="notification-weekly-hour"
+                    type="number"
+                    min={0}
+                    max={23}
+                    required
+                    value={settings.weekly_hour}
+                    onChange={(event) =>
+                      setSettings({ ...settings, weekly_hour: Number(event.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notification-weekly-title">Titre</Label>
+                  <Input
+                    id="notification-weekly-title"
+                    maxLength={100}
+                    required
+                    value={settings.weekly_title}
+                    onChange={(event) =>
+                      setSettings({ ...settings, weekly_title: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="notification-weekly-body">Message</Label>
+                  <Textarea
+                    id="notification-weekly-body"
+                    maxLength={300}
+                    required
+                    value={settings.weekly_body}
+                    onChange={(event) =>
+                      setSettings({ ...settings, weekly_body: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            <Button type="submit" disabled={settingsSaving}>
+              {settingsSaving ? "Enregistrement…" : "Enregistrer les réglages"}
+            </Button>
+          </form>
+        )}
+      </section>
+
       <section className="rounded-2xl border bg-card p-4 sm:p-6">
         <div className="mb-5 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -171,10 +356,11 @@ export function AdminAppNotifications() {
       </section>
       <section className="space-y-3">
         <div>
-          <h2 className="font-display text-lg font-bold">Notifications manuelles récentes</h2>
+          <h2 className="font-display text-lg font-bold">Historique des notifications récentes</h2>
           <p className="text-sm text-muted-foreground">
-            Supprimer une notification l’enlève du centre de l’application. Une notification push
-            déjà reçue ne peut pas être retirée de l’écran du téléphone.
+            Les rappels du dimanche, les paliers, les inscriptions et les messages envoyés par le
+            staff. Supprimer une notification l’enlève du centre de l’application ; un push déjà
+            reçu ne peut pas être retiré du téléphone.
           </p>
         </div>
         {notifications.length ? (
@@ -184,7 +370,8 @@ export function AdminAppNotifications() {
                 <p className="font-semibold">
                   {item.title}{" "}
                   <span className="text-xs font-normal text-muted-foreground">
-                    → {displayName(scoutById.get(item.user_id))}
+                    · {notificationType[item.kind] ?? "Notification"} ·{" "}
+                    {displayName(scoutById.get(item.user_id))}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
@@ -208,7 +395,7 @@ export function AdminAppNotifications() {
           ))
         ) : (
           <p className="rounded-xl border p-4 text-sm text-muted-foreground">
-            Aucune notification manuelle.
+            Aucune notification récente.
           </p>
         )}
       </section>

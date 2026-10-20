@@ -53,6 +53,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      app_notification_settings: {
+        Row: {
+          singleton: boolean;
+          distance_enabled: boolean;
+          distance_interval_km: number;
+          distance_title: string;
+          distance_body: string;
+          weekly_enabled: boolean;
+          weekly_hour: number;
+          weekly_title: string;
+          weekly_body: string;
+          updated_at: string;
+        };
+        Insert: {
+          singleton?: boolean;
+          distance_enabled?: boolean;
+          distance_interval_km?: number;
+          distance_title?: string;
+          distance_body?: string;
+          weekly_enabled?: boolean;
+          weekly_hour?: number;
+          weekly_title?: string;
+          weekly_body?: string;
+          updated_at?: string;
+        };
+        Update: {
+          singleton?: boolean;
+          distance_enabled?: boolean;
+          distance_interval_km?: number;
+          distance_title?: string;
+          distance_body?: string;
+          weekly_enabled?: boolean;
+          weekly_hour?: number;
+          weekly_title?: string;
+          weekly_body?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       activities: {
         Row: {
           created_at: string;
