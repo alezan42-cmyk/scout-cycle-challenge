@@ -60,6 +60,10 @@ export type Database = {
           distance_interval_km: number;
           distance_title: string;
           distance_body: string;
+          individual_distance_enabled: boolean;
+          individual_distance_interval_km: number;
+          individual_distance_title: string;
+          individual_distance_body: string;
           weekly_enabled: boolean;
           weekly_hour: number;
           weekly_title: string;
@@ -72,6 +76,10 @@ export type Database = {
           distance_interval_km?: number;
           distance_title?: string;
           distance_body?: string;
+          individual_distance_enabled?: boolean;
+          individual_distance_interval_km?: number;
+          individual_distance_title?: string;
+          individual_distance_body?: string;
           weekly_enabled?: boolean;
           weekly_hour?: number;
           weekly_title?: string;
@@ -84,6 +92,10 @@ export type Database = {
           distance_interval_km?: number;
           distance_title?: string;
           distance_body?: string;
+          individual_distance_enabled?: boolean;
+          individual_distance_interval_km?: number;
+          individual_distance_title?: string;
+          individual_distance_body?: string;
           weekly_enabled?: boolean;
           weekly_hour?: number;
           weekly_title?: string;
