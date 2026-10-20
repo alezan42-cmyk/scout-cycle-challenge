@@ -63,6 +63,18 @@ async function createSundayReminders() {
   return rows.length;
 }
 
+async function deleteExpiredReadNotifications() {
+  const readBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await admin
+    .from("app_notifications")
+    .delete()
+    .not("read_at", "is", null)
+    .lt("read_at", readBefore)
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
 async function dispatchPending() {
   if (!vapidPublicKey || !vapidPrivateKey)
     throw new Error("Clés VAPID absentes (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)");
@@ -131,8 +143,9 @@ Deno.serve(async (request) => {
     if (valid !== true) return json({ error: "Clé invalide" }, 401);
     try {
       const reminders = await createSundayReminders();
+      const deleted = await deleteExpiredReadNotifications();
       const push = await dispatchPending();
-      return json({ reminders, ...push });
+      return json({ reminders, deleted, ...push });
     } catch (error) {
       console.error("Traitement des notifications", error);
       return json({ error: String(error) }, 500);
