@@ -72,6 +72,31 @@ export function AppNotifications() {
   }, []);
 
   useEffect(() => {
+    if (!standalone || !user?.id) return;
+    let installationId = "";
+    try {
+      installationId = localStorage.getItem("alezan-app-installation-id") ?? "";
+      if (!installationId) {
+        installationId = crypto.randomUUID();
+        localStorage.setItem("alezan-app-installation-id", installationId);
+      }
+    } catch {
+      installationId = crypto.randomUUID();
+    }
+    const ua = navigator.userAgent.toLowerCase();
+    const platform = /iphone|ipad|ipod/.test(ua)
+      ? "ios"
+      : /android/.test(ua)
+        ? "android"
+        : /macintosh|windows|linux/.test(ua)
+          ? "desktop"
+          : "other";
+    void supabase.functions.invoke("app-notifications", {
+      body: { action: "register-installation", installationId, platform },
+    });
+  }, [standalone, user?.id]);
+
+  useEffect(() => {
     if (!standalone || !user?.id || !("Notification" in window) || !("serviceWorker" in navigator))
       return;
     if (Notification.permission === "denied") return;

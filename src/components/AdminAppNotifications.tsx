@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Bell, CalendarClock, Gauge, Send, Trash2, Users } from "lucide-react";
+import { Bell, CalendarClock, Gauge, Send, Trash2, Users, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -21,16 +21,32 @@ type NotificationSettings = {
   distance_interval_km: number;
   distance_title: string;
   distance_body: string;
+  individual_distance_enabled: boolean;
+  individual_distance_interval_km: number;
+  individual_distance_title: string;
+  individual_distance_body: string;
   weekly_enabled: boolean;
   weekly_hour: number;
   weekly_title: string;
   weekly_body: string;
+};
+type AppStatus = Scout & {
+  app_used: boolean;
+  device_count: number;
+  platforms: string[];
+  last_seen_at: string | null;
+  notifications_enabled: boolean;
+  push_device_count: number;
 };
 const DEFAULT_SETTINGS: NotificationSettings = {
   distance_enabled: true,
   distance_interval_km: 1000,
   distance_title: "Nouveau palier !",
   distance_body: "Tu viens de franchir le palier des {km} km cumulés. Bravo !",
+  individual_distance_enabled: true,
+  individual_distance_interval_km: 100,
+  individual_distance_title: "Beau palier !",
+  individual_distance_body: "Tu as parcouru {km} km au total. Continue comme ça !",
   weekly_enabled: true,
   weekly_hour: 9,
   weekly_title: "Pense à tes kilomètres !",
@@ -40,6 +56,10 @@ const displayName = (scout?: Scout) => scout?.totem || scout?.full_name || "Scou
 const notificationType: Record<string, string> = {
   manual: "Message du staff",
   distance_milestone: "Palier de kilomètres",
+  individual_distance_milestone: "Palier individuel",
+  troop_distance_milestone: "Palier de la troupe",
+  aquila_distance_milestone: "Palier scout (Aquila)",
+  activity_pending: "Sortie à valider (Aquila)",
   weekly_reminder: "Rappel du dimanche",
   new_signup: "Nouvelle inscription",
 };
@@ -47,6 +67,8 @@ const notificationType: Record<string, string> = {
 export function AdminAppNotifications() {
   const [scouts, setScouts] = useState<Scout[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [appStatus, setAppStatus] = useState<AppStatus[]>([]);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [selected, setSelected] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -68,7 +90,7 @@ export function AdminAppNotifications() {
       supabase
         .from("app_notification_settings")
         .select(
-          "distance_enabled,distance_interval_km,distance_title,distance_body,weekly_enabled,weekly_hour,weekly_title,weekly_body",
+          "distance_enabled,distance_interval_km,distance_title,distance_body,individual_distance_enabled,individual_distance_interval_km,individual_distance_title,individual_distance_body,weekly_enabled,weekly_hour,weekly_title,weekly_body",
         )
         .eq("singleton", true)
         .maybeSingle(),
@@ -80,6 +102,14 @@ export function AdminAppNotifications() {
     setNotifications((notificationResult.data ?? []) as AdminNotification[]);
     if (settingsResult.data) setSettings(settingsResult.data as NotificationSettings);
     setSettingsLoading(false);
+    const { data: statusData, error: statusError } = await supabase.functions.invoke(
+      "app-notifications",
+      { body: { action: "admin-status" } },
+    );
+    if (statusError || statusData?.error)
+      toast.error("Impossible de charger l’état de l’application.");
+    setAppStatus((statusData?.scouts ?? []) as AppStatus[]);
+    setStatusLoading(false);
   }, []);
   useEffect(() => {
     void load();
@@ -158,7 +188,7 @@ export function AdminAppNotifications() {
               Réglages des notifications automatiques
             </h2>
             <p className="text-sm text-muted-foreground">
-              Choisis les paliers, le contenu et l’horaire du rappel hebdomadaire.
+              Configure les paliers de la troupe et des scouts, puis le rappel du dimanche.
             </p>
           </div>
         </div>
@@ -175,11 +205,13 @@ export function AdminAppNotifications() {
                     setSettings({ ...settings, distance_enabled: event.target.checked })
                   }
                 />
-                <span>Paliers de kilomètres</span>
+                <span>Palier collectif de la troupe</span>
               </label>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="notification-distance-interval">Notifier tous les … km</Label>
+                  <Label htmlFor="notification-distance-interval">
+                    Notifier la troupe tous les … km
+                  </Label>
                   <Input
                     id="notification-distance-interval"
                     type="number"
@@ -217,6 +249,74 @@ export function AdminAppNotifications() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Utilise <code>{"{km}"}</code> pour insérer automatiquement le palier atteint.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border bg-muted/20 p-5 sm:p-6">
+              <div className="mb-4">
+                <h3 className="font-semibold">Palier individuel</h3>
+                <p className="text-sm text-muted-foreground">
+                  Chaque scout reçoit une notification quand il franchit son prochain total
+                  personnel.
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-3 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.individual_distance_enabled}
+                  onChange={(event) =>
+                    setSettings({ ...settings, individual_distance_enabled: event.target.checked })
+                  }
+                />
+                <span>Activer les paliers individuels</span>
+              </label>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="notification-individual-interval">
+                    Notifier tous les … km par scout
+                  </Label>
+                  <Input
+                    id="notification-individual-interval"
+                    type="number"
+                    min={1}
+                    max={100000}
+                    required
+                    value={settings.individual_distance_interval_km}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        individual_distance_interval_km: Number(event.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notification-individual-title">Titre</Label>
+                  <Input
+                    id="notification-individual-title"
+                    maxLength={100}
+                    required
+                    value={settings.individual_distance_title}
+                    onChange={(event) =>
+                      setSettings({ ...settings, individual_distance_title: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="notification-individual-body">Message</Label>
+                  <Textarea
+                    id="notification-individual-body"
+                    maxLength={300}
+                    required
+                    value={settings.individual_distance_body}
+                    onChange={(event) =>
+                      setSettings({ ...settings, individual_distance_body: event.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Utilise <code>{"{km}"}</code> pour afficher le palier atteint.
                   </p>
                 </div>
               </div>
@@ -279,6 +379,61 @@ export function AdminAppNotifications() {
               {settingsSaving ? "Enregistrement…" : "Enregistrer les réglages"}
             </Button>
           </form>
+        )}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-5 sm:p-7">
+        <div className="mb-5 flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Smartphone className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-display text-lg font-bold">
+              Application et notifications des scouts
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              L’application est comptée après une première ouverture installée. Les notifications
+              sont indiquées par appareil.
+            </p>
+          </div>
+        </div>
+        {statusLoading ? (
+          <p className="text-sm text-muted-foreground">Chargement…</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="p-3 font-medium">Scout</th>
+                  <th className="p-3 font-medium">Application</th>
+                  <th className="p-3 font-medium">Notifications</th>
+                  <th className="p-3 font-medium">Dernière ouverture</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appStatus.map((scout) => (
+                  <tr key={scout.id} className="border-t">
+                    <td className="p-3 font-medium">{displayName(scout)}</td>
+                    <td className="p-3">
+                      {scout.app_used
+                        ? `Utilisée · ${scout.device_count} appareil${scout.device_count > 1 ? "s" : ""}`
+                        : "Pas encore détectée"}
+                    </td>
+                    <td className="p-3">
+                      {scout.notifications_enabled
+                        ? `Activées · ${scout.push_device_count} appareil${scout.push_device_count > 1 ? "s" : ""}`
+                        : "Désactivées"}
+                    </td>
+                    <td className="p-3 text-muted-foreground">
+                      {scout.last_seen_at
+                        ? new Date(scout.last_seen_at).toLocaleDateString("fr-BE")
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

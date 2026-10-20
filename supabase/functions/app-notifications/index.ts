@@ -143,6 +143,68 @@ Deno.serve(async (request) => {
   const token = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   if (authError || !authData.user) return json({ error: "Connexion requise" }, 401);
+  if (body.action === "register-installation") {
+    const installationId = typeof body.installationId === "string" ? body.installationId : "";
+    const platform = typeof body.platform === "string" ? body.platform : "other";
+    if (
+      installationId.length < 8 ||
+      installationId.length > 100 ||
+      !["ios", "android", "desktop", "other"].includes(platform)
+    )
+      return json({ error: "Informations d’installation invalides" }, 400);
+    const { error } = await admin.from("app_installations").upsert(
+      {
+        user_id: authData.user.id,
+        installation_id: installationId,
+        platform,
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,installation_id" },
+    );
+    return error
+      ? json({ error: "Enregistrement de l’application impossible" }, 500)
+      : json({ ok: true });
+  }
+  if (body.action === "admin-status") {
+    const { data: role } = await admin
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", authData.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!role) return json({ error: "Accès réservé au staff" }, 403);
+    const [profilesResult, installationsResult, subscriptionsResult] = await Promise.all([
+      admin.from("profiles").select("id,full_name,totem").order("full_name"),
+      admin.from("app_installations").select("user_id,platform,last_seen_at"),
+      admin.from("app_push_subscriptions").select("user_id,updated_at"),
+    ]);
+    if (profilesResult.error || installationsResult.error || subscriptionsResult.error)
+      return json({ error: "Impossible de charger l’état de l’application" }, 500);
+    const installations = installationsResult.data ?? [];
+    const subscriptions = subscriptionsResult.data ?? [];
+    return json({
+      scouts: (profilesResult.data ?? []).map((scout) => {
+        const devices = installations.filter((entry) => entry.user_id === scout.id);
+        const pushes = subscriptions.filter((entry) => entry.user_id === scout.id);
+        const lastSeen =
+          devices
+            .map((entry) => entry.last_seen_at)
+            .sort()
+            .at(-1) ?? null;
+        return {
+          id: scout.id,
+          full_name: scout.full_name,
+          totem: scout.totem,
+          app_used: devices.length > 0,
+          device_count: devices.length,
+          platforms: [...new Set(devices.map((entry) => entry.platform))],
+          last_seen_at: lastSeen,
+          notifications_enabled: pushes.length > 0,
+          push_device_count: pushes.length,
+        };
+      }),
+    });
+  }
   if (body.action === "subscribe") {
     const subscription = body.subscription as
       { endpoint?: string; keys?: { p256dh?: string; auth?: string } } | undefined;

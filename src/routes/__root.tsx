@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AppNotifications } from "@/components/AppNotifications";
+import { AppInstallGuide } from "@/components/AppInstallGuide";
 import { AlezanMascot } from "@/components/AlezanMascot";
 import { AuthProvider } from "@/context/AuthContext";
 import { SeasonalThemeProvider } from "@/context/SeasonalThemeContext";
@@ -177,6 +178,7 @@ function RootComponent() {
         <AuthProvider>
           <SiteHeader />
           <AppNotifications />
+          <AppInstallGuide />
           <AlezanMascot />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
