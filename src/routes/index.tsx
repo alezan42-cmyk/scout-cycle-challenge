@@ -797,26 +797,6 @@ function Index() {
           </div>
         </div>
       </section>
-      <div className="mx-auto max-w-6xl px-4 pt-5">
-        <div
-          aria-label="Le cheval de la troupe s'appelle Alezouille"
-          className="flex items-center gap-4 rounded-2xl border border-border/80 bg-card px-4 py-3 shadow-sm sm:px-5"
-        >
-          <span
-            aria-hidden="true"
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-2xl"
-          >
-            🐴
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              Le cheval de la troupe
-            </p>
-            <p className="font-display text-lg font-bold text-foreground">Alezouille</p>
-          </div>
-        </div>
-      </div>
-
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
