@@ -19,7 +19,7 @@ const json = (body: unknown, status = 200) =>
   });
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-function brusselsSunday() {
+function brusselsSunday(hour: number) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Brussels",
     weekday: "short",
@@ -30,21 +30,28 @@ function brusselsSunday() {
     hourCycle: "h23",
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return values.weekday === "Sun" && values.hour === "09"
+  return values.weekday === "Sun" && values.hour === String(hour).padStart(2, "0")
     ? `${values.year}-${values.month}-${values.day}`
     : null;
 }
 
 async function createSundayReminders() {
-  const sunday = brusselsSunday();
+  const { data: settings, error: settingsError } = await admin
+    .from("app_notification_settings")
+    .select("weekly_enabled,weekly_hour,weekly_title,weekly_body")
+    .eq("singleton", true)
+    .maybeSingle();
+  if (settingsError) throw settingsError;
+  if (!settings?.weekly_enabled) return 0;
+  const sunday = brusselsSunday(settings.weekly_hour);
   if (!sunday) return 0;
   const { data: profiles, error } = await admin.from("profiles").select("id").limit(5000);
   if (error) throw error;
   const rows = (profiles ?? []).map(({ id }) => ({
     user_id: id,
     kind: "weekly_reminder",
-    title: "Pense à tes kilomètres !",
-    body: "Pense à enregistrer tes kms de la semaine.",
+    title: settings.weekly_title,
+    body: settings.weekly_body,
     href: "/app/enregistrer",
     dedupe_key: `weekly:${id}:${sunday}`,
   }));

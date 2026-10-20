@@ -33,11 +33,22 @@ export function AppNotifications() {
   const { user } = useAuth();
   const [standalone, setStandalone] = useState(false);
   const [open, setOpen] = useState(false);
+  const [optInOpen, setOptInOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const unread = items.filter((item) => !item.read_at).length;
+  const snoozeOptIn = () => {
+    if (user?.id) {
+      try {
+        localStorage.setItem(`app-push-opt-in-dismissed:${user.id}`, String(Date.now()));
+      } catch {
+        // L’invitation pourra réapparaître si le stockage local est indisponible.
+      }
+    }
+    setOptInOpen(false);
+  };
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -59,6 +70,29 @@ export function AppNotifications() {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     setStandalone(isApp);
   }, []);
+
+  useEffect(() => {
+    if (!standalone || !user?.id || !("Notification" in window) || !("serviceWorker" in navigator))
+      return;
+    if (Notification.permission === "denied") return;
+    const dismissedKey = `app-push-opt-in-dismissed:${user.id}`;
+    try {
+      const dismissedAt = Number(localStorage.getItem(dismissedKey) ?? 0);
+      if (dismissedAt && Date.now() - dismissedAt < 30 * 24 * 60 * 60 * 1000) return;
+    } catch {
+      // Le choix reste facultatif si le stockage local est indisponible.
+    }
+    let active = true;
+    void navigator.serviceWorker.ready
+      .then(async (registration) => {
+        const subscription = await registration.pushManager.getSubscription();
+        if (active && !subscription && !pushEnabled) setOptInOpen(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [pushEnabled, standalone, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -125,6 +159,7 @@ export function AppNotifications() {
       if (error) throw new Error("Impossible d’activer les notifications. Réessaie plus tard.");
       setPushEnabled(true);
       setMessage("Les notifications sont activées sur cet appareil.");
+      setOptInOpen(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Activation impossible.");
     } finally {
@@ -146,6 +181,7 @@ export function AppNotifications() {
       }
       setPushEnabled(false);
       setMessage("Les notifications sont désactivées sur cet appareil.");
+      snoozeOptIn();
     } finally {
       setBusy(false);
     }
@@ -181,6 +217,37 @@ export function AppNotifications() {
   if (!standalone || !user) return null;
   return (
     <>
+      <Dialog
+        open={optInOpen}
+        onOpenChange={(nextOpen) => (nextOpen ? setOptInOpen(true) : snoozeOptIn())}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle className="font-display text-xl font-black">
+              Des nouvelles de la troupe, sans spam
+            </DialogTitle>
+            <DialogDescription>
+              Reçois le rappel du dimanche, les paliers de kilomètres et quelques nouvelles ou
+              encouragements. Pas d’alertes quotidiennes : l’équipe peut aussi désactiver le rappel
+              hebdomadaire.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={snoozeOptIn}>
+              Plus tard
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => void enablePush()}>
+              {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
+              Activer les notifications
+            </Button>
+          </div>
+          {message && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {message}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
       <Button
         type="button"
         size="icon"
@@ -211,7 +278,7 @@ export function AppNotifications() {
               )}
             </div>
             <DialogDescription>
-              Rappels hebdomadaires, paliers de kilomètres et messages du staff.
+              Rappels du dimanche (si activés), paliers de kilomètres franchis et messages du staff.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 overflow-y-auto px-4 pb-5">
