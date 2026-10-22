@@ -70,6 +70,7 @@ export function AdminAppNotifications() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [appStatus, setAppStatus] = useState<AppStatus[]>([]);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -81,6 +82,8 @@ export function AdminAppNotifications() {
   const scoutById = useMemo(() => new Map(scouts.map((scout) => [scout.id, scout])), [scouts]);
 
   const load = useCallback(async () => {
+    setStatusLoading(true);
+    setStatusError("");
     const [profileResult, notificationResult, settingsResult] = await Promise.all([
       supabase.from("profiles_public").select("id,full_name,totem").order("full_name"),
       supabase
@@ -103,12 +106,17 @@ export function AdminAppNotifications() {
     setNotifications((notificationResult.data ?? []) as AdminNotification[]);
     if (settingsResult.data) setSettings(settingsResult.data as NotificationSettings);
     setSettingsLoading(false);
-    const { data: statusData, error: statusError } = await supabase.functions.invoke(
+    const { data: statusData, error: statusInvokeError } = await supabase.functions.invoke(
       "app-notifications",
       { body: { action: "admin-status" } },
     );
-    if (statusError || statusData?.error)
-      toast.error("Impossible de charger l’état de l’application.");
+    if (statusInvokeError || statusData?.error) {
+      const message = statusData?.error || statusInvokeError?.message || "Erreur inconnue";
+      setStatusError(
+        `État indisponible : ${message}. Vérifie le déploiement de la fonction Edge « app-notifications » et les migrations des notifications.`,
+      );
+      toast.error("Impossible de charger qui a activé les notifications.");
+    }
     setAppStatus((statusData?.scouts ?? []) as AppStatus[]);
     setStatusLoading(false);
   }, []);
@@ -120,6 +128,11 @@ export function AdminAppNotifications() {
     displayName(scout).toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr")),
   );
   const allSelected = scouts.length > 0 && selected.length === scouts.length;
+  const pushEnabledScouts = appStatus.filter((scout) => scout.notifications_enabled);
+  const enabledPushDevices = pushEnabledScouts.reduce(
+    (total, scout) => total + scout.push_device_count,
+    0,
+  );
   const toggleAll = () => setSelected(allSelected ? [] : scouts.map((scout) => scout.id));
   const toggleScout = (id: string) =>
     setSelected((current) =>
@@ -394,10 +407,21 @@ export function AdminAppNotifications() {
             </h2>
             <p className="text-sm text-muted-foreground">
               L’application est comptée après une première ouverture installée. Les notifications
-              sont indiquées par appareil.
+              push sont listées par scout et par appareil. {pushEnabledScouts.length} scout
+              {pushEnabledScouts.length === 1 ? " a" : "s ont"} activé les push sur{" "}
+              {enabledPushDevices} appareil
+              {enabledPushDevices === 1 ? "." : "s."}
             </p>
           </div>
         </div>
+        {statusError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            {statusError}
+          </p>
+        )}
         {statusLoading ? (
           <p className="text-sm text-muted-foreground">Chargement…</p>
         ) : (
@@ -424,6 +448,22 @@ export function AdminAppNotifications() {
                       {scout.notifications_enabled
                         ? `Activées · ${scout.push_device_count} appareil${scout.push_device_count > 1 ? "s" : ""}`
                         : "Désactivées"}
+                      {scout.notifications_enabled && scout.platforms.length > 0 && (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          App :{" "}
+                          {scout.platforms
+                            .map(
+                              (platform) =>
+                                ({
+                                  ios: "iPhone/iPad",
+                                  android: "Android",
+                                  desktop: "Ordinateur",
+                                  other: "Autre appareil",
+                                })[platform] ?? platform,
+                            )
+                            .join(", ")}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-muted-foreground">
                       {scout.last_seen_at

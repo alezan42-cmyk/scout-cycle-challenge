@@ -46,12 +46,6 @@ type ApprovedActivity = {
   created_at: string | null;
 };
 
-type PublicProfileName = {
-  id: string | null;
-  full_name: string | null;
-  totem: string | null;
-};
-
 const TIMELINE_PAGE_SIZE = 1000;
 const DISTANCE_MILESTONE_KM = 1000;
 
@@ -64,6 +58,7 @@ async function fetchAllApprovedActivities(): Promise<ApprovedActivity[]> {
       .eq("status", "approved")
       .order("ride_date", { ascending: true })
       .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(from, from + TIMELINE_PAGE_SIZE - 1);
     if (error) throw error;
     const page = (data ?? []) as ApprovedActivity[];
@@ -72,21 +67,13 @@ async function fetchAllApprovedActivities(): Promise<ApprovedActivity[]> {
   }
 }
 
-function buildDistanceMilestones(
-  activities: ApprovedActivity[],
-  profiles: PublicProfileName[],
-): TimelineEvent[] {
-  const names = new Map(
-    profiles
-      .filter((profile): profile is PublicProfileName & { id: string } => Boolean(profile.id))
-      .map((profile) => [profile.id, profile.totem || profile.full_name || "Un scout"]),
-  );
-  const totals = new Map<string, number>();
+function buildDistanceMilestones(activities: ApprovedActivity[]): TimelineEvent[] {
   const events: TimelineEvent[] = [];
+  let total = 0;
 
   for (const activity of activities) {
-    if (!activity.user_id || !activity.ride_date || !activity.km || activity.km <= 0) continue;
-    const previous = totals.get(activity.user_id) ?? 0;
+    if (!activity.ride_date || !activity.km || activity.km <= 0) continue;
+    const previous = total;
     const next = previous + activity.km;
     const firstMilestone = Math.floor(previous / DISTANCE_MILESTONE_KM) + 1;
     const lastMilestone = Math.floor(next / DISTANCE_MILESTONE_KM);
@@ -95,18 +82,18 @@ function buildDistanceMilestones(
       const [yearText] = activity.ride_date.split("-");
       const year = Number(yearText);
       events.push({
-        id: `distance-milestone:${activity.user_id}:${reachedKm}`,
+        id: `troop-distance-milestone:${reachedKm}`,
         year,
         date_str: activity.ride_date,
-        title: `${names.get(activity.user_id) ?? "Un scout"} franchit ${reachedKm.toLocaleString("fr-FR")} km`,
-        description: `Un nouveau palier de ${reachedKm.toLocaleString("fr-FR")} km cumulés est atteint grâce à cette sortie validée.`,
+        title: `La troupe franchit ${reachedKm.toLocaleString("fr-FR")} km`,
+        description: `Les sorties validées de toute la troupe atteignent ${reachedKm.toLocaleString("fr-FR")} km cumulés.`,
         image_url: null,
         drive_url: null,
-        tag: "Palier de distance",
+        tag: "Palier de la troupe",
         automatic: true,
       });
     }
-    totals.set(activity.user_id, next);
+    total = next;
   }
 
   return events;
@@ -153,20 +140,16 @@ function TimelinePage() {
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data, error }, activities, { data: profiles, error: profilesError }] =
-        await Promise.all([
-          supabase.from("timeline").select("*").order("date_str", { ascending: false }),
-          fetchAllApprovedActivities(),
-          supabase.from("profiles_public").select("id,full_name,totem"),
-        ]);
+      const [{ data, error }, activities] = await Promise.all([
+        supabase.from("timeline").select("*").order("date_str", { ascending: false }),
+        fetchAllApprovedActivities(),
+      ]);
 
       if (error) throw error;
-      if (profilesError) throw profilesError;
       setEvents(
-        [
-          ...buildDistanceMilestones(activities, (profiles ?? []) as PublicProfileName[]),
-          ...((data ?? []) as TimelineEvent[]),
-        ].sort((a, b) => b.date_str.localeCompare(a.date_str)),
+        [...buildDistanceMilestones(activities), ...((data ?? []) as TimelineEvent[])].sort(
+          (a, b) => b.date_str.localeCompare(a.date_str),
+        ),
       );
     } catch (err) {
       console.warn("Erreur réseau timeline :", err);
