@@ -179,20 +179,38 @@ Deno.serve(async (request) => {
       : json({ ok: true });
   }
   if (body.action === "admin-status") {
-    const { data: role } = await admin
-      .from("user_roles")
-      .select("user_id")
-      .eq("user_id", authData.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!role) return json({ error: "Accès réservé au staff" }, 403);
+    const isMasterAdmin = authData.user.email?.toLowerCase() === "baudeletgauthier@gmail.com";
+    if (!isMasterAdmin) {
+      const [roleResult, profileResult] = await Promise.all([
+        admin
+          .from("user_roles")
+          .select("user_id")
+          .eq("user_id", authData.user.id)
+          .eq("role", "admin")
+          .maybeSingle(),
+        admin.from("profiles").select("is_admin").eq("id", authData.user.id).maybeSingle(),
+      ]);
+      const roleError = roleResult.error ?? profileResult.error;
+      if (roleError) {
+        console.error("Vérification du rôle admin impossible", roleError);
+        return json({ error: `Vérification du rôle admin impossible : ${roleError.message}` }, 500);
+      }
+      if (!roleResult.data && !profileResult.data?.is_admin)
+        return json({ error: "Accès réservé au staff" }, 403);
+    }
     const [profilesResult, installationsResult, subscriptionsResult] = await Promise.all([
       admin.from("profiles").select("id,full_name,totem").order("full_name"),
       admin.from("app_installations").select("user_id,platform,last_seen_at"),
       admin.from("app_push_subscriptions").select("user_id,updated_at"),
     ]);
-    if (profilesResult.error || installationsResult.error || subscriptionsResult.error)
-      return json({ error: "Impossible de charger l’état de l’application" }, 500);
+    if (profilesResult.error || installationsResult.error || subscriptionsResult.error) {
+      const cause = profilesResult.error ?? installationsResult.error ?? subscriptionsResult.error;
+      console.error("Chargement du statut de l’application impossible", cause);
+      return json(
+        { error: `Impossible de charger l’état de l’application : ${cause.message}` },
+        500,
+      );
+    }
     const installations = installationsResult.data ?? [];
     const subscriptions = subscriptionsResult.data ?? [];
     return json({
