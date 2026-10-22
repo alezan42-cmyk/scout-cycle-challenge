@@ -72,6 +72,15 @@ export function AppNotifications() {
   }, []);
 
   useEffect(() => {
+    const openNotifications = () => {
+      setOpen(true);
+      setMessage("");
+    };
+    window.addEventListener("alezan:open-app-notifications", openNotifications);
+    return () => window.removeEventListener("alezan:open-app-notifications", openNotifications);
+  }, []);
+
+  useEffect(() => {
     if (!standalone || !user?.id) return;
     let installationId = "";
     try {
@@ -252,9 +261,9 @@ export function AppNotifications() {
               Des nouvelles de la troupe, sans spam
             </DialogTitle>
             <DialogDescription>
-              Reçois le rappel du dimanche, les paliers de kilomètres et quelques nouvelles ou
-              encouragements. Pas d’alertes quotidiennes : l’équipe peut aussi désactiver le rappel
-              hebdomadaire.
+              Reçois seulement les nouvelles utiles : sorties, défis, paliers de kilomètres et
+              encouragements. Pas de messages en série ni d’alertes quotidiennes ; le rappel du
+              dimanche peut aussi être désactivé par l’équipe.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -325,7 +334,8 @@ export function AppNotifications() {
                 <BellRing className="h-4 w-4 text-primary" /> Notifications push
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Reçois les rappels et les nouveautés même lorsque l’application est fermée.
+                Quelques nouvelles utiles de la troupe, même lorsque l’application est fermée. Pas
+                de spam ni d’alertes quotidiennes.
               </p>
               <Button
                 type="button"
