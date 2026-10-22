@@ -20,10 +20,20 @@ export function AppInstallGuide() {
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [open, setOpen] = useState(false);
-  const [standalone, setStandalone] = useState(false);
+  const [standalone, setStandalone] = useState<boolean | null>(null);
+  const [notificationsActive, setNotificationsActive] = useState<boolean | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
 
   useEffect(() => setStandalone(isStandalone()), []);
+
+  useEffect(() => {
+    const updatePushStatus = (event: Event) => {
+      const enabled = (event as CustomEvent<{ enabled?: unknown }>).detail?.enabled;
+      if (typeof enabled === "boolean") setNotificationsActive(enabled);
+    };
+    window.addEventListener("alezan:push-status", updatePushStatus);
+    return () => window.removeEventListener("alezan:push-status", updatePushStatus);
+  }, []);
 
   useEffect(() => {
     const handlePrompt = (event: Event) => {
@@ -35,7 +45,7 @@ export function AppInstallGuide() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || standalone === null || (standalone && notificationsActive !== false)) {
       setVisible(false);
       return;
     }
@@ -48,7 +58,7 @@ export function AppInstallGuide() {
     } catch {
       setVisible(true);
     }
-  }, [standalone, user?.id]);
+  }, [notificationsActive, standalone, user?.id]);
 
   const dismiss = () => {
     if (user?.id) {

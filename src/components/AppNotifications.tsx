@@ -21,6 +21,10 @@ type AppNotification = {
   read_at: string | null;
 };
 
+function announcePushStatus(enabled: boolean) {
+  window.dispatchEvent(new CustomEvent("alezan:push-status", { detail: { enabled } }));
+}
+
 function base64UrlToBytes(value: string) {
   const padded = (value + "===".slice((value.length + 3) % 4))
     .replace(/-/g, "+")
@@ -155,13 +159,17 @@ export function AppNotifications() {
       .then(async (registration) => {
         const subscription = await registration.pushManager.getSubscription();
         setPushEnabled(!!subscription);
+        announcePushStatus(!!subscription);
         if (subscription) {
           await supabase.functions.invoke("app-notifications", {
             body: { action: "subscribe", subscription: subscription.toJSON() },
           });
         }
       })
-      .catch(() => setPushEnabled(false));
+      .catch(() => {
+        setPushEnabled(false);
+        announcePushStatus(false);
+      });
   }, [standalone, user?.id]);
 
   const enablePush = async () => {
@@ -192,6 +200,7 @@ export function AppNotifications() {
       });
       if (error) throw new Error("Impossible d’activer les notifications. Réessaie plus tard.");
       setPushEnabled(true);
+      announcePushStatus(true);
       setMessage("Les notifications sont activées sur cet appareil.");
       setOptInOpen(false);
     } catch (error) {
@@ -214,6 +223,7 @@ export function AppNotifications() {
         await subscription.unsubscribe();
       }
       setPushEnabled(false);
+      announcePushStatus(false);
       setMessage("Les notifications sont désactivées sur cet appareil.");
       snoozeOptIn();
     } finally {
