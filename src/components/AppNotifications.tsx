@@ -21,6 +21,10 @@ type AppNotification = {
   read_at: string | null;
 };
 
+function announcePushStatus(enabled: boolean) {
+  window.dispatchEvent(new CustomEvent("alezan:push-status", { detail: { enabled } }));
+}
+
 function base64UrlToBytes(value: string) {
   const padded = (value + "===".slice((value.length + 3) % 4))
     .replace(/-/g, "+")
@@ -69,6 +73,15 @@ export function AppNotifications() {
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     setStandalone(isApp);
+  }, []);
+
+  useEffect(() => {
+    const openNotifications = () => {
+      setOpen(true);
+      setMessage("");
+    };
+    window.addEventListener("alezan:open-app-notifications", openNotifications);
+    return () => window.removeEventListener("alezan:open-app-notifications", openNotifications);
   }, []);
 
   useEffect(() => {
@@ -146,13 +159,17 @@ export function AppNotifications() {
       .then(async (registration) => {
         const subscription = await registration.pushManager.getSubscription();
         setPushEnabled(!!subscription);
+        announcePushStatus(!!subscription);
         if (subscription) {
           await supabase.functions.invoke("app-notifications", {
             body: { action: "subscribe", subscription: subscription.toJSON() },
           });
         }
       })
-      .catch(() => setPushEnabled(false));
+      .catch(() => {
+        setPushEnabled(false);
+        announcePushStatus(false);
+      });
   }, [standalone, user?.id]);
 
   const enablePush = async () => {
@@ -183,6 +200,7 @@ export function AppNotifications() {
       });
       if (error) throw new Error("Impossible d’activer les notifications. Réessaie plus tard.");
       setPushEnabled(true);
+      announcePushStatus(true);
       setMessage("Les notifications sont activées sur cet appareil.");
       setOptInOpen(false);
     } catch (error) {
@@ -205,6 +223,7 @@ export function AppNotifications() {
         await subscription.unsubscribe();
       }
       setPushEnabled(false);
+      announcePushStatus(false);
       setMessage("Les notifications sont désactivées sur cet appareil.");
       snoozeOptIn();
     } finally {
@@ -252,9 +271,9 @@ export function AppNotifications() {
               Des nouvelles de la troupe, sans spam
             </DialogTitle>
             <DialogDescription>
-              Reçois le rappel du dimanche, les paliers de kilomètres et quelques nouvelles ou
-              encouragements. Pas d’alertes quotidiennes : l’équipe peut aussi désactiver le rappel
-              hebdomadaire.
+              Reçois seulement les nouvelles utiles : sorties, défis, paliers de kilomètres et
+              encouragements. Pas de messages en série ni d’alertes quotidiennes ; le rappel du
+              dimanche peut aussi être désactivé par l’équipe.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -325,7 +344,8 @@ export function AppNotifications() {
                 <BellRing className="h-4 w-4 text-primary" /> Notifications push
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Reçois les rappels et les nouveautés même lorsque l’application est fermée.
+                Quelques nouvelles utiles de la troupe, même lorsque l’application est fermée. Pas
+                de spam ni d’alertes quotidiennes.
               </p>
               <Button
                 type="button"

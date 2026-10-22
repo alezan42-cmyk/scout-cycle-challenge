@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Download, Smartphone, X } from "lucide-react";
+import { BellRing, Download, Smartphone, X } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
+import { isStandalone } from "@/lib/standalone";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,11 +20,20 @@ export function AppInstallGuide() {
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [open, setOpen] = useState(false);
+  const [standalone, setStandalone] = useState<boolean | null>(null);
+  const [notificationsActive, setNotificationsActive] = useState<boolean | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
-  const isStandalone =
-    typeof window !== "undefined" &&
-    (window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+  useEffect(() => setStandalone(isStandalone()), []);
+
+  useEffect(() => {
+    const updatePushStatus = (event: Event) => {
+      const enabled = (event as CustomEvent<{ enabled?: unknown }>).detail?.enabled;
+      if (typeof enabled === "boolean") setNotificationsActive(enabled);
+    };
+    window.addEventListener("alezan:push-status", updatePushStatus);
+    return () => window.removeEventListener("alezan:push-status", updatePushStatus);
+  }, []);
 
   useEffect(() => {
     const handlePrompt = (event: Event) => {
@@ -35,22 +45,28 @@ export function AppInstallGuide() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id || isStandalone) {
+    if (!user?.id || standalone === null || (standalone && notificationsActive !== false)) {
       setVisible(false);
       return;
     }
     try {
-      const dismissed = Number(localStorage.getItem(`app-install-guide-dismissed:${user.id}`) ?? 0);
+      const dismissed = Number(
+        localStorage.getItem(`app-promotion-dismissed:${user.id}:${standalone ? "app" : "site"}`) ??
+          0,
+      );
       setVisible(!dismissed || Date.now() - dismissed > 30 * 24 * 60 * 60 * 1000);
     } catch {
       setVisible(true);
     }
-  }, [isStandalone, user?.id]);
+  }, [notificationsActive, standalone, user?.id]);
 
   const dismiss = () => {
     if (user?.id) {
       try {
-        localStorage.setItem(`app-install-guide-dismissed:${user.id}`, String(Date.now()));
+        localStorage.setItem(
+          `app-promotion-dismissed:${user.id}:${standalone ? "app" : "site"}`,
+          String(Date.now()),
+        );
       } catch {
         // L’invitation reste masquée jusqu’au prochain chargement.
       }
@@ -73,30 +89,47 @@ export function AppInstallGuide() {
   if (!visible || !user) return null;
   return (
     <>
-      <aside className="fixed bottom-4 left-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border bg-card p-4 shadow-xl sm:bottom-6 sm:left-6">
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <Smartphone className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold">Emporte Alezan 42 avec toi</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ajoute l’application à ton écran d’accueil pour la retrouver facilement.
-            </p>
-          </div>
+      <aside className="mx-auto w-full max-w-6xl px-3 pt-3 md:hidden">
+        <div className="relative rounded-2xl border border-primary/20 bg-card p-3 shadow-sm">
           <button
             type="button"
-            aria-label="Fermer"
+            aria-label="Masquer ce conseil pendant 30 jours"
             onClick={dismiss}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            className="absolute right-2 top-2 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
           >
             <X className="h-4 w-4" />
           </button>
+          <div className="flex items-start gap-3 pr-7">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+              {standalone ? <BellRing className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {standalone
+                  ? "Reste au courant, sans spam"
+                  : "L’app Alezan 42, toujours à portée de main"}
+              </p>
+              <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                {standalone
+                  ? "Quelques nouvelles utiles sur les sorties, défis et paliers — pas d’alertes abusives."
+                  : "Installe l’app et active les notifications : des nouvelles utiles sur les sorties, défis et paliers, sans spam."}
+              </p>
+            </div>
+          </div>
+          <Button
+            className="mt-3 w-full"
+            onClick={() => {
+              if (standalone) {
+                window.dispatchEvent(new Event("alezan:open-app-notifications"));
+              } else {
+                setOpen(true);
+              }
+            }}
+          >
+            {standalone ? <BellRing className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            {standalone ? "Voir / activer les notifications" : "Voir le guide d’installation"}
+          </Button>
         </div>
-        <Button className="mt-3 w-full" onClick={() => void install()}>
-          <Download className="h-4 w-4" />
-          Installer / voir le guide
-        </Button>
       </aside>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
@@ -149,10 +182,16 @@ export function AppInstallGuide() {
               automatiquement.
             </p>
           </div>
-          <div className="flex justify-end">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="outline" onClick={dismiss}>
               Compris
             </Button>
+            {!standalone && installPrompt && (
+              <Button onClick={() => void install()}>
+                <Download className="h-4 w-4" />
+                Installer maintenant
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
