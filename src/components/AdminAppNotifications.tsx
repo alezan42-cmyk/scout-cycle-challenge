@@ -111,9 +111,18 @@ export function AdminAppNotifications() {
       { body: { action: "admin-status" } },
     );
     if (statusInvokeError || statusData?.error) {
-      const message = statusData?.error || statusInvokeError?.message || "Erreur inconnue";
+      let message = statusData?.error || statusInvokeError?.message || "Erreur inconnue";
+      const errorResponse = (statusInvokeError as { context?: unknown } | null)?.context;
+      if (errorResponse instanceof Response) {
+        try {
+          const errorBody = await errorResponse.clone().json();
+          if (typeof errorBody?.error === "string") message = errorBody.error;
+        } catch {
+          // Le détail HTTP peut ne pas être renvoyé en JSON.
+        }
+      }
       setStatusError(
-        `État indisponible : ${message}. Vérifie le déploiement de la fonction Edge « app-notifications » et les migrations des notifications.`,
+        `État indisponible : ${message}. Si l’erreur persiste, redéploie la fonction Edge « app-notifications » et vérifie les migrations des notifications.`,
       );
       toast.error("Impossible de charger qui a activé les notifications.");
     }
