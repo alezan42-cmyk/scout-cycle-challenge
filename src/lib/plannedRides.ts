@@ -287,3 +287,52 @@ export function downloadIcs(ride: PlannedRide) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// ---------- Groupe WhatsApp des sorties (lien réservé aux membres) ----------
+
+export function useWhatsappGroupLink(enabled: boolean) {
+  return useQuery<string | null>({
+    queryKey: ["member-link", "whatsapp_sorties"],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("member_links")
+        .select("url")
+        .eq("key", "whatsapp_sorties")
+        .maybeSingle();
+      if (error) return null;
+      return (data as { url: string } | null)?.url ?? null;
+    },
+  });
+}
+
+export const isWhatsappInvite = (url: string) =>
+  /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/\S+$/i.test(url.trim());
+
+export function useSaveWhatsappGroupLink(userId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (url: string | null) => {
+      if (!url) {
+        const { error } = await supabase
+          .from("member_links")
+          .delete()
+          .eq("key", "whatsapp_sorties");
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("member_links").upsert(
+        {
+          key: "whatsapp_sorties",
+          url: url.trim(),
+          updated_by: userId ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      );
+      if (error) throw error;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["member-link", "whatsapp_sorties"] }),
+  });
+}

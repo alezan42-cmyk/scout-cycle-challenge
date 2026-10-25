@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PlannedRideForm } from "@/components/PlannedRideForm";
+import { WhatsAppGroupCard } from "@/components/WhatsAppGroupCard";
 import { SportBadge, SportIcon } from "@/components/SportIcon";
 import { useAuth } from "@/lib/useAuth";
 import { SPORT_INFO, type ActivitySport } from "@/lib/database";
@@ -167,6 +168,8 @@ function PlannedRidesPage() {
             </Button>
           </div>
         )}
+
+        <WhatsAppGroupCard userId={user?.id} isAdmin={isAdmin} />
 
         {/* Filtres */}
         <div className="flex flex-wrap items-center gap-2">
