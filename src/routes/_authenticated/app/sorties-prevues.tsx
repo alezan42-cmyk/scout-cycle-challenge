@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { AppPageShell } from "@/components/AppPageShell";
 import { AppCard, AppEmpty, Segmented } from "@/components/app/AppUi";
 import { PlannedRideForm } from "@/components/PlannedRideForm";
+import { WhatsAppGroupCard } from "@/components/WhatsAppGroupCard";
 import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/useAuth";
@@ -91,6 +92,8 @@ function PlannedRidesScreen() {
         </button>
       }
     >
+      <WhatsAppGroupCard userId={user?.id} isAdmin={isAdmin} variant="app" />
+
       <Segmented
         value={tab}
         onChange={setTab}
