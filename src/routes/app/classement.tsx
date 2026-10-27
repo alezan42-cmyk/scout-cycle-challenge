@@ -17,6 +17,7 @@ import {
 } from "@/lib/appData";
 import { getPatrolEmblem, SPORT_INFO } from "@/lib/database";
 import { cn } from "@/lib/utils";
+import { RankingStoryExport } from "@/components/RankingStoryExport";
 
 export const Route = createFileRoute("/app/classement")({ ssr: false, component: RankingScreen });
 
@@ -65,6 +66,9 @@ function RankingScreen() {
   return (
     <AppPageShell root title="Classement">
       <div className="space-y-3">
+        <div className="flex justify-end">
+          <RankingStoryExport />
+        </div>
         <Segmented
           value={view}
           onChange={setView}

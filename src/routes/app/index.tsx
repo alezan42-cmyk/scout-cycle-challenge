@@ -30,6 +30,7 @@ import { getNextDistanceTrophy } from "@/lib/distanceTrophies";
 import { getActivitySport, getPatrolEmblem, SPORT_INFO } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { ExpeditionGoal } from "@/components/ExpeditionGoal";
+import { WeeklyStreakCard } from "@/components/WeeklyStreakCard";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import hero from "@/assets/hero.jpg";
 
@@ -150,6 +151,13 @@ function AppHome() {
               Enregistrer une sortie
             </Link>
           </AppCard>
+
+          <WeeklyStreakCard
+            rideDates={(mine.data ?? [])
+              .filter((activity) => activity.status === "approved")
+              .map((activity) => activity.ride_date)}
+            compact
+          />
 
           {/* Prochain trophée */}
           {nextTrophy && (
