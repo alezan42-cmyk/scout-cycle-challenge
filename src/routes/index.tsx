@@ -59,6 +59,8 @@ import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
 import type { DistanceActivity } from "@/lib/distanceTrophies";
+import { WeeklyStreakCard } from "@/components/WeeklyStreakCard";
+import { RankingStoryExport } from "@/components/RankingStoryExport";
 import {
   Dialog,
   DialogContent,
@@ -199,17 +201,19 @@ function Index() {
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
 
-  const { data: myApprovedActivities = [] } = useQuery<DistanceActivity[]>({
+  const { data: myApprovedActivities = [] } = useQuery<
+    Array<DistanceActivity & { ride_date: string }>
+  >({
     queryKey: ["my-approved-activities-for-trophies", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("activities_public")
-        .select("km,note,status")
+        .select("km,note,status,ride_date")
         .eq("user_id", user!.id)
         .eq("status", "approved");
       if (error) throw error;
-      return (data || []) as unknown as DistanceActivity[];
+      return (data || []) as unknown as Array<DistanceActivity & { ride_date: string }>;
     },
   });
 
@@ -749,6 +753,12 @@ function Index() {
             {user && (
               <div className="mt-4 max-w-md">
                 <NearestDistanceTrophy activities={myApprovedActivities} compact />
+                <div className="mt-3">
+                  <WeeklyStreakCard
+                    rideDates={myApprovedActivities.map((activity) => activity.ride_date)}
+                    compact
+                  />
+                </div>
               </div>
             )}
 
@@ -1127,6 +1137,9 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
+        <div className="flex justify-end">
+          <RankingStoryExport />
+        </div>
         <div id="maillots" className="scroll-mt-6">
           <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
         </div>
