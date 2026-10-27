@@ -1137,9 +1137,11 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
-        <div className="flex justify-end">
-          <RankingStoryExport />
-        </div>
+        {profile?.is_chef && (
+          <div className="flex justify-end">
+            <RankingStoryExport />
+          </div>
+        )}
         <div id="maillots" className="scroll-mt-6">
           <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
         </div>

@@ -66,9 +66,11 @@ function RankingScreen() {
   return (
     <AppPageShell root title="Classement">
       <div className="space-y-3">
-        <div className="flex justify-end">
-          <RankingStoryExport />
-        </div>
+        {profile?.is_chef && (
+          <div className="flex justify-end">
+            <RankingStoryExport />
+          </div>
+        )}
         <Segmented
           value={view}
           onChange={setView}
