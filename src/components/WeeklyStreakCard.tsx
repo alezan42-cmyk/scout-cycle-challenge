@@ -1,5 +1,5 @@
 import { Flame } from "lucide-react";
-import { getWeeklyStreak } from "@/lib/weeklyStreak";
+import { getActivityStreak } from "@/lib/weeklyStreak";
 import { cn } from "@/lib/utils";
 
 export function WeeklyStreakCard({
@@ -9,7 +9,7 @@ export function WeeklyStreakCard({
   rideDates: string[];
   compact?: boolean;
 }) {
-  const streak = getWeeklyStreak(rideDates);
+  const streak = getActivityStreak(rideDates);
   return (
     <div
       className={cn(
@@ -22,13 +22,13 @@ export function WeeklyStreakCard({
       </span>
       <div className="min-w-0">
         <p className="font-display text-[15px] font-bold">
-          {streak.weeks > 0
-            ? `${streak.weeks} semaine${streak.weeks > 1 ? "s" : ""} de série AC42`
+          {streak.activities > 0
+            ? `${streak.activities} activité${streak.activities > 1 ? "s" : ""} dans ta série AC42`
             : "Lance ta série AC42 !"}
         </p>
         <p className="text-[12px] text-orange-900/75 dark:text-orange-100/70">
-          {streak.weeks > 0
-            ? "Enregistre une sortie validée avant 5 jours d’inactivité pour la garder."
+          {streak.activities > 0
+            ? "Chaque sortie validée augmente le compteur. Après 5 jours sans activité, il revient à zéro."
             : "Une sortie validée relance ta série. Elle s’arrête après 5 jours sans activité."}
         </p>
       </div>
