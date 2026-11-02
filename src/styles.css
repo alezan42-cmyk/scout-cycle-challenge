@@ -1383,3 +1383,40 @@ body:has(.app-sheet[data-state="open"]) .app-tabbar {
     transition-duration: 0ms !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   Zones à toucher ≥ 44 px dans l'app (skill apple-design §10)
+   La zone sensible dépasse le dessin, sans changer l'apparence.
+   ------------------------------------------------------------------ */
+.app-standalone .app-hit,
+.app-standalone .app-section-action :is(a, button) {
+  position: relative;
+}
+.app-standalone .app-hit::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
+}
+.app-standalone .app-section-action :is(a, button)::after {
+  content: "";
+  position: absolute;
+  inset: -14px -10px;
+}
+.app-standalone .app-hit.absolute {
+  position: absolute;
+}
+.app-standalone .app-hit.absolute::after {
+  inset: -8px;
+}
+.app-standalone .app-cta {
+  min-height: 44px;
+}
+
+/* Mouvement réduit : pas de pulsation ni de clignotement dans l'app (§14) */
+@media (prefers-reduced-motion: reduce) {
+  .app-standalone .animate-pulse,
+  .app-standalone .animate-ping,
+  .app-standalone .animate-bounce {
+    animation: none;
+  }
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { Bell, BellRing, CheckCheck, ExternalLink, LoaderCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/useAuth";
@@ -35,6 +36,8 @@ function base64UrlToBytes(value: string) {
 
 export function AppNotifications() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const onAppHome = pathname === "/app" || pathname === "/app/";
   const [standalone, setStandalone] = useState(false);
   const [open, setOpen] = useState(false);
   const [optInOpen, setOptInOpen] = useState(false);
@@ -110,7 +113,13 @@ export function AppNotifications() {
   }, [standalone, user?.id]);
 
   useEffect(() => {
-    if (!standalone || !user?.id || !("Notification" in window) || !("serviceWorker" in navigator))
+    if (
+      !standalone ||
+      !onAppHome ||
+      !user?.id ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator)
+    )
       return;
     if (Notification.permission === "denied") return;
     const dismissedKey = `app-push-opt-in-dismissed:${user.id}`;
@@ -130,7 +139,7 @@ export function AppNotifications() {
     return () => {
       active = false;
     };
-  }, [pushEnabled, standalone, user?.id]);
+  }, [onAppHome, pushEnabled, standalone, user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -292,25 +301,27 @@ export function AppNotifications() {
           )}
         </DialogContent>
       </Dialog>
-      <Button
-        type="button"
-        size="icon"
-        variant="secondary"
-        aria-label={`Notifications${unread ? `, ${unread} non lue(s)` : ""}`}
-        className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] h-11 w-11 rounded-full border border-white/30 text-white shadow-lg"
-        style={{ backgroundColor: "var(--header)" }}
-        onClick={() => {
-          setOpen(true);
-          setMessage("");
-        }}
-      >
-        {unread ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
-        {unread > 0 && (
-          <Badge className="absolute -right-1 -top-1 h-5 min-w-5 justify-center rounded-full border border-white/70 bg-white px-1 text-[10px] text-[var(--header)]">
-            {unread > 9 ? "9+" : unread}
-          </Badge>
-        )}
-      </Button>
+      {(onAppHome || unread > 0) && (
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          aria-label={`Notifications${unread ? `, ${unread} non lue(s)` : ""}`}
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] h-11 w-11 rounded-full border border-white/30 text-white shadow-lg"
+          style={{ backgroundColor: "var(--header)" }}
+          onClick={() => {
+            setOpen(true);
+            setMessage("");
+          }}
+        >
+          {unread ? <BellRing className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+          {unread > 0 && (
+            <Badge className="absolute -right-1 -top-1 h-5 min-w-5 justify-center rounded-full border border-white/70 bg-white px-1 text-[10px] text-[var(--header)]">
+              {unread > 9 ? "9+" : unread}
+            </Badge>
+          )}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className="max-h-[85dvh] overflow-hidden p-0 sm:max-w-lg"

@@ -60,7 +60,13 @@ export function CorrectionNotice({ userId, onSeen }: { userId?: string; onSeen?:
             Les km doivent correspondre à ta preuve (Strava ou photo). Une question ? Parles-en à un
             chef.
           </p>
-          <Button size="sm" variant="outline" onClick={dismiss} disabled={busy} className="mt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={dismiss}
+            disabled={busy}
+            className="app-hit mt-1"
+          >
             {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             J&apos;ai compris
           </Button>

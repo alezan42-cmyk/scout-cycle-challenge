@@ -80,12 +80,12 @@ export function AppPageShell({
   return (
     <main className="app-screen min-h-screen bg-background">
       <div className="mx-auto max-w-xl px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
-        <div className={cn("flex h-10 items-center justify-between", root && "h-2")}>
+        <div className={cn("flex h-11 items-center justify-between", root && "h-2")}>
           {!root && (
             <button
               type="button"
               onClick={goBack}
-              className="-ml-2 inline-flex h-10 items-center gap-0.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-primary active:bg-primary/10"
+              className="-ml-2 inline-flex h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[15px] font-semibold text-primary active:bg-primary/10"
             >
               <ChevronLeft className="h-6 w-6" strokeWidth={2.2} />
               Retour

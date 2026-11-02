@@ -20,7 +20,7 @@ export function AppSection({
       {(title || action) && (
         <div className="flex items-baseline justify-between gap-3 px-1">
           {title && <h2 className="app-section-title text-foreground">{title}</h2>}
-          {action && <div className="shrink-0 whitespace-nowrap">{action}</div>}
+          {action && <div className="app-section-action shrink-0 whitespace-nowrap">{action}</div>}
         </div>
       )}
       {children}
@@ -155,7 +155,7 @@ export function Segmented<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-2 text-[14px] font-semibold transition-all",
+            "flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-[14px] font-semibold transition-all",
             value === o.value
               ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.12)]"
               : "text-muted-foreground",
@@ -179,7 +179,7 @@ export function ChipRow<T extends string>({
   options: { value: T; label: ReactNode }[];
 }) {
   return (
-    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="-mx-5 -my-1 flex gap-2 overflow-x-auto px-5 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((o) => (
         <button
           key={o.value}
@@ -187,7 +187,7 @@ export function ChipRow<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold transition-colors",
+            "app-hit inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold transition-colors",
             value === o.value
               ? "border-foreground bg-foreground text-background"
               : "border-border bg-card text-foreground",
@@ -246,7 +246,7 @@ export function TextTabs<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "-mb-px border-b-2 pb-2.5 pt-1 text-[15px] font-semibold transition-colors",
+            "-mb-px min-h-11 border-b-2 pb-2.5 pt-2 text-[15px] font-semibold transition-colors",
             value === o.value
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground",

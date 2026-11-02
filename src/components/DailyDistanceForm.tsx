@@ -802,7 +802,7 @@ export function DailyDistanceForm({
       (selectedChallengeId ? 1 : 0);
     const pill = (active: boolean) =>
       cn(
-        "h-10 flex-1 rounded-xl text-[14px] font-semibold transition-all",
+        "h-11 flex-1 rounded-xl text-[14px] font-semibold transition-all",
         active
           ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.12)]"
           : "text-muted-foreground",
@@ -873,7 +873,7 @@ export function DailyDistanceForm({
                 type="button"
                 onClick={() => handleSetDistance(preset)}
                 className={cn(
-                  "h-10 rounded-full border text-[14px] font-semibold",
+                  "h-11 rounded-full border text-[14px] font-semibold",
                   Number(distanceKm) === preset
                     ? "border-foreground bg-foreground text-background"
                     : "border-border bg-background text-foreground",

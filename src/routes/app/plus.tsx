@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Award,
+  Bell,
   CalendarClock,
   CalendarDays,
   CircleUserRound,
@@ -117,6 +118,13 @@ function MoreScreen() {
       {user && (
         <AppSection title="Moi">
           <AppList>
+            <AppListRow
+              icon={Bell}
+              iconClassName="bg-primary/12 text-primary"
+              title="Notifications"
+              subtitle="Messages de la troupe, activer les alertes"
+              onClick={() => window.dispatchEvent(new Event("alezan:open-app-notifications"))}
+            />
             <AppListRow
               to="/app/trophees"
               icon={Medal}
