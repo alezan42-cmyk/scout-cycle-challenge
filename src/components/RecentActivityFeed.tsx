@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bike,
   Clock,
@@ -113,6 +113,9 @@ export function RecentActivityFeed({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  // Le point « Direct » ne pulse que quelques secondes quand une nouvelle sortie arrive
+  const [justArrived, setJustArrived] = useState(false);
+  const newestIdRef = useRef<string | null>(null);
 
   const handleQuickApprove = async (activityId: string) => {
     const { error } = await approveActivity(activityId);
@@ -254,6 +257,16 @@ export function RecentActivityFeed({
   );
 
   useEffect(() => {
+    const newest = activities[0]?.id ?? null;
+    const previous = newestIdRef.current;
+    newestIdRef.current = newest;
+    if (!previous || !newest || previous === newest) return;
+    setJustArrived(true);
+    const t = window.setTimeout(() => setJustArrived(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [activities]);
+
+  useEffect(() => {
     fetchActivities();
     return db.subscribe(() => fetchActivities(false));
   }, [fetchActivities]);
@@ -275,7 +288,12 @@ export function RecentActivityFeed({
               <CardTitle className="font-display text-lg font-bold flex items-center gap-2">
                 <span>{title}</span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full bg-emerald-500",
+                      justArrived && "animate-pulse",
+                    )}
+                  />
                   Direct
                 </span>
               </CardTitle>

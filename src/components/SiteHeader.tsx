@@ -28,6 +28,8 @@ import { APP_MAX_WIDTH, isAppMode } from "@/lib/standalone";
 interface NavItem {
   to: string;
   label: string;
+  /** Nom plus court pour le menu du haut sur ordinateur */
+  shortLabel?: string;
   description: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   requiresAuth?: boolean;
@@ -108,6 +110,7 @@ export function SiteHeader() {
     {
       to: "/sorties-prevues",
       label: "Sorties prévues",
+      shortLabel: "Sorties",
       description: "Proposer une sortie de groupe et s'inscrire",
       icon: CalendarClock,
       requiresAuth: true,
@@ -200,7 +203,7 @@ export function SiteHeader() {
           </Link>
 
           {/* ============================================================== */}
-          {/* NAVIGATION ORDINATEUR : icônes aux couleurs du thème, libellé déplié au survol */}
+          {/* NAVIGATION ORDINATEUR : icône + nom sur grand écran, nom déplié au survol sur tablette */}
           {/* ============================================================== */}
           <nav className="hidden md:flex items-center gap-2">
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1">
@@ -216,7 +219,7 @@ export function SiteHeader() {
                     aria-label={item.label}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "group relative flex h-9 items-center rounded-lg px-2.5 text-[13px] font-semibold transition-all duration-300",
+                      "group relative flex h-9 items-center rounded-lg px-2.5 text-[13px] font-semibold transition-all duration-300 xl:px-1.5",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                       isActive
                         ? "bg-[var(--nav-active)] text-[var(--nav-active-foreground)] shadow-sm"
@@ -227,9 +230,9 @@ export function SiteHeader() {
                       className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
                       strokeWidth={1.75}
                     />
-                    {/* Libellé replié, il se déplie au survol (ou au focus clavier) */}
-                    <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-out group-hover:max-w-[120px] group-hover:pl-2 group-hover:opacity-100 group-focus-visible:max-w-[120px] group-focus-visible:pl-2 group-focus-visible:opacity-100">
-                      {item.label}
+                    {/* Grand écran : nom toujours visible. Tablette : il se déplie au survol ou au focus */}
+                    <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-out group-hover:max-w-[120px] group-hover:pl-2 group-hover:opacity-100 group-focus-visible:max-w-[120px] group-focus-visible:pl-2 group-focus-visible:opacity-100 xl:max-w-[120px] xl:pl-1.5 xl:opacity-100 xl:group-hover:pl-1.5">
+                      {item.shortLabel ?? item.label}
                     </span>
                   </Link>
                 );

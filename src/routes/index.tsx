@@ -651,7 +651,7 @@ function Index() {
                       : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
               </span>
             </div>
-            <h1 className="mt-4 font-display text-4xl font-black leading-tight text-white md:text-6xl">
+            <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.02em] text-white md:text-6xl">
               {sportMode === "course"
                 ? "Qui courra le plus loin cette semaine ?"
                 : sportMode === "marche"
