@@ -1420,3 +1420,18 @@ body:has(.app-sheet[data-state="open"]) .app-tabbar {
     animation: none;
   }
 }
+
+/* =====================================================================
+   SITE : lisibilité (lot 2 de l'audit design). L'app installée n'est pas concernée.
+   ===================================================================== */
+/* Plancher de 12 px pour les étiquettes et badges (avant : 9, 10 et 11 px) */
+html:not(.app-standalone) :is(.text-\[9px\], .text-\[10px\], .text-\[11px\]) {
+  font-size: 12px;
+}
+
+/* Mouvement réduit : rien ne tourne en boucle sur le site */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.app-standalone) :is(.animate-pulse, .animate-ping, .animate-bounce) {
+    animation: none;
+  }
+}
