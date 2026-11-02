@@ -43,7 +43,8 @@
   --card-foreground: oklch(0.27 0.05 45);
   --popover: oklch(0.985 0.012 80);
   --popover-foreground: oklch(0.27 0.05 45);
-  --primary: oklch(0.66 0.18 48);
+  /* Orange de la troupe, un ton plus sombre pour un contraste de 4,8 : 1 avec le texte blanc (avant 0.66 0.18 48) */
+  --primary: oklch(0.56 0.17 48);
   --primary-foreground: oklch(0.985 0.01 80);
   --secondary: oklch(0.9 0.04 70);
   --secondary-foreground: oklch(0.3 0.06 45);
@@ -55,7 +56,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.84 0.04 65);
   --input: oklch(0.84 0.04 65);
-  --ring: oklch(0.66 0.18 48);
+  --ring: oklch(0.56 0.17 48);
   --bark: oklch(0.3 0.06 45);
   --bark-foreground: oklch(0.95 0.03 75);
   --success: oklch(0.55 0.13 145);

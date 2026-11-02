@@ -784,7 +784,7 @@ function Index() {
                 <Button
                   asChild
                   size="lg"
-                  className="rounded-xl font-bold bg-orange-600 text-white hover:bg-orange-500 shadow-lg"
+                  className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
                 >
                   <Link to="/auth">
                     <LogIn className="mr-2 h-5 w-5" />
