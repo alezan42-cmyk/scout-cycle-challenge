@@ -14,13 +14,7 @@ import {
 } from "@/components/app/AppUi";
 import { CorrectionNotice } from "@/components/CorrectionNotice";
 import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { AppSheet } from "@/components/app/AppSheet";
 import { useAuth } from "@/lib/useAuth";
 import {
   formatKm,
@@ -207,14 +201,14 @@ function MyKmScreen() {
         ))
       )}
 
-      <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <SheetContent
-          side="bottom"
-          className="rounded-t-3xl px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
-        >
-          {open && <ActivityDetail act={open} deleting={deleting} onDelete={remove} />}
-        </SheetContent>
-      </Sheet>
+      <AppSheet
+        open={!!open}
+        onOpenChange={(o) => !o && setOpen(null)}
+        title={open ? `${formatKm(Number(open.km))} km` : "Sortie"}
+        hideTitle
+      >
+        {open && <ActivityDetail act={open} deleting={deleting} onDelete={remove} />}
+      </AppSheet>
     </AppPageShell>
   );
 }
@@ -249,7 +243,7 @@ function ActivityDetail({
   const note = cleanActivityNote(act.note);
   return (
     <div className="space-y-5 pt-2">
-      <SheetHeader className="text-left">
+      <div className="text-left">
         <div className="flex items-center gap-3">
           <span
             className={cn("grid h-12 w-12 place-items-center rounded-2xl", SPORT_COLORS[sp].solid)}
@@ -257,19 +251,19 @@ function ActivityDetail({
             <SportIcon sport={sp} className="h-6 w-6" />
           </span>
           <div>
-            <SheetTitle className="text-[20px]">
+            <p className="text-[20px] font-semibold text-foreground">
               {formatKm(Number(act.km))} km · {SPORT_INFO[sp].short}
-            </SheetTitle>
-            <SheetDescription className="text-[14px]">
+            </p>
+            <p className="text-[14px] text-muted-foreground">
               {new Date(`${act.ride_date}T12:00:00`).toLocaleDateString("fr-BE", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
               })}
-            </SheetDescription>
+            </p>
           </div>
         </div>
-      </SheetHeader>
+      </div>
 
       <AppList>
         <AppListRow
