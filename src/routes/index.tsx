@@ -633,9 +633,10 @@ function Index() {
         {/* Voile aux couleurs du thème pour atténuer les couleurs de la photo */}
         <div className="absolute inset-0 bg-primary/35 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-bark via-bark/55 to-transparent" />
-        <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24 lg:py-10">
+          {/* Ordinateur : en-tête compact, profil, trophée et série côte à côte */}
+          <div className="max-w-3xl lg:grid lg:max-w-none lg:grid-cols-3 lg:gap-x-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md lg:col-span-3 lg:w-fit">
               {sportMode === "course" || sportMode === "marche" ? (
                 <ModeIcon mode={sportMode} className="h-4 w-4" />
               ) : (
@@ -651,14 +652,14 @@ function Index() {
                       : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
               </span>
             </div>
-            <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.02em] text-white md:text-6xl">
+            <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.02em] text-white md:text-6xl lg:col-span-2 lg:text-5xl">
               {sportMode === "course"
                 ? "Qui courra le plus loin cette semaine ?"
                 : sportMode === "marche"
                   ? "Qui marchera le plus loin cette semaine ?"
                   : "Qui pédalera le plus loin cette semaine ?"}
             </h1>
-            <p className="mobile-hero-description mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
+            <p className="mobile-hero-description mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg lg:col-span-2 lg:mt-3 lg:text-base">
               {sportMode === "course"
                 ? "Chaque foulée compte pour ta patrouille ! Enregistre tes sorties de course à pied avec Strava ou photo de chrono, grimpe au classement dédié et fais briller tes couleurs."
                 : sportMode === "marche"
@@ -670,7 +671,7 @@ function Index() {
               href="https://www.strava.com/clubs/Troupe-Alezan42"
               target="_blank"
               rel="noreferrer"
-              className="mobile-hero-secondary mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+              className="mobile-hero-secondary mt-5 inline-flex max-w-full items-center gap-3 lg:col-start-3 lg:row-span-2 lg:row-start-2 lg:mt-0 lg:self-center lg:justify-self-end rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fc4c02] text-lg font-black">
                 S
@@ -686,8 +687,8 @@ function Index() {
 
             {/* Scout Identity Bandeau (Visible when logged in) */}
             {user && (
-              <div className="mt-6 rounded-2xl border border-white/20 bg-black/50 p-4 backdrop-blur-md shadow-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="mt-6 rounded-2xl border border-white/20 bg-black/50 p-4 backdrop-blur-md shadow-xl lg:col-span-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:h-full lg:flex-col lg:items-start lg:justify-between">
                   <div className="flex items-center gap-3">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white font-black text-2xl shadow-md">
                       ⚜️
@@ -751,9 +752,9 @@ function Index() {
             )}
 
             {user && (
-              <div className="mt-4 max-w-md">
+              <div className="mt-4 max-w-md lg:col-span-2 lg:mt-6 lg:grid lg:max-w-none lg:grid-cols-2 lg:gap-4 lg:[&>*]:h-full lg:[&>div>*]:h-full">
                 <NearestDistanceTrophy activities={myApprovedActivities} compact />
-                <div className="mt-3">
+                <div className="mt-3 lg:mt-0">
                   <WeeklyStreakCard
                     rideDates={myApprovedActivities.map((activity) => activity.ride_date)}
                     compact
@@ -763,7 +764,7 @@ function Index() {
             )}
 
             {/* Quick Actions */}
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-3 lg:col-span-3 lg:mt-6">
               <Button
                 asChild
                 size="lg"
