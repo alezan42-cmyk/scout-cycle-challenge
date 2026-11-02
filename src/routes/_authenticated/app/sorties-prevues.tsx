@@ -23,7 +23,7 @@ import { AppCard, AppEmpty, Segmented } from "@/components/app/AppUi";
 import { PlannedRideForm } from "@/components/PlannedRideForm";
 import { WhatsAppGroupCard } from "@/components/WhatsAppGroupCard";
 import { SportIcon, SPORT_COLORS } from "@/components/SportIcon";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AppSheet } from "@/components/app/AppSheet";
 import { useAuth } from "@/lib/useAuth";
 import { SPORT_INFO } from "@/lib/database";
 import {
@@ -150,37 +150,31 @@ function PlannedRidesScreen() {
         </div>
       )}
 
-      <Sheet open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[92dvh] overflow-y-auto rounded-t-3xl px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6"
-        >
-          <SheetHeader className="mb-4 text-left">
-            <SheetTitle className="font-display text-[22px] font-black">
-              {editing === "new" ? "Proposer une sortie" : "Modifier la sortie"}
-            </SheetTitle>
-          </SheetHeader>
-          {editing !== null && (
-            <PlannedRideForm
-              variant="app"
-              initial={editing === "new" ? null : editing}
-              submitting={actions.save.isPending}
-              onSubmit={(input) =>
-                actions.save.mutate(
-                  { id: editing === "new" ? undefined : editing.id, input },
-                  {
-                    onSuccess: () => {
-                      toast.success(editing === "new" ? "Sortie proposée ! 🎉" : "Sortie modifiée");
-                      setEditing(null);
-                    },
-                    onError: (e) => toast.error(actions.errorMessage(e)),
+      <AppSheet
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title={editing === "new" ? "Proposer une sortie" : "Modifier la sortie"}
+      >
+        {editing !== null && (
+          <PlannedRideForm
+            variant="app"
+            initial={editing === "new" ? null : editing}
+            submitting={actions.save.isPending}
+            onSubmit={(input) =>
+              actions.save.mutate(
+                { id: editing === "new" ? undefined : editing.id, input },
+                {
+                  onSuccess: () => {
+                    toast.success(editing === "new" ? "Sortie proposée ! 🎉" : "Sortie modifiée");
+                    setEditing(null);
                   },
-                )
-              }
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+                  onError: (e) => toast.error(actions.errorMessage(e)),
+                },
+              )
+            }
+          />
+        )}
+      </AppSheet>
     </AppPageShell>
   );
 }

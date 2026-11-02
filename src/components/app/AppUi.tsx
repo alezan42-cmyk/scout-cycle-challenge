@@ -116,13 +116,13 @@ export function AppListRow({
     "flex min-h-[60px] w-full items-center gap-3.5 px-4 py-2.5 text-left transition-colors active:bg-muted/70";
   if (to)
     return (
-      <Link to={to} className={cls}>
+      <Link to={to} className={cls} data-press="highlight">
         {body}
       </Link>
     );
   if (onClick)
     return (
-      <button type="button" onClick={onClick} className={cls}>
+      <button type="button" onClick={onClick} className={cls} data-press="highlight">
         {body}
       </button>
     );
