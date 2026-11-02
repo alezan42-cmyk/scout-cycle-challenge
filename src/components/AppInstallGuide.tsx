@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { BellRing, Download, Smartphone, X } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { isStandalone } from "@/lib/standalone";
@@ -18,6 +19,9 @@ type InstallPromptEvent = Event & {
 
 export function AppInstallGuide() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  // Dans l'app installée, le conseil n'apparaît que sur l'accueil (pas en haut de chaque écran)
+  const onAppHome = pathname === "/app" || pathname === "/app/";
   const [visible, setVisible] = useState(false);
   const [open, setOpen] = useState(false);
   const [standalone, setStandalone] = useState<boolean | null>(null);
@@ -86,7 +90,7 @@ export function AppInstallGuide() {
     if (choice.outcome === "accepted") dismiss();
   };
 
-  if (!visible || !user) return null;
+  if (!visible || !user || (standalone && !onAppHome)) return null;
   return (
     <>
       <aside className="mx-auto w-full max-w-6xl px-3 pt-3 md:hidden">
@@ -95,7 +99,7 @@ export function AppInstallGuide() {
             type="button"
             aria-label="Masquer ce conseil pendant 30 jours"
             onClick={dismiss}
-            className="absolute right-2 top-2 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+            className="app-hit absolute right-2 top-2 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
           >
             <X className="h-4 w-4" />
           </button>
@@ -117,7 +121,7 @@ export function AppInstallGuide() {
             </div>
           </div>
           <Button
-            className="mt-3 w-full"
+            className="app-cta mt-3 w-full"
             onClick={() => {
               if (standalone) {
                 window.dispatchEvent(new Event("alezan:open-app-notifications"));
