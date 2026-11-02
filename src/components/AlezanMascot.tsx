@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "@tanstack/react-router";
 import { getAlezanQuote, type AlezanContext } from "@/lib/alezanQuotes";
@@ -40,6 +40,28 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
   const { user } = useAuth();
   const { theme: currentTheme } = useSeasonalTheme();
   const pageContext = context ?? PAGE_CONTEXT[pathname] ?? "general";
+  // Téléphone : Alezouille est une pastille ; on touche pour lire son message
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(false);
+  const rootRef = useRef<HTMLElement>(null);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent | KeyboardEvent) => {
+      if (
+        event instanceof KeyboardEvent
+          ? event.key === "Escape"
+          : !rootRef.current?.contains(event.target as Node)
+      )
+        setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
   const quote = useMemo(() => getAlezanQuote(pageContext), [pageContext]);
   const { data: birthdays = [] } = useQuery<Birthday[]>({
     queryKey: ["birthdays", user?.id],
@@ -76,11 +98,14 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
 
   return (
     <aside
+      ref={rootRef}
       aria-label="Le message d'Alezouille"
       className="mobile-mascot pointer-events-none fixed bottom-4 right-3 z-40 flex max-w-[calc(100vw-1.5rem)] items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3"
     >
       <div
-        className={`relative mb-6 ${birthdayMode ? "max-w-[min(8rem,calc(100vw-12rem))] sm:max-w-[min(13rem,calc(100vw-13rem))]" : "max-w-[min(13rem,calc(100vw-9rem))]"} rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-lg shadow-black/10 backdrop-blur-sm after:absolute after:-right-1.5 after:bottom-4 after:h-3 after:w-3 after:rotate-45 after:border-r after:border-t after:border-border/80 after:bg-card`}
+        id="alezouille-message"
+        data-open={open ? "true" : undefined}
+        className={`mobile-mascot-bubble relative mb-6 ${birthdayMode ? "max-w-[min(8rem,calc(100vw-12rem))] sm:max-w-[min(13rem,calc(100vw-13rem))]" : "max-w-[min(13rem,calc(100vw-9rem))]"} rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-lg shadow-black/10 backdrop-blur-sm after:absolute after:-right-1.5 after:bottom-4 after:h-3 after:w-3 after:rotate-45 after:border-r after:border-t after:border-border/80 after:bg-card`}
       >
         <p className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-primary">
           {birthdayMode ? "Mode anniversaire" : "Alezouille te glisse un message"}
@@ -92,17 +117,30 @@ export function AlezanMascot({ context }: AlezanMascotProps) {
           {birthdayGreeting}
         </p>
       </div>
-      <img
-        src={currentImage}
-        alt="Alezouille, le compagnon de route de la troupe"
-        className={
-          birthdayMode
-            ? "h-20 w-36 shrink-0 object-contain drop-shadow-md sm:h-28 sm:w-52"
-            : currentTheme === "ete"
-              ? "h-28 w-28 shrink-0 object-cover object-center drop-shadow-md sm:h-36 sm:w-36"
-              : "h-28 w-28 shrink-0 object-contain drop-shadow-md sm:h-36 sm:w-36"
-        }
-      />
+      <button
+        type="button"
+        className="mobile-mascot-toggle relative shrink-0 cursor-default rounded-full border-0 bg-transparent p-0"
+        aria-label={open ? "Fermer le message d'Alezouille" : "Lire le message d'Alezouille"}
+        aria-expanded={open}
+        aria-controls="alezouille-message"
+        onClick={() => {
+          setOpen((value) => !value);
+          setSeen(true);
+        }}
+      >
+        {!seen && <span className="mobile-mascot-dot" aria-hidden="true" />}
+        <img
+          src={currentImage}
+          alt="Alezouille, le compagnon de route de la troupe"
+          className={
+            birthdayMode
+              ? "h-20 w-36 shrink-0 object-contain drop-shadow-md sm:h-28 sm:w-52"
+              : currentTheme === "ete"
+                ? "h-28 w-28 shrink-0 object-cover object-center drop-shadow-md sm:h-36 sm:w-36"
+                : "h-28 w-28 shrink-0 object-contain drop-shadow-md sm:h-36 sm:w-36"
+          }
+        />
+      </button>
     </aside>
   );
 }

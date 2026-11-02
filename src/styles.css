@@ -1063,13 +1063,46 @@ body {
     gap: 0;
   }
 
-  .mobile-mascot > div {
+  /* Alezouille en pastille : on touche pour ouvrir sa bulle */
+  .mobile-mascot {
+    gap: 0.5rem;
+  }
+
+  .mobile-mascot-bubble:not([data-open="true"]) {
     display: none;
   }
 
+  .mobile-mascot-bubble {
+    pointer-events: auto;
+    margin-bottom: 0.75rem;
+    max-width: min(15rem, calc(100vw - 6rem)) !important;
+  }
+
+  .mobile-mascot-toggle {
+    pointer-events: auto;
+    cursor: pointer;
+    border: 2px solid var(--primary) !important;
+    background: var(--card) !important;
+    padding: 2px !important;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+  }
+
   .mobile-mascot img {
-    width: 4rem;
-    height: 4rem;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    filter: none;
+  }
+
+  .mobile-mascot-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 2px var(--card);
   }
 
   .min-h-screen > main {
