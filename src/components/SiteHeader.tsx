@@ -262,7 +262,7 @@ export function SiteHeader() {
                 <Button
                   size="sm"
                   asChild
-                  className="rounded-xl bg-orange-600 font-bold text-white hover:bg-orange-500 shadow-md transition-all hover:scale-105"
+                  className="rounded-xl bg-primary font-bold text-primary-foreground hover:bg-primary/90 shadow-md transition-all hover:scale-105"
                 >
                   <Link to="/auth" className="flex items-center gap-1.5">
                     <LogIn className="h-4 w-4" />
@@ -415,7 +415,7 @@ export function SiteHeader() {
                   <Link
                     to="/auth"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 p-3 font-bold text-white shadow-md hover:bg-orange-500 transition-colors"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary p-3 font-bold text-primary-foreground shadow-md hover:bg-primary/90 transition-colors"
                   >
                     <LogIn className="h-4 w-4" />
                     <span>Se connecter à mon compte</span>

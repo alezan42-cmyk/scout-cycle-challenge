@@ -279,7 +279,7 @@ export function Leaderboard({ className }: { className?: string }) {
             <Link to="/mes-km">
               <Button
                 size="sm"
-                className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold"
+                className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold"
               >
                 <Bike className="h-4 w-4" />
                 <span>Enregistrer mes km</span>
