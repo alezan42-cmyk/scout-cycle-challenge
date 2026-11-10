@@ -14,6 +14,7 @@
 ## Architecture rules
 
 - Data access goes through the browser client with RLS; admin rights are enforced by `has_role` in policies. Why: simple app, security lives in the database.
+- Official address: `https://alezan42-cycling.lesscoutsdemoustier.be` (CNAME on the unit's domain → Cloudflare Pages project `alezan42-cycling`; `alezan42-cycling.pages.dev` still answers). Hard-coded absolute links (canonical, sitemap, e-mails, widget, story export) use the official address; in-app links use `window.location.origin` so both addresses keep working. Supabase Auth Site URL = official address, both addresses in Redirect URLs.
 - `profiles` is private (own row or admin). Public pages read the `profiles_public` view (no email/phone; for visitors without an account the name is masked as « Prénom I. » and `strava_url` is null) or the `leaderboard(_from,_to)` RPC. Why: scouts are minors.
 - `activities` is readable by logged-in members only. Public pages read the `activities_public` view (km, D+, date, status, sport tag, group id only — no GPX, Strava link, photo or free note).
 - Password recovery: e-mail link to `/nouveau-mot-de-passe` (needs custom SMTP in Supabase to reach scouts) and `admin_set_password` RPC for admins (cannot target another admin).
