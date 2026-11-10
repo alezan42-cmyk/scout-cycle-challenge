@@ -304,7 +304,11 @@ function drawStory(
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,250,241,.88)";
   ctx.font = "500 19px Georgia, serif";
-  ctx.fillText("Chaque sortie compte · alezan42-cycling.pages.dev", width / 2, height - 90);
+  ctx.fillText(
+    "Chaque sortie compte · alezan42-cycling.lesscoutsdemoustier.be",
+    width / 2,
+    height - 90,
+  );
 }
 
 function sectionTitle(ctx: CanvasRenderingContext2D, text: string, y: number) {
