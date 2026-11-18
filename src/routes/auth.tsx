@@ -318,8 +318,9 @@ function AuthPage() {
 
       const newUserId = authData.user?.id;
 
-      // 2. Explicitly write/upsert into public.profiles in Supabase
-      if (newUserId) {
+      // 2. The auth trigger creates the profile even when email confirmation is
+      // required. Only write it directly when Supabase also created a session.
+      if (newUserId && authData.session) {
         try {
           const { error: profileError } = await supabase.from("profiles").upsert(
             {
@@ -346,34 +347,36 @@ function AuthPage() {
         }
       }
 
-      // 3. Keep local DB synchronized
-      try {
-        db.signUp(email, {
-          full_name: d.full_name.trim(),
-          totem: d.totem?.trim() || null,
-          quali: d.quali?.trim() || null,
-          scout_year: scoutYearNum,
-          patrol_id: targetPatrolId,
-          phone: d.phone?.trim() || null,
-          birth_day: d.birth_day ? Number(d.birth_day) : null,
-          birth_month: d.birth_month ? Number(d.birth_month) : null,
-          is_chef: isStaff,
-        });
-      } catch {
-        // ignore
+      // 3. Only mirror into the local demo database for a confirmed/session
+      // signup. Otherwise the browser must remain logged out until confirmation.
+      if (authData.session) {
+        try {
+          db.signUp(email, {
+            full_name: d.full_name.trim(),
+            totem: d.totem?.trim() || null,
+            quali: d.quali?.trim() || null,
+            scout_year: scoutYearNum,
+            patrol_id: targetPatrolId,
+            phone: d.phone?.trim() || null,
+            birth_day: d.birth_day ? Number(d.birth_day) : null,
+            birth_month: d.birth_month ? Number(d.birth_month) : null,
+            is_chef: isStaff,
+          });
+        } catch {
+          // ignore
+        }
+        await refreshProfile();
       }
-
-      await refreshProfile();
       setBusy(false);
 
       if (authData.session) {
         toast.success("Compte scout créé avec succès dans Supabase ! Bienvenue sur l'ALEZAN 42.");
       } else {
         toast.success(
-          "Compte créé dans Supabase ! Si la confirmation par e-mail est active, vérifie ta boîte de réception.",
+          "Compte créé ! Vérifie ta boîte e-mail et confirme ton adresse avant de te connecter.",
         );
       }
-      window.location.href = "/";
+      if (authData.session) window.location.href = "/";
     } catch (err: unknown) {
       setBusy(false);
       const msg = err instanceof Error ? err.message : String(err);

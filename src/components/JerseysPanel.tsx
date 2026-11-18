@@ -70,7 +70,7 @@ export function JerseysPanel({
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-lg font-bold text-foreground">Maillots</h2>
         <span className="text-xs text-muted-foreground">
-          {periodLabel} · sorties validées uniquement
+          {periodLabel} · sorties validées uniquement · scout sportif exclu du maillot jaune 4 mois
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-3">

@@ -26,6 +26,37 @@ export interface JerseyHolders {
   climber: JerseyCandidate | null;
 }
 
+export interface SportifAwardMonth {
+  user_id: string;
+  week_start: string;
+}
+
+/**
+ * A Scout sportif du mois ne peut pas recevoir le maillot jaune pendant le mois
+ * de sa désignation et les trois mois civils suivants.
+ */
+export function yellowJerseyIneligibleIds(
+  awards: SportifAwardMonth[],
+  asOf = new Date(),
+): Set<string> {
+  const monthStart = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+  const currentMonth = monthStart(asOf);
+  const activeIds = new Set<string>();
+
+  for (const award of awards) {
+    const [year, month] = award.week_start.split("-").map(Number);
+    if (!year || !month) continue;
+    const expires = new Date(year, month - 1 + 4, 1);
+    const expiresMonth = monthStart(expires);
+    if (award.week_start <= currentMonth && currentMonth < expiresMonth) {
+      activeIds.add(award.user_id);
+    }
+  }
+
+  return activeIds;
+}
+
 /** Catégorie de maillot d'un participant : le staff a ses propres maillots. */
 export function jerseyCategoryOf(c: Pick<JerseyCandidate, "category" | "is_chef">): JerseyCategory {
   if (c.is_chef || c.category === "staff") return "staff";
@@ -61,13 +92,14 @@ function best(
  */
 export function computeJerseys(
   candidates: JerseyCandidate[],
+  yellowIneligibleIds: Set<string> = new Set(),
 ): Record<JerseyCategory, JerseyHolders> {
   const result = {} as Record<JerseyCategory, JerseyHolders>;
   for (const cat of JERSEY_CATEGORIES) {
     const inCat = candidates.filter((c) => jerseyCategoryOf(c) === cat);
     result[cat] = {
       yellow: best(
-        inCat,
+        inCat.filter((c) => !yellowIneligibleIds.has(c.user_id)),
         (c) => c.km,
         (c) => c.dplus,
       ),
