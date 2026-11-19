@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Cake } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 
 type Birthday = {
   user_id: string;
@@ -36,6 +37,7 @@ function whenLabel(b: Birthday): string {
  * les membres connectés. La base ne renvoie rien aux visiteurs sans compte.
  */
 export function BirthdayBanner({ userId }: { userId: string | undefined }) {
+  const { settings } = useSeasonalTheme();
   const { data: birthdays = [] } = useQuery<Birthday[]>({
     queryKey: ["birthdays", userId],
     enabled: !!userId,
@@ -47,10 +49,31 @@ export function BirthdayBanner({ userId }: { userId: string | undefined }) {
     },
   });
 
-  if (!userId || birthdays.length === 0) return null;
+  const todayDate = new Date();
+  const todayUtc = Date.UTC(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+  const staffBirthdays = settings.staffBirthdays.flatMap((birthdayDate) => {
+    const [month, day] = birthdayDate.split("-").map(Number);
+    let next = new Date(todayDate.getFullYear(), month - 1, day);
+    if (next.getMonth() !== month - 1) next = new Date(todayDate.getFullYear(), month, 0);
+    let diff = Math.round(
+      (Date.UTC(next.getFullYear(), next.getMonth(), next.getDate()) - todayUtc) / 86_400_000,
+    );
+    if (diff < 0) {
+      next = new Date(todayDate.getFullYear() + 1, month - 1, day);
+      if (next.getMonth() !== month - 1) next = new Date(todayDate.getFullYear() + 1, month, 0);
+      diff = Math.round(
+        (Date.UTC(next.getFullYear(), next.getMonth(), next.getDate()) - todayUtc) / 86_400_000,
+      );
+    }
+    return diff <= 7 ? [{ date: birthdayDate, days_until: diff }] : [];
+  });
+
+  if (!userId || (birthdays.length === 0 && staffBirthdays.length === 0)) return null;
 
   const today = birthdays.filter((b) => b.days_until === 0);
   const soon = birthdays.filter((b) => b.days_until > 0);
+  const staffToday = staffBirthdays.filter((b) => b.days_until === 0);
+  const staffSoon = staffBirthdays.filter((b) => b.days_until > 0);
   const isMe = (b: Birthday) => b.user_id === userId;
 
   return (
@@ -93,6 +116,26 @@ export function BirthdayBanner({ userId }: { userId: string | undefined }) {
           <span>
             <span className="font-semibold text-foreground">Bientôt : </span>
             {soon.map((b) => `${isMe(b) ? "toi" : b.display_name} (${whenLabel(b)})`).join(" · ")}
+          </span>
+        </p>
+      )}
+      {staffToday.length > 0 && (
+        <p className="mt-3 flex items-center gap-2 border-t border-pink-300/40 pt-2 text-sm font-semibold text-foreground">
+          <span aria-hidden>🎂</span>
+          Aujourd&apos;hui, nous fêtons l&apos;anniversaire du staff de la troupe !
+        </p>
+      )}
+      {staffSoon.length > 0 && (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          {today.length === 0 && <Cake className="h-4 w-4 shrink-0 text-pink-500" />}
+          <span>
+            <span className="font-semibold text-foreground">Anniversaire du staff bientôt : </span>
+            {staffSoon
+              .map((b) => {
+                const [month, day] = b.date.split("-").map(Number);
+                return b.days_until === 1 ? "demain" : `le ${day} ${MONTHS_SHORT[month - 1] ?? ""}`;
+              })
+              .join(" · ")}
           </span>
         </p>
       )}

@@ -35,7 +35,88 @@ export type TimelineEvent = {
   image_url: string | null;
   drive_url: string | null;
   tag: string;
+  automatic?: boolean;
+  milestoneKm?: number;
 };
+
+type DistanceMilestoneOverride = {
+  milestone_km: number;
+  title: string | null;
+  description: string | null;
+  date_str: string | null;
+  is_hidden: boolean;
+};
+
+type ApprovedActivity = {
+  id: string | null;
+  user_id: string | null;
+  km: number | null;
+  ride_date: string | null;
+  created_at: string | null;
+};
+
+const TIMELINE_PAGE_SIZE = 1000;
+const DISTANCE_MILESTONE_KM = 1000;
+
+async function fetchAllApprovedActivities(): Promise<ApprovedActivity[]> {
+  const activities: ApprovedActivity[] = [];
+  for (let from = 0; ; from += TIMELINE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("activities_public")
+      .select("id,user_id,km,ride_date,created_at")
+      .eq("status", "approved")
+      .order("ride_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + TIMELINE_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as ApprovedActivity[];
+    activities.push(...page);
+    if (page.length < TIMELINE_PAGE_SIZE) return activities;
+  }
+}
+
+function buildDistanceMilestones(
+  activities: ApprovedActivity[],
+  overrides: DistanceMilestoneOverride[],
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+  const overrideByKm = new Map(overrides.map((override) => [override.milestone_km, override]));
+  let total = 0;
+
+  for (const activity of activities) {
+    if (!activity.ride_date || !activity.km || activity.km <= 0) continue;
+    const previous = total;
+    const next = previous + activity.km;
+    const firstMilestone = Math.floor(previous / DISTANCE_MILESTONE_KM) + 1;
+    const lastMilestone = Math.floor(next / DISTANCE_MILESTONE_KM);
+    for (let milestone = firstMilestone; milestone <= lastMilestone; milestone += 1) {
+      const reachedKm = milestone * DISTANCE_MILESTONE_KM;
+      const override = overrideByKm.get(reachedKm);
+      if (override?.is_hidden) continue;
+      const [yearText] = activity.ride_date.split("-");
+      const dateStr = override?.date_str ?? activity.ride_date;
+      const year = Number(dateStr.split("-")[0] || yearText);
+      events.push({
+        id: `troop-distance-milestone:${reachedKm}`,
+        year,
+        date_str: dateStr,
+        title: override?.title ?? `La troupe franchit ${reachedKm.toLocaleString("fr-FR")} km`,
+        description:
+          override?.description ??
+          `Les sorties validées de toute la troupe atteignent ${reachedKm.toLocaleString("fr-FR")} km cumulés.`,
+        image_url: null,
+        drive_url: null,
+        tag: "Palier de la troupe",
+        automatic: true,
+        milestoneKm: reachedKm,
+      });
+    }
+    total = next;
+  }
+
+  return events;
+}
 
 export const Route = createFileRoute("/timeline")({
   ssr: false,
@@ -53,6 +134,7 @@ export const Route = createFileRoute("/timeline")({
         content: "Retrouve les archives photos, albums Drive et souvenirs des patrouilles.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/timeline" }],
   }),
   component: TimelinePage,
 });
@@ -64,6 +146,7 @@ function TimelinePage() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingMilestoneKm, setEditingMilestoneKm] = useState<number | null>(null);
 
   // Form state
   const [formDateStr, setFormDateStr] = useState(""); // Vraie date (YYYY-MM-DD)
@@ -77,17 +160,28 @@ function TimelinePage() {
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("timeline")
-        .select("*")
-        .order("date_str", { ascending: false }); // Tri chronologique basé sur la vraie date
+      const [{ data, error }, activities, overrideResult] = await Promise.all([
+        supabase.from("timeline").select("*").order("date_str", { ascending: false }),
+        fetchAllApprovedActivities(),
+        // La timeline historique reste utilisable pendant que la migration se déploie.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.from("timeline_distance_milestone_overrides") as any).select(
+          "milestone_km,title,description,date_str,is_hidden",
+        ),
+      ]);
 
-      if (error) {
-        console.warn("Erreur chargement timeline Supabase :", error.message);
-        setEvents([]);
-      } else {
-        setEvents(data || []);
-      }
+      if (error) throw error;
+      if (overrideResult.error)
+        console.warn("Options des paliers de distance indisponibles:", overrideResult.error);
+      setEvents(
+        [
+          ...buildDistanceMilestones(
+            activities,
+            (overrideResult.data ?? []) as DistanceMilestoneOverride[],
+          ),
+          ...((data ?? []) as TimelineEvent[]),
+        ].sort((a, b) => b.date_str.localeCompare(a.date_str)),
+      );
     } catch (err) {
       console.warn("Erreur réseau timeline :", err);
       setEvents([]);
@@ -115,6 +209,7 @@ function TimelinePage() {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setEditingMilestoneKm(null);
     setFormDateStr(new Date().toISOString().split("T")[0]); // Date du jour par défaut
     setFormTitle("");
     setFormDescription("");
@@ -125,7 +220,8 @@ function TimelinePage() {
   };
 
   const openEditModal = (event: TimelineEvent) => {
-    setEditingId(event.id);
+    setEditingId(event.automatic ? null : event.id);
+    setEditingMilestoneKm(event.milestoneKm ?? null);
     setFormDateStr(event.date_str);
     setFormTitle(event.title);
     setFormDescription(event.description);
@@ -135,10 +231,18 @@ function TimelinePage() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Supprimer ce souvenir de la timeline ?")) {
+  const handleDelete = async (event: TimelineEvent) => {
+    if (confirm("Supprimer cet événement de la ligne du temps ?")) {
       try {
-        const { error } = await supabase.from("timeline").delete().eq("id", id);
+        const result = event.milestoneKm
+          ? await (supabase.from("timeline_distance_milestone_overrides") as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+              .upsert({
+                milestone_km: event.milestoneKm,
+                is_hidden: true,
+                updated_at: new Date().toISOString(),
+              })
+          : await supabase.from("timeline").delete().eq("id", event.id);
+        const { error } = result;
         if (error) {
           toast.error("Erreur lors de la suppression : " + error.message);
         } else {
@@ -175,7 +279,19 @@ function TimelinePage() {
       tag: formTag.trim() || "Événement",
     };
 
-    if (editingId) {
+    if (editingMilestoneKm !== null) {
+      const { error } = await (supabase.from("timeline_distance_milestone_overrides") as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .upsert({
+          milestone_km: editingMilestoneKm,
+          title: payload.title,
+          description: payload.description,
+          date_str: payload.date_str,
+          is_hidden: false,
+          updated_at: new Date().toISOString(),
+        });
+      if (error) toast.error("Erreur de mise à jour : " + error.message);
+      else toast.success("Palier mis à jour !");
+    } else if (editingId) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase.from("timeline") as any)
@@ -370,7 +486,7 @@ function TimelinePage() {
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDelete(item.id)}
+                              onClick={() => handleDelete(item)}
                               className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               title="Supprimer"
                             >
@@ -417,7 +533,11 @@ function TimelinePage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Modifier le souvenir" : "Ajouter un événement à la Ligne du Temps"}
+              {editingMilestoneKm !== null
+                ? `Modifier le palier des ${editingMilestoneKm.toLocaleString("fr-FR")} km`
+                : editingId
+                  ? "Modifier le souvenir"
+                  : "Ajouter un événement à la Ligne du Temps"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4 py-2">
@@ -498,7 +618,9 @@ function TimelinePage() {
                 Annuler
               </Button>
               <Button type="submit">
-                {editingId ? "Mettre à jour" : "Ajouter à la ligne du temps"}
+                {editingId || editingMilestoneKm !== null
+                  ? "Mettre à jour"
+                  : "Ajouter à la ligne du temps"}
               </Button>
             </DialogFooter>
           </form>

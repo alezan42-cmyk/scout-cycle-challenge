@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Trophy,
   Flame,
@@ -21,6 +21,7 @@ import {
   Footprints,
   Clock,
   PersonStanding,
+  ExternalLink,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
 import { CountdownBanner } from "@/components/CountdownBanner";
@@ -30,6 +31,7 @@ import { CollectiveRouteMap } from "@/components/CollectiveRouteMap";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { weekRange, monthRange, useAuth } from "@/lib/useAuth";
+import { isAppMode } from "@/lib/standalone";
 import {
   db,
   type Patrol,
@@ -50,10 +52,15 @@ import { computeJerseys, yellowJerseyIneligibleIds } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
+import { CumulativeDistanceBadges, NearestDistanceTrophy } from "@/components/DistanceTrophies";
+import { ChallengesBanner, ChallengesPanel } from "@/components/ChallengesPanel";
+import { ExpeditionGoal } from "@/components/ExpeditionGoal";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { useSeasonalTheme } from "@/context/SeasonalThemeContext";
 import { computePeloton, type PelotonUserScore } from "@/lib/peloton";
-import { AlezanNamePoll } from "../components/AlezanNamePoll";
+import type { DistanceActivity } from "@/lib/distanceTrophies";
+import { WeeklyStreakCard } from "@/components/WeeklyStreakCard";
+import { RankingStoryExport } from "@/components/RankingStoryExport";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +80,7 @@ interface LeaderboardItem {
   category: string;
   km: number;
   dplus: number;
+  distanceTotals: Record<ActivitySport, number>;
   scout_year?: number | null;
   is_chef?: boolean;
   peloton?: PelotonUserScore | undefined;
@@ -105,6 +113,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "ALEZAN 42 — Le défi vélo des patrouilles" },
       { property: "og:description", content: "Quelle patrouille roulera le plus cette semaine ?" },
     ],
+    // Adresse officielle (le site répond aussi sur alezan42-cycling.pages.dev)
+    links: [{ rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/" }],
   }),
   component: Index,
 });
@@ -119,7 +129,7 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: "Depuis le début",
 };
 type GenderCat = "all" | "homme" | "femme";
-type ScoutYearFilter = "all" | "1" | "2" | "3" | "4" | "chef";
+type ScoutYearFilter = "all" | "scouts" | "1" | "2" | "3" | "4" | "chef";
 type SportMode = "velo" | "course" | "marche" | "all";
 
 /** Icône du mode de classement (Tous = vélo). */
@@ -174,15 +184,38 @@ function FilterPill({
 
 function Index() {
   const { user, profile, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const { background: themeBackground } = useSeasonalTheme();
+  // Application installée sur téléphone : l'accueil est l'écran /app (le site n'est pas concerné)
+  useEffect(() => {
+    if (isAppMode()) void navigate({ to: "/app", replace: true });
+  }, [navigate]);
   const [sportMode, setSportMode] = useState<SportMode>("all");
   const [period, setPeriod] = useState<Period>("all");
   const [cat, setCat] = useState<GenderCat>("all");
   const [scoutYear, setScoutYear] = useState<ScoutYearFilter>("all");
-  const [view, setView] = useState<"patrols" | "scouts" | "peloton" | "map" | "chart">("patrols");
+  const [view, setView] = useState<
+    "patrols" | "scouts" | "peloton" | "map" | "chart" | "challenges"
+  >("patrols");
   const [scoutSearch, setScoutSearch] = useState("");
   const [pendingKm, setPendingKm] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<SelectedLeaderboardEntry | null>(null);
+
+  const { data: myApprovedActivities = [] } = useQuery<
+    Array<DistanceActivity & { ride_date: string }>
+  >({
+    queryKey: ["my-approved-activities-for-trophies", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km,note,status,ride_date")
+        .eq("user_id", user!.id)
+        .eq("status", "approved");
+      if (error) throw error;
+      return (data || []) as unknown as Array<DistanceActivity & { ride_date: string }>;
+    },
+  });
 
   const { data: globalActivityCount = 0 } = useQuery<number>({
     queryKey: ["global-approved-activity-count"],
@@ -195,6 +228,39 @@ function Index() {
         .eq("status", "approved");
       if (error) throw error;
       return count ?? 0;
+    },
+  });
+
+  const currentWeek = weekRange(0);
+  const { data: myWeekKm = 0 } = useQuery<number>({
+    queryKey: ["my-approved-week-km", user?.id, currentWeek.from, currentWeek.to],
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km")
+        .eq("user_id", user!.id)
+        .eq("status", "approved")
+        .gte("ride_date", currentWeek.from)
+        .lte("ride_date", currentWeek.to);
+      if (error) throw error;
+      return (data ?? []).reduce((sum, activity) => sum + Number(activity.km || 0), 0);
+    },
+  });
+
+  const { data: troopTotalKm = 0 } = useQuery<number>({
+    queryKey: ["troop-approved-km-all-time"],
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities_public")
+        .select("km")
+        .eq("status", "approved");
+      if (error) throw error;
+      return (data ?? []).reduce((sum, activity) => sum + Number(activity.km || 0), 0);
     },
   });
 
@@ -304,6 +370,16 @@ function Index() {
               (acc, curr) => acc + Number(curr.elevation_m || 0),
               0,
             );
+            const distanceTotals: Record<ActivitySport, number> = {
+              velo: 0,
+              course: 0,
+              marche: 0,
+            };
+            acts
+              .filter((activity) => activity.user_id === p.id && activity.status === "approved")
+              .forEach((activity) => {
+                distanceTotals[getActivitySport(activity)] += Number(activity.km || 0);
+              });
             const displayName = p.totem
               ? `${p.totem}${p.quali ? ` ${p.quali}` : ""}`
               : p.full_name || "Scout";
@@ -320,6 +396,7 @@ function Index() {
               category: isStaffOrChef ? "staff" : (pt?.category as "homme" | "femme") || "homme",
               km: Number(totalKm.toFixed(1)),
               dplus: Math.round(totalDplus),
+              distanceTotals,
               scout_year: p.scout_year ?? undefined,
               is_chef: isStaffOrChef,
               peloton: peloton.get(p.id),
@@ -380,6 +457,9 @@ function Index() {
       if (scoutYear !== "all") {
         if (scoutYear === "chef") {
           if (!isStaffOrChef) return false;
+        } else if (scoutYear === "scouts") {
+          // Scouts de 1re à 4e année ensemble, sans le staff
+          if (isStaffOrChef) return false;
         } else {
           const targetYear = Number(scoutYear);
           if (isStaffOrChef || r.scout_year !== targetYear) {
@@ -520,11 +600,13 @@ function Index() {
   const jerseyHolderIds = useMemo(() => {
     const yellow = new Set<string>();
     const climber = new Set<string>();
+    const white = new Set<string>();
     for (const h of Object.values(jerseys)) {
       if (h.yellow) yellow.add(h.yellow.user_id);
       if (h.climber) climber.add(h.climber.user_id);
+      if (h.white) white.add(h.white.user_id);
     }
-    return { yellow, climber };
+    return { yellow, climber, white };
   }, [jerseys]);
 
   const rankedScouts = useMemo(() => {
@@ -538,8 +620,8 @@ function Index() {
     });
   }, [scoutRows]);
 
-  const openScoutActivities = (scout: LeaderboardItem) => {
-    setSelectedEntry({ title: scout.display_name, userIds: [scout.user_id] });
+  const openScoutProfile = (scout: LeaderboardItem) => {
+    void navigate({ to: "/scout/$scoutId", params: { scoutId: scout.user_id } });
   };
 
   const openPatrolActivities = (patrol: (typeof rankedPatrols)[number]) => {
@@ -555,9 +637,9 @@ function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="mobile-home-page min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-bark text-bark-foreground">
+      <section className="mobile-home-hero relative overflow-hidden bg-bark text-bark-foreground">
         <img
           src={themeBackground ?? hero}
           alt={
@@ -573,9 +655,10 @@ function Index() {
         {/* Voile aux couleurs du thème pour atténuer les couleurs de la photo */}
         <div className="absolute inset-0 bg-primary/35 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-t from-bark via-bark/55 to-transparent" />
-        <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">
+        <div className="relative mx-auto max-w-6xl px-4 py-16 md:py-24 lg:py-10">
+          {/* Ordinateur : en-tête compact, profil, trophée et série côte à côte */}
+          <div className="max-w-3xl lg:grid lg:max-w-none lg:grid-cols-3 lg:gap-x-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md lg:col-span-3 lg:w-fit">
               {sportMode === "course" || sportMode === "marche" ? (
                 <ModeIcon mode={sportMode} className="h-4 w-4" />
               ) : (
@@ -591,14 +674,14 @@ function Index() {
                       : "ALEZAN 42 — Défi Vélo Inter-Patrouilles 🚴"}
               </span>
             </div>
-            <h1 className="mt-4 font-display text-4xl font-black leading-tight text-white md:text-6xl">
+            <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.02em] text-white md:text-6xl lg:col-span-2 lg:text-5xl">
               {sportMode === "course"
                 ? "Qui courra le plus loin cette semaine ?"
                 : sportMode === "marche"
                   ? "Qui marchera le plus loin cette semaine ?"
                   : "Qui pédalera le plus loin cette semaine ?"}
             </h1>
-            <p className="mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg">
+            <p className="mobile-hero-description mt-4 max-w-2xl text-base text-bark-foreground/90 md:text-lg lg:col-span-2 lg:mt-3 lg:text-base">
               {sportMode === "course"
                 ? "Chaque foulée compte pour ta patrouille ! Enregistre tes sorties de course à pied avec Strava ou photo de chrono, grimpe au classement dédié et fais briller tes couleurs."
                 : sportMode === "marche"
@@ -606,10 +689,28 @@ function Index() {
                   : "Chaque kilomètre compte pour ta patrouille ! Enregistre tes sorties avec Strava ou ta photo de compteur, grimpe au classement général et fais briller tes couleurs. Toujours prêts !"}
             </p>
 
+            <a
+              href="https://www.strava.com/clubs/Troupe-Alezan42"
+              target="_blank"
+              rel="noreferrer"
+              className="mobile-hero-secondary mt-5 inline-flex max-w-full items-center gap-3 lg:col-start-3 lg:row-span-2 lg:row-start-2 lg:mt-0 lg:self-center lg:justify-self-end rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-white shadow-lg backdrop-blur-sm transition hover:bg-white/20"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fc4c02] text-lg font-black">
+                S
+              </span>
+              <span className="text-left">
+                <span className="block text-sm font-bold">Retrouve-nous sur Strava</span>
+                <span className="block text-xs text-white/80">
+                  Rejoins le club Troupe de l’Alezan
+                </span>
+              </span>
+              <ExternalLink className="ml-1 h-4 w-4 shrink-0 text-white/80" />
+            </a>
+
             {/* Scout Identity Bandeau (Visible when logged in) */}
             {user && (
-              <div className="mt-6 rounded-2xl border border-white/20 bg-black/50 p-4 backdrop-blur-md shadow-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="mt-6 rounded-2xl border border-white/20 bg-black/50 p-4 backdrop-blur-md shadow-xl lg:col-span-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:h-full lg:flex-col lg:items-start lg:justify-between">
                   <div className="flex items-center gap-3">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white font-black text-2xl shadow-md">
                       ⚜️
@@ -672,8 +773,20 @@ function Index() {
               </div>
             )}
 
+            {user && (
+              <div className="mt-4 max-w-md lg:col-span-2 lg:mt-6 lg:grid lg:max-w-none lg:grid-cols-2 lg:gap-4 lg:[&>*]:h-full lg:[&>div>*]:h-full">
+                <NearestDistanceTrophy activities={myApprovedActivities} compact />
+                <div className="mt-3 lg:mt-0">
+                  <WeeklyStreakCard
+                    rideDates={myApprovedActivities.map((activity) => activity.ride_date)}
+                    compact
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Quick Actions */}
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-3 lg:col-span-3 lg:mt-6">
               <Button
                 asChild
                 size="lg"
@@ -694,7 +807,7 @@ function Index() {
                 <Button
                   asChild
                   size="lg"
-                  className="rounded-xl font-bold bg-orange-600 text-white hover:bg-orange-500 shadow-lg"
+                  className="rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
                 >
                   <Link to="/auth">
                     <LogIn className="mr-2 h-5 w-5" />
@@ -717,12 +830,17 @@ function Index() {
           </div>
         </div>
       </section>
-      <AlezanNamePoll />
-
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
         {/* Grand Compte à Rebours */}
-        <CountdownBanner isAdmin={isAdmin} />
+        <div id="compte-a-rebours" className="scroll-mt-6">
+          <CountdownBanner isAdmin={isAdmin} />
+        </div>
+
+        {/* Défis ouverts destinés au scout connecté */}
+        <div id="defis" className="scroll-mt-6">
+          <ChallengesBanner />
+        </div>
 
         {/* Anniversaires : membres connectés uniquement */}
         <BirthdayBanner userId={user?.id} />
@@ -803,6 +921,45 @@ function Index() {
                   : SPORT_INFO[sportMode].short}
             </span>
           </div>
+        </div>
+
+        <div className="grid grid-cols-[0.8fr_1.2fr] gap-3 sm:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)] sm:gap-4">
+          <section
+            aria-label="Mes kilomètres validés cette semaine"
+            className="flex min-h-24 flex-col justify-center rounded-2xl border border-border/80 bg-card p-3 shadow-sm sm:p-4"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">
+              Mes km cette semaine
+            </div>
+            {user ? (
+              <>
+                <div className="mt-1 font-display text-2xl font-black text-foreground sm:text-3xl">
+                  {myWeekKm.toLocaleString("fr-BE", { maximumFractionDigits: 1 })}
+                  <span className="ml-1 text-sm font-semibold text-muted-foreground">km</span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
+                  sorties validées
+                </p>
+              </>
+            ) : (
+              <Link to="/auth" className="mt-2 text-xs font-semibold text-primary hover:underline">
+                Connecte-toi pour voir tes km
+              </Link>
+            )}
+          </section>
+          <ExpeditionGoal
+            totalKm={troopTotalKm}
+            onOpen={() => {
+              setView("map");
+              window.setTimeout(
+                () =>
+                  document
+                    .getElementById("classement")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                80,
+              );
+            }}
+          />
         </div>
 
         {/* Stats Grid */}
@@ -981,6 +1138,9 @@ function Index() {
             <FilterPill active={scoutYear === "all"} onClick={() => setScoutYear("all")}>
               Toutes années
             </FilterPill>
+            <FilterPill active={scoutYear === "scouts"} onClick={() => setScoutYear("scouts")}>
+              Scouts (1re à 4e)
+            </FilterPill>
             <FilterPill active={scoutYear === "1"} onClick={() => setScoutYear("1")}>
               1ère année
             </FilterPill>
@@ -1000,13 +1160,23 @@ function Index() {
         </div>
 
         {/* Maillots : jaune (km) et à pois (D+) par catégorie, selon la période et le sport */}
-        <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        {profile?.is_chef && (
+          <div className="flex justify-end">
+            <RankingStoryExport />
+          </div>
+        )}
+        <div id="maillots" className="scroll-mt-6">
+          <JerseysPanel jerseys={jerseys} periodLabel={PERIOD_LABELS[period]} />
+        </div>
 
         {/* Scout sportif du mois (affiché dès qu'un premier lauréat est désigné) */}
         <ScoutSportifCard />
 
         {/* View Switcher: Patrouilles vs Individuel vs Tendances Graphique */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3">
+        <div
+          id="classement"
+          className="scroll-mt-6 flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3"
+        >
           <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto">
             <button
               onClick={() => setView("patrols")}
@@ -1043,6 +1213,18 @@ function Index() {
                 </span>{" "}
                 ({scoutRows.length})
               </span>
+            </button>
+            <button
+              onClick={() => setView("challenges")}
+              className={cn(
+                "relative pb-3 font-display text-base sm:text-xl font-bold transition-all whitespace-nowrap flex items-center gap-1.5",
+                view === "challenges"
+                  ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:rounded-full after:bg-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Award className="h-4 w-4 text-amber-500" />
+              <span>Défis</span>
             </button>
             <button
               onClick={() => setView("peloton")}
@@ -1088,7 +1270,9 @@ function Index() {
         </div>
 
         {/* View Content */}
-        {view === "map" ? (
+        {view === "challenges" ? (
+          <ChallengesPanel />
+        ) : view === "map" ? (
           <CollectiveRouteMap />
         ) : view === "chart" ? (
           <PatrolDailyContributionChart />
@@ -1136,7 +1320,7 @@ function Index() {
                   type="text"
                   value={scoutSearch}
                   onChange={(e) => setScoutSearch(e.target.value)}
-                  placeholder="Rechercher par totem, qualificatif, nom ou patrouille..."
+                  placeholder="Rechercher par totem, qualificatif ou patrouille..."
                   className="w-full bg-background rounded-xl pl-9 pr-4 py-2 text-sm border border-input focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
@@ -1154,7 +1338,7 @@ function Index() {
                 {scoutRows[1] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[1])}
+                    onClick={() => openScoutProfile(scoutRows[1])}
                     className="rounded-2xl border border-slate-300/40 bg-card p-4 shadow-sm flex flex-col justify-between order-2 md:order-1 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1171,6 +1355,7 @@ function Index() {
                         {scoutRows[1].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[1].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[1].km.toFixed(1)}</span>
@@ -1183,7 +1368,7 @@ function Index() {
                 {scoutRows[0] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[0])}
+                    onClick={() => openScoutProfile(scoutRows[0])}
                     className="rounded-2xl border border-amber-400/50 bg-gradient-to-b from-amber-500/10 via-card to-card p-5 shadow-md flex flex-col justify-between order-1 md:order-2 md:-translate-y-2 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1207,6 +1392,7 @@ function Index() {
                         {scoutRows[0].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[0].distanceTotals} />
                     <div className="mt-4 pt-2 border-t font-display font-black text-2xl text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-5 w-5" colored />
                       <span>{scoutRows[0].km.toFixed(1)}</span>
@@ -1219,7 +1405,7 @@ function Index() {
                 {scoutRows[2] && (
                   <button
                     type="button"
-                    onClick={() => openScoutActivities(scoutRows[2])}
+                    onClick={() => openScoutProfile(scoutRows[2])}
                     className="rounded-2xl border border-amber-700/30 bg-card p-4 shadow-sm flex flex-col justify-between order-3 text-left hover:border-primary/50 hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -1236,6 +1422,7 @@ function Index() {
                         {scoutRows[2].patrol_name}
                       </p>
                     </div>
+                    <CumulativeDistanceBadges totals={scoutRows[2].distanceTotals} />
                     <div className="mt-3 pt-2 border-t font-display font-black text-lg text-foreground flex items-center gap-1">
                       <ModeIcon mode={sportMode} className="h-4 w-4" colored />
                       <span>{scoutRows[2].km.toFixed(1)}</span>
@@ -1263,11 +1450,13 @@ function Index() {
                     isChef={s.is_chef}
                     km={s.km}
                     dplus={s.dplus}
+                    distanceTotals={s.distanceTotals}
                     yellowJersey={jerseyHolderIds.yellow.has(s.user_id)}
                     climberJersey={jerseyHolderIds.climber.has(s.user_id)}
+                    whiteJersey={jerseyHolderIds.white.has(s.user_id)}
                     maxKm={rankedScouts[0]?.km || 1}
                     sportMode={sportMode}
-                    onClick={() => openScoutActivities(s)}
+                    onClick={() => openScoutProfile(s)}
                   />
                 ))
               )}
@@ -1475,8 +1664,10 @@ function ScoutLeaderboardRow({
   isChef,
   km,
   dplus = 0,
+  distanceTotals,
   yellowJersey = false,
   climberJersey = false,
+  whiteJersey = false,
   maxKm,
   sportMode = "velo",
   onClick,
@@ -1488,8 +1679,10 @@ function ScoutLeaderboardRow({
   isChef?: boolean;
   km: number;
   dplus?: number;
+  distanceTotals: Record<ActivitySport, number>;
   yellowJersey?: boolean;
   climberJersey?: boolean;
+  whiteJersey?: boolean;
   maxKm: number;
   sportMode?: SportMode;
   onClick: () => void;
@@ -1553,12 +1746,21 @@ function ScoutLeaderboardRow({
                 Maillot à pois
               </span>
             )}
+            {whiteJersey && (
+              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                Maillot blanc
+              </span>
+            )}
           </div>
           <div className="font-display text-lg font-black text-foreground flex items-center gap-1">
             <ModeIcon mode={sportMode} className="h-4 w-4" colored />
             <span>{km.toFixed(1)}</span>{" "}
             <span className="text-xs font-semibold text-muted-foreground">km</span>
           </div>
+        </div>
+
+        <div className="mt-2">
+          <CumulativeDistanceBadges totals={distanceTotals} />
         </div>
 
         <div className="mt-2 flex items-center gap-3">

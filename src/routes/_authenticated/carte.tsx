@@ -402,7 +402,7 @@ function MapPage() {
       // Rogner les 200m au départ et à l'arrivée avant enregistrement
       const croppedGpxContent = await processAndCropGpxString(gpxFile);
       const croppedBlob = new Blob([croppedGpxContent], { type: "application/gpx+xml" });
-      const fileName = `proposed_${user.id}_${Date.now()}.gpx`;
+      const fileName = `proposed_${user.id}_${Date.now()}_${crypto.randomUUID()}.gpx`;
 
       const { error: uploadError } = await supabase.storage
         .from("proofs")

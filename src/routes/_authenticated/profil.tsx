@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { User, Check, Crown } from "lucide-react";
+import { User, Check, Crown, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +89,31 @@ function Profil() {
     birth_month: "",
   });
   const [busy, setBusy] = useState(false);
+  const [connectingStrava, setConnectingStrava] = useState(false);
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("strava");
+    if (!result) return;
+    if (result === "connected")
+      toast.success(
+        "Compte Strava associé ! Les nouvelles sorties publiques seront synchronisées.",
+      );
+    else if (result === "refused") toast.info("Connexion Strava annulée.");
+    else toast.error("La connexion Strava a échoué. Réessaie plus tard.");
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  const connectStrava = async () => {
+    setConnectingStrava(true);
+    const { data, error } = await supabase.functions.invoke("strava-oauth", { body: {} });
+    setConnectingStrava(false);
+    const result = data as { url?: string; error?: string } | null;
+    if (error || !result?.url) {
+      toast.error(result?.error ?? error?.message ?? "Impossible de démarrer la connexion Strava.");
+      return;
+    }
+    window.location.assign(result.url);
+  };
 
   useEffect(() => {
     let active = true;
@@ -264,12 +289,21 @@ function Profil() {
                 </p>
               </div>
             </div>
-            <Link
-              to="/"
-              className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-            >
-              ← Retour à l'accueil
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/scout/$scoutId"
+                params={{ scoutId: user.id }}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Voir mon profil
+              </Link>
+              <Link
+                to="/"
+                className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                ← Retour à l'accueil
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -320,7 +354,7 @@ function Profil() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Patrouille *</Label>
+              <Label htmlFor="profil-patrouille">Patrouille *</Label>
               <Select
                 value={f.patrol_id}
                 onValueChange={(v) => {
@@ -330,7 +364,7 @@ function Profil() {
                   });
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger id="profil-patrouille">
                   <SelectValue placeholder="Sélectionne ta patrouille" />
                 </SelectTrigger>
                 <SelectContent>
@@ -361,9 +395,9 @@ function Profil() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Année scout</Label>
+                <Label htmlFor="profil-annee">Année scout</Label>
                 <Select value={f.scout_year} onValueChange={(v) => setF({ ...f, scout_year: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="profil-annee">
                     <SelectValue placeholder="Sélectionne ton année dans la troupe" />
                   </SelectTrigger>
                   <SelectContent>
@@ -437,6 +471,24 @@ function Profil() {
                 onChange={(e) => setF({ ...f, strava_url: e.target.value })}
                 placeholder="https://www.strava.com/athletes/..."
               />
+            </div>
+
+            <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 dark:border-orange-900 dark:bg-orange-950/20">
+              <p className="text-sm font-semibold">Synchronise tes sorties Strava</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Associe ton compte pour importer automatiquement tes nouvelles sorties visibles par
+                l’application.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={connectStrava}
+                disabled={connectingStrava}
+                className="mt-3 rounded-lg border-[#fc4c02]/40 font-bold text-[#d74300] hover:bg-orange-100"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                {connectingStrava ? "Connexion…" : "Associer mon compte Strava"}
+              </Button>
             </div>
 
             <Button

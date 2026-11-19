@@ -60,6 +60,7 @@ type Act = {
   gpx_path: string | null;
   note: string | null;
   group_ride_id: string | null;
+  duplicate_of_activity_id: string | null;
 };
 type Person = {
   id: string;
@@ -106,7 +107,7 @@ export function AdminActivitiesManager({
       supabase
         .from("activities")
         .select(
-          "id, user_id, km, elevation_m, ride_date, status, strava_link, proof_path, gpx_path, note, group_ride_id",
+          "id, user_id, km, elevation_m, ride_date, status, strava_link, proof_path, gpx_path, note, group_ride_id, duplicate_of_activity_id",
         )
         .order("ride_date", { ascending: false })
         .order("created_at", { ascending: false }),
@@ -288,6 +289,11 @@ export function AdminActivitiesManager({
                         >
                           {a.status === "approved" ? "validée" : "en attente"}
                         </span>
+                        {a.duplicate_of_activity_id && (
+                          <span className="rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-bold text-orange-800 dark:text-orange-300">
+                            Doublon Strava possible · à vérifier
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

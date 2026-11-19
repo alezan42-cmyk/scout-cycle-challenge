@@ -73,6 +73,9 @@ export const Route = createFileRoute("/solidarite")({
           "Profiter de la vie malgré tout. Pédaler ensemble pour soutenir l'ASBL Profitivisme.",
       },
     ],
+    links: [
+      { rel: "canonical", href: "https://alezan42-cycling.lesscoutsdemoustier.be/solidarite" },
+    ],
   }),
   component: SolidarityPage,
 });

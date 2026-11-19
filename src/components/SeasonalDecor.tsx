@@ -244,6 +244,30 @@ const DECOR: Record<Exclude<SeasonalThemeId, "default">, Decor> = {
       { char: "🏆", className: "bottom-2 right-4", size: 30 },
     ],
   },
+  anniversaire: {
+    particles: [
+      {
+        chars: ["🎉", "🎊", "✨", "🎈"],
+        mode: "fall",
+        count: 20,
+        size: [14, 24],
+        duration: [8, 16],
+        opacity: 0.9,
+      },
+      {
+        chars: ["🎈"],
+        mode: "fly",
+        count: 3,
+        size: [24, 34],
+        duration: [22, 36],
+        altitude: [15, 65],
+      },
+    ],
+    corners: [
+      { char: "🎂", className: "bottom-2 left-3", size: 34 },
+      { char: "🎁", className: "bottom-2 right-4", size: 30 },
+    ],
+  },
   halloween: {
     particles: [
       {
@@ -462,6 +486,7 @@ export function HeaderTrim() {
       )}
       {theme === "printemps" && VINE}
       {theme === "valentin" && "💗❤️💕".repeat(60)}
+      {theme === "anniversaire" && "🎉🎈✨🎊🎁".repeat(45)}
       {theme === "paques" && "🥚🐣🌷🥚🐰🌼".repeat(40)}
       {theme === "automne" && "🍁🍂🍃".repeat(60)}
     </div>

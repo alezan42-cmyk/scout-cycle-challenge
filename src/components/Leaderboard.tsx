@@ -279,7 +279,7 @@ export function Leaderboard({ className }: { className?: string }) {
             <Link to="/mes-km">
               <Button
                 size="sm"
-                className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold"
+                className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold"
               >
                 <Bike className="h-4 w-4" />
                 <span>Enregistrer mes km</span>
@@ -501,7 +501,13 @@ export function Leaderboard({ className }: { className?: string }) {
                 </div>
 
                 <h3 className="mt-3 font-display text-lg font-black text-foreground">
-                  {top3[0].displayName}
+                  <Link
+                    to="/scout/$scoutId"
+                    params={{ scoutId: top3[0].id }}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {top3[0].displayName}
+                  </Link>
                 </h3>
 
                 <div className="mt-1 flex items-center justify-center gap-1.5 flex-wrap">
@@ -559,7 +565,13 @@ export function Leaderboard({ className }: { className?: string }) {
                 </div>
 
                 <h3 className="mt-3 font-display text-base font-bold text-foreground">
-                  {top3[1].displayName}
+                  <Link
+                    to="/scout/$scoutId"
+                    params={{ scoutId: top3[1].id }}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {top3[1].displayName}
+                  </Link>
                 </h3>
 
                 <div className="mt-1 flex items-center justify-center gap-1.5 flex-wrap">
@@ -608,7 +620,13 @@ export function Leaderboard({ className }: { className?: string }) {
                 </div>
 
                 <h3 className="mt-3 font-display text-base font-bold text-foreground">
-                  {top3[2].displayName}
+                  <Link
+                    to="/scout/$scoutId"
+                    params={{ scoutId: top3[2].id }}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {top3[2].displayName}
+                  </Link>
                 </h3>
 
                 <div className="mt-1 flex items-center justify-center gap-1.5 flex-wrap">
@@ -663,9 +681,13 @@ export function Leaderboard({ className }: { className?: string }) {
                   {/* Rider Details */}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 truncate">
-                      <span className="font-display text-sm font-bold text-foreground truncate">
+                      <Link
+                        to="/scout/$scoutId"
+                        params={{ scoutId: cyclist.id }}
+                        className="font-display text-sm font-bold text-foreground truncate hover:text-primary hover:underline"
+                      >
                         {cyclist.displayName}
-                      </span>
+                      </Link>
                       {cyclist.isChef && (
                         <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
                           Staff

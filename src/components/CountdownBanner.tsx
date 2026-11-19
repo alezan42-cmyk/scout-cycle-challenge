@@ -54,8 +54,14 @@ function calculateTimeRemaining(targetIso: string): TimeRemaining {
 export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
   const [countdowns, setCountdowns] = useState<CountdownItem[]>([]);
   const [activeCountdown, setActiveCountdown] = useState<CountdownItem | null>(null);
-  const [time, setTime] = useState<TimeRemaining>({ days: 0, hours: 0, minutes: 0, seconds: 0, isOver: true });
-  
+  const [time, setTime] = useState<TimeRemaining>({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    isOver: true,
+  });
+
   const [manageOpen, setManageOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState("");
@@ -110,7 +116,10 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
 
       // Si actif, désactiver les autres par sécurité visuelle
       if (formActive) {
-        await supabase.from("countdowns").update({ is_active: false }).neq("id", editingId || "new");
+        await supabase
+          .from("countdowns")
+          .update({ is_active: false })
+          .neq("id", editingId || "new");
       }
 
       if (editingId) {
@@ -173,25 +182,33 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
       <div className="relative z-10 flex flex-col items-center justify-between gap-5 lg:flex-row">
         <div className="text-center lg:text-left min-w-0 flex-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-[color:var(--countdown-accent)]/20 border border-[color:var(--countdown-accent)]/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[color:var(--countdown-accent-2)] backdrop-blur-sm">
-            <Clock className="h-3.5 w-3.5 animate-pulse text-[color:var(--countdown-accent-2)]" />
+            <Clock className="h-3.5 w-3.5 text-[color:var(--countdown-accent-2)]" />
             <span>Événement de la Troupe</span>
           </div>
           <h2 className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl lg:text-3xl">
             {activeCountdown.title}
           </h2>
           {activeCountdown.subtitle && (
-            <p className="mt-1 max-w-xl text-xs sm:text-sm text-white/70">{activeCountdown.subtitle}</p>
+            <p className="mt-1 max-w-xl text-xs sm:text-sm text-white/70">
+              {activeCountdown.subtitle}
+            </p>
           )}
         </div>
 
         <div className="flex flex-col items-center lg:items-end gap-3 shrink-0">
           <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 flex-nowrap">
             <TimeCard value={time.days} label="Jours" />
-            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">:</span>
+            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">
+              :
+            </span>
             <TimeCard value={time.hours} label="Heures" />
-            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">:</span>
+            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">
+              :
+            </span>
             <TimeCard value={time.minutes} label="Minutes" />
-            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">:</span>
+            <span className="font-display text-lg sm:text-2xl font-bold text-[color:var(--countdown-accent)] select-none shrink-0">
+              :
+            </span>
             <TimeCard value={time.seconds} label="Secondes" highlight />
           </div>
 
@@ -219,26 +236,52 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
 
           {/* Liste des comptes à rebours existants */}
           <div className="space-y-3 py-2 border-b pb-4">
-            <p className="text-xs font-bold text-muted-foreground uppercase">Comptes à rebours enregistrés</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase">
+              Comptes à rebours enregistrés
+            </p>
             {countdowns.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-xl border p-3 bg-muted/20">
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-xl border p-3 bg-muted/20"
+              >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-foreground">{item.title}</span>
-                    {item.is_active && <span className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded">Actif</span>}
+                    {item.is_active && (
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded">
+                        Actif
+                      </span>
+                    )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Fin : {new Date(item.target_date).toLocaleString("fr-FR")}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Fin : {new Date(item.target_date).toLocaleString("fr-FR")}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1">
                   {!item.is_active && (
-                    <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setActive(item.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7"
+                      onClick={() => setActive(item.id)}
+                    >
                       Activer
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => openEdit(item)}
+                  >
                     <Edit3 className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-destructive"
+                    onClick={() => handleDelete(item.id)}
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -248,9 +291,13 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
 
           {/* Formulaire d'ajout ou modification */}
           <form onSubmit={handleSave} className="space-y-4 pt-2">
-            <p className="text-xs font-bold text-primary">{editingId ? "Modifier l'élément" : "Ajouter un nouveau compte à rebours"}</p>
+            <p className="text-xs font-bold text-primary">
+              {editingId ? "Modifier l'élément" : "Ajouter un nouveau compte à rebours"}
+            </p>
             <div>
-              <Label htmlFor="cd-title" className="text-xs">Nom de l'événement</Label>
+              <Label htmlFor="cd-title" className="text-xs">
+                Nom de l'événement
+              </Label>
               <Input
                 id="cd-title"
                 value={formTitle}
@@ -261,7 +308,9 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
               />
             </div>
             <div>
-              <Label htmlFor="cd-sub" className="text-xs">Sous-titre (optionnel)</Label>
+              <Label htmlFor="cd-sub" className="text-xs">
+                Sous-titre (optionnel)
+              </Label>
               <Input
                 id="cd-sub"
                 value={formSubtitle}
@@ -271,7 +320,9 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
               />
             </div>
             <div>
-              <Label htmlFor="cd-date" className="text-xs">Date et heure de fin</Label>
+              <Label htmlFor="cd-date" className="text-xs">
+                Date et heure de fin
+              </Label>
               <Input
                 id="cd-date"
                 type="datetime-local"
@@ -294,10 +345,19 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
               </Label>
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setManageOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setManageOpen(false)}
+              >
                 Fermer
               </Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 Enregistrer dans la base
               </Button>
             </DialogFooter>
@@ -308,7 +368,15 @@ export function CountdownBanner({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function TimeCard({ value, label, highlight = false }: { value: number; label: string; highlight?: boolean }) {
+function TimeCard({
+  value,
+  label,
+  highlight = false,
+}: {
+  value: number;
+  label: string;
+  highlight?: boolean;
+}) {
   const safeVal = Number.isFinite(value) ? Math.max(0, value) : 0;
   return (
     <div

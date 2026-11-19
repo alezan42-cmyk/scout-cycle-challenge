@@ -8,6 +8,102 @@ export type Database = {
   };
   public: {
     Tables: {
+      app_notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          href: string;
+          dedupe_key: string | null;
+          created_at: string;
+          read_at: string | null;
+          push_sent_at: string | null;
+          push_attempts: number;
+          push_last_error: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          href?: string;
+          dedupe_key?: string | null;
+          created_at?: string;
+          read_at?: string | null;
+          push_sent_at?: string | null;
+          push_attempts?: number;
+          push_last_error?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: string;
+          title?: string;
+          body?: string;
+          href?: string;
+          dedupe_key?: string | null;
+          created_at?: string;
+          read_at?: string | null;
+          push_sent_at?: string | null;
+          push_attempts?: number;
+          push_last_error?: string | null;
+        };
+        Relationships: [];
+      };
+      app_notification_settings: {
+        Row: {
+          singleton: boolean;
+          distance_enabled: boolean;
+          distance_interval_km: number;
+          distance_title: string;
+          distance_body: string;
+          individual_distance_enabled: boolean;
+          individual_distance_interval_km: number;
+          individual_distance_title: string;
+          individual_distance_body: string;
+          weekly_enabled: boolean;
+          weekly_hour: number;
+          weekly_title: string;
+          weekly_body: string;
+          updated_at: string;
+        };
+        Insert: {
+          singleton?: boolean;
+          distance_enabled?: boolean;
+          distance_interval_km?: number;
+          distance_title?: string;
+          distance_body?: string;
+          individual_distance_enabled?: boolean;
+          individual_distance_interval_km?: number;
+          individual_distance_title?: string;
+          individual_distance_body?: string;
+          weekly_enabled?: boolean;
+          weekly_hour?: number;
+          weekly_title?: string;
+          weekly_body?: string;
+          updated_at?: string;
+        };
+        Update: {
+          singleton?: boolean;
+          distance_enabled?: boolean;
+          distance_interval_km?: number;
+          distance_title?: string;
+          distance_body?: string;
+          individual_distance_enabled?: boolean;
+          individual_distance_interval_km?: number;
+          individual_distance_title?: string;
+          individual_distance_body?: string;
+          weekly_enabled?: boolean;
+          weekly_hour?: number;
+          weekly_title?: string;
+          weekly_body?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       activities: {
         Row: {
           created_at: string;
@@ -294,6 +390,10 @@ export type Database = {
       };
     };
     Functions: {
+      staff_birthday_dates: {
+        Args: Record<PropertyKey, never>;
+        Returns: { birth_day: number; birth_month: number }[];
+      };
       upcoming_birthdays: {
         Args: { _days?: number };
         Returns: {

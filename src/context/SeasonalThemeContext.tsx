@@ -15,7 +15,10 @@ import {
   SEASONAL_THEME_STORAGE_KEY,
   THEME_PREVIEW_STORAGE_KEY,
   isSeasonalThemeId,
+  parseThemeCalendar,
   themeForDate,
+  type StaffBirthday,
+  type ThemeCalendar,
   type SeasonalThemeId,
   type ThemeIntensity,
   type ThemeMode,
@@ -28,6 +31,10 @@ export interface ThemeSettings {
   intensity: ThemeIntensity;
   /** Photo d'accueil par thème (URL publique) */
   backgrounds: Partial<Record<SeasonalThemeId, string>>;
+  /** Calendrier annuel personnalisé, défini par les admins. */
+  calendar: ThemeCalendar | null;
+  /** Anniversaires récurrents du staff, définis par les admins. */
+  staffBirthdays: StaffBirthday[];
 }
 
 interface SeasonalThemeContextValue {
@@ -56,6 +63,8 @@ const DEFAULT_SETTINGS: ThemeSettings = {
   mode: "manuel",
   intensity: "festif",
   backgrounds: {},
+  calendar: null,
+  staffBirthdays: [],
 };
 
 const SeasonalThemeContext = createContext<SeasonalThemeContextValue>({
@@ -94,12 +103,13 @@ function writeStorage(storage: "local" | "session", key: string, value: string |
 }
 
 function parseSettings(rows: { key: string; value: string }[]): ThemeSettings {
-  const s: ThemeSettings = { ...DEFAULT_SETTINGS, backgrounds: {} };
+  const s: ThemeSettings = { ...DEFAULT_SETTINGS, backgrounds: {}, staffBirthdays: [] };
   for (const { key, value } of rows) {
     if (key === "theme" && isSeasonalThemeId(value)) s.theme = value;
     else if (key === "theme_mode" && (value === "auto" || value === "manuel")) s.mode = value;
     else if (key === "theme_intensity" && (value === "festif" || value === "discret"))
       s.intensity = value;
+    else if (key === "theme_calendar") s.calendar = parseThemeCalendar(value);
     else if (key.startsWith("background:")) {
       const id = key.slice("background:".length);
       if (isSeasonalThemeId(id) && /^https:\/\//.test(value)) s.backgrounds[id] = value;
@@ -128,16 +138,35 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
   const [today, setToday] = useState(() => new Date().toDateString());
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase.from("site_settings").select("key, value");
+    const [{ data, error }, { data: profileBirthdays }] = await Promise.all([
+      supabase.from("site_settings").select("key, value"),
+      supabase.rpc("staff_birthday_dates"),
+    ]);
     if (error || !data) return;
     loadedRef.current = true;
     setLoaded(true);
-    setSettings(parseSettings(data as { key: string; value: string }[]));
+    const next = parseSettings(data as { key: string; value: string }[]);
+    next.staffBirthdays = profileBirthdays
+      ? [
+          ...new Set(
+            (profileBirthdays as { birth_day: number; birth_month: number }[]).map(
+              ({ birth_month, birth_day }) =>
+                `${String(birth_month).padStart(2, "0")}-${String(birth_day).padStart(2, "0")}`,
+            ),
+          ),
+        ]
+      : [];
+    setSettings(next);
   }, []);
 
   // Lecture initiale + mise à jour en direct + au retour sur l'onglet
   useEffect(() => {
     void refresh();
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(() => void refresh(), 0);
+    });
 
     const channel = supabase
       ?.channel?.("site_settings_theme")
@@ -155,18 +184,28 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
       }
     };
     document.addEventListener("visibilitychange", onVisible);
-    const timer = window.setInterval(() => setToday(new Date().toDateString()), 30 * 60 * 1000);
+    const timer = window.setInterval(
+      () => {
+        setToday(new Date().toDateString());
+        void refresh();
+      },
+      30 * 60 * 1000,
+    );
 
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
+      authSubscription.unsubscribe();
       if (channel) void supabase.removeChannel?.(channel);
     };
   }, [refresh]);
 
   const siteTheme: SeasonalThemeId = useMemo(
-    () => (settings.mode === "auto" ? themeForDate(new Date(today)) : settings.theme),
-    [settings.mode, settings.theme, today],
+    () =>
+      settings.mode === "auto"
+        ? themeForDate(new Date(today), settings.calendar, settings.staffBirthdays)
+        : settings.theme,
+    [settings.mode, settings.theme, settings.calendar, settings.staffBirthdays, today],
   );
   const theme = preview ?? siteTheme;
 
