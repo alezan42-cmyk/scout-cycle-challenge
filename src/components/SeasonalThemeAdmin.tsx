@@ -69,6 +69,7 @@ function profileBirthdayValue(profile: Profile) {
 }
 
 function idPeriod(id: SeasonalThemeId, calendar: ThemeCalendar) {
+  if (id === "default") return "Le reste de l'année";
   if (id === "anniversaire") return "Dates configurées dans la section anniversaire";
   if (id === "foot" || id === "tennis") return "Manuel : le jour du match";
   const ranges = calendar[id] ?? [];
@@ -180,6 +181,18 @@ export function SeasonalThemeAdmin({
 
   const todayTheme = themeForDate(new Date(), settings.calendar, settings.staffBirthdays);
   const siteTheme = settings.mode === "auto" ? todayTheme : settings.theme;
+  const themeSections = [
+    {
+      title: "Thèmes du calendrier",
+      description: "Ces thèmes sont activés selon les dates configurées ci-dessus.",
+      themes: SEASONAL_THEMES.filter((theme) => theme.id !== "foot" && theme.id !== "tennis"),
+    },
+    {
+      title: "Événements ponctuels",
+      description: "Ces thèmes ne sont jamais activés automatiquement.",
+      themes: SEASONAL_THEMES.filter((theme) => theme.id === "foot" || theme.id === "tennis"),
+    },
+  ];
 
   const save = async (key: string, value: string | null, success: string) => {
     setSaving(key);
@@ -740,65 +753,87 @@ export function SeasonalThemeAdmin({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-          {SEASONAL_THEMES.map((t) => {
-            const isSite = t.id === siteTheme;
-            const isPreview = preview === t.id;
-            return (
-              <div
-                key={t.id}
-                className={cn(
-                  "relative flex flex-col rounded-xl border-2 bg-background p-3 sm:p-4",
-                  isSite ? "border-primary shadow-md" : "border-border",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl leading-none sm:text-3xl">{t.emoji}</span>
-                  {isSite && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
-                      <Check className="h-3 w-3" /> En ligne
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 font-display text-sm font-bold text-foreground">{t.label}</div>
-                <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
-                  {t.description}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  <CalendarClock className="mr-1 inline h-3 w-3" />
-                  {idPeriod(t.id, calendarDraft)}
-                </p>
-                <div className="mt-3 hidden gap-1.5 sm:flex">
-                  {t.swatch.map((c) => (
-                    <span
-                      key={c}
-                      className="h-5 w-5 rounded-full border border-black/10"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-auto flex gap-2 pt-3">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    variant={isSite && settings.mode === "manuel" ? "secondary" : "default"}
-                    disabled={saving !== null || (isSite && settings.mode === "manuel")}
-                    onClick={() => chooseTheme(t.id)}
-                  >
-                    {saving === "theme" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Activer"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-label={`Aperçu ${t.label}`}
-                    onClick={() => setPreview(isPreview ? null : t.id)}
-                  >
-                    {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+        <div className="mt-6 space-y-6">
+          {themeSections.map((section) => (
+            <section key={section.title}>
+              <div className="mb-3">
+                <h3 className="font-display text-base font-bold text-foreground">
+                  {section.title}
+                </h3>
+                <p className="text-xs text-muted-foreground">{section.description}</p>
               </div>
-            );
-          })}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {section.themes.map((t) => {
+                  const isSite = t.id === siteTheme;
+                  const isPreview = preview === t.id;
+                  return (
+                    <div
+                      key={t.id}
+                      className={cn(
+                        "relative flex flex-col rounded-xl border-2 bg-background p-3 sm:p-4",
+                        isSite ? "border-primary shadow-md" : "border-border",
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl leading-none sm:text-3xl">{t.emoji}</span>
+                        {isSite && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            <Check className="h-3 w-3" /> En ligne
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 font-display text-sm font-bold text-foreground">
+                        {t.label}
+                      </div>
+                      <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                        {t.description}
+                      </p>
+                      <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                        <CalendarClock className="mr-1 inline h-3 w-3" />
+                        {idPeriod(t.id, calendarDraft)}
+                      </p>
+                      <div className="mt-3 hidden gap-1.5 sm:flex">
+                        {t.swatch.map((color) => (
+                          <span
+                            key={color}
+                            className="h-5 w-5 rounded-full border border-black/10"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-auto flex gap-2 pt-3">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          variant={isSite && settings.mode === "manuel" ? "secondary" : "default"}
+                          disabled={saving !== null || (isSite && settings.mode === "manuel")}
+                          onClick={() => chooseTheme(t.id)}
+                        >
+                          {saving === "theme" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Activer"
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          aria-label={`Aperçu ${t.label}`}
+                          onClick={() => setPreview(isPreview ? null : t.id)}
+                        >
+                          {isPreview ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
         {settings.mode === "auto" && (
           <p className="mt-3 text-xs text-muted-foreground">
