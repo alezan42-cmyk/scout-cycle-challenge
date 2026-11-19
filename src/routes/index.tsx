@@ -46,7 +46,7 @@ import {
   TROOP_STAFF_PATROL_NAME,
   isTroopStaffPatrol,
 } from "@/lib/categories";
-import { computeJerseys } from "@/lib/jerseys";
+import { computeJerseys, yellowJerseyIneligibleIds } from "@/lib/jerseys";
 import { JerseysPanel } from "@/components/JerseysPanel";
 import { ScoutSportifCard } from "@/components/ScoutSportifCard";
 import { PelotonPanel } from "@/components/PelotonPanel";
@@ -479,6 +479,24 @@ function Index() {
     return filteredScouts.filter((s) => Number(s.km || 0) > 0).length;
   }, [filteredScouts]);
 
+  const currentMonthStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
+  const earliestRelevantMonth = (() => {
+    const now = new Date();
+    return `${new Date(now.getFullYear(), now.getMonth() - 3, 1).getFullYear()}-${String(new Date(now.getFullYear(), now.getMonth() - 3, 1).getMonth() + 1).padStart(2, "0")}-01`;
+  })();
+  const { data: recentSportifAwards = [] } = useQuery<{ user_id: string; week_start: string }[]>({
+    queryKey: ["yellow-jersey-sportif-ineligibility", currentMonthStart],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from("weekly_badges") as any)
+        .select("user_id, week_start")
+        .not("week_start", "is", null)
+        .gte("week_start", earliestRelevantMonth);
+      if (error) throw error;
+      return (data as { user_id: string; week_start: string }[] | null) ?? [];
+    },
+  });
+
   const rankedPatrols = useMemo(() => {
     let r = 1;
     return patrolRows.map((p) => {
@@ -492,8 +510,12 @@ function Index() {
 
   // Maillots : calculés sur tous les participants (indépendamment des filtres genre/année)
   const jerseys = useMemo(
-    () => computeJerseys(Array.isArray(leaderboardData) ? leaderboardData : []),
-    [leaderboardData],
+    () =>
+      computeJerseys(
+        Array.isArray(leaderboardData) ? leaderboardData : [],
+        yellowJerseyIneligibleIds(recentSportifAwards),
+      ),
+    [leaderboardData, recentSportifAwards],
   );
   const jerseyHolderIds = useMemo(() => {
     const yellow = new Set<string>();

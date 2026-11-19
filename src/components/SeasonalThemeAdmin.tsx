@@ -64,7 +64,7 @@ function Segmented<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {options.map((o) => (
         <button
           key={o.value}
@@ -97,6 +97,12 @@ export function SeasonalThemeAdmin() {
 
   const todayTheme = themeForDate(new Date());
   const siteTheme = settings.mode === "auto" ? todayTheme : settings.theme;
+  const calendarThemes = SEASONAL_THEMES.filter(
+    (theme) => theme.id !== "foot" && theme.id !== "tennis",
+  );
+  const eventThemes = SEASONAL_THEMES.filter(
+    (theme) => theme.id === "foot" || theme.id === "tennis",
+  );
 
   const save = async (key: string, value: string | null, success: string) => {
     setSaving(key);
@@ -204,119 +210,227 @@ export function SeasonalThemeAdmin() {
           </div>
         </div>
 
-        <div className="mt-5 space-y-5">
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <CalendarClock className="h-3.5 w-3.5" /> Mode
+        <div className="mt-5 rounded-xl border bg-muted/20 p-3 sm:p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Thème affiché sur le site
+              </p>
+              <p className="mt-1 font-display text-base font-bold text-foreground">
+                {themeMeta(siteTheme).emoji} {themeMeta(siteTheme).label}
+              </p>
             </div>
-            <Segmented<ThemeMode>
-              value={settings.mode}
-              disabled={saving !== null}
-              onChange={(v) =>
-                save(
-                  "theme_mode",
-                  v,
-                  v === "auto"
-                    ? `Mode automatique : aujourd'hui « ${themeMeta(todayTheme).label} »`
-                    : "Mode manuel activé",
-                )
-              }
-              options={[
-                {
-                  value: "auto",
-                  label: "Automatique",
-                  hint: `Selon le calendrier — aujourd'hui : ${themeMeta(todayTheme).emoji} ${themeMeta(todayTheme).label}`,
-                },
-                {
-                  value: "manuel",
-                  label: "Manuel",
-                  hint: "Le thème choisi ci-dessous reste affiché",
-                },
-              ]}
-            />
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              {settings.mode === "auto" ? "Automatique" : "Manuel"}
+            </span>
           </div>
-
-          <div>
-            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Intensité
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg bg-background p-3">
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5" /> Mode
+              </div>
+              <Segmented<ThemeMode>
+                value={settings.mode}
+                disabled={saving !== null}
+                onChange={(v) =>
+                  save(
+                    "theme_mode",
+                    v,
+                    v === "auto"
+                      ? `Mode automatique : aujourd'hui « ${themeMeta(todayTheme).label} »`
+                      : "Mode manuel activé",
+                  )
+                }
+                options={[
+                  {
+                    value: "auto",
+                    label: "Automatique",
+                    hint: `Suit le calendrier. Aujourd'hui : ${themeMeta(todayTheme).emoji} ${themeMeta(todayTheme).label}`,
+                  },
+                  {
+                    value: "manuel",
+                    label: "Manuel",
+                    hint: "Garde le thème choisi, même si le calendrier change",
+                  },
+                ]}
+              />
             </div>
-            <Segmented<ThemeIntensity>
-              value={settings.intensity}
-              disabled={saving !== null}
-              onChange={(v) =>
-                save("theme_intensity", v, v === "festif" ? "Mode festif" : "Mode discret")
-              }
-              options={[
-                { value: "festif", label: "Festif", hint: "Couleurs, décor et animations" },
-                {
-                  value: "discret",
-                  label: "Discret",
-                  hint: "Couleurs et décor fixe, sans rien qui bouge",
-                },
-              ]}
-            />
+            <div className="rounded-lg bg-background p-3">
+              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Animations
+              </div>
+              <Segmented<ThemeIntensity>
+                value={settings.intensity}
+                disabled={saving !== null}
+                onChange={(v) =>
+                  save("theme_intensity", v, v === "festif" ? "Mode festif" : "Mode discret")
+                }
+                options={[
+                  { value: "festif", label: "Animé", hint: "Décorations et animations visibles" },
+                  {
+                    value: "discret",
+                    label: "Calme",
+                    hint: "Garde les couleurs, sans animations",
+                  },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-          {SEASONAL_THEMES.map((t) => {
-            const isSite = t.id === siteTheme;
-            const isPreview = preview === t.id;
-            return (
-              <div
-                key={t.id}
-                className={cn(
-                  "relative flex flex-col rounded-xl border-2 bg-background p-3 sm:p-4",
-                  isSite ? "border-primary shadow-md" : "border-border",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl leading-none sm:text-3xl">{t.emoji}</span>
-                  {isSite && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
-                      <Check className="h-3 w-3" /> En ligne
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 font-display text-sm font-bold text-foreground">{t.label}</div>
-                <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
-                  {t.description}
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  <CalendarClock className="mr-1 inline h-3 w-3" />
-                  {t.period}
-                </p>
-                <div className="mt-3 hidden gap-1.5 sm:flex">
-                  {t.swatch.map((c) => (
-                    <span
-                      key={c}
-                      className="h-5 w-5 rounded-full border border-black/10"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-auto flex gap-2 pt-3">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    variant={isSite && settings.mode === "manuel" ? "secondary" : "default"}
-                    disabled={saving !== null || (isSite && settings.mode === "manuel")}
-                    onClick={() => chooseTheme(t.id)}
+        <div className="mt-7 space-y-6">
+          <div>
+            <div className="mb-3">
+              <h3 className="font-display text-base font-bold text-foreground">
+                Thèmes du calendrier
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Sélectionne un thème pour le prévisualiser ou l&apos;activer sur le site.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {calendarThemes.map((t) => {
+                const isSite = t.id === siteTheme;
+                const isPreview = preview === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    className={cn(
+                      "relative flex flex-col rounded-xl border-2 bg-background p-3 sm:p-4",
+                      isSite ? "border-primary shadow-md" : "border-border",
+                    )}
                   >
-                    {saving === "theme" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Activer"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-label={`Aperçu ${t.label}`}
-                    onClick={() => setPreview(isPreview ? null : t.id)}
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl leading-none sm:text-3xl">{t.emoji}</span>
+                      {isSite && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                          <Check className="h-3 w-3" /> En ligne
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 font-display text-sm font-bold text-foreground">
+                      {t.label}
+                    </div>
+                    <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                      {t.description}
+                    </p>
+                    <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                      <CalendarClock className="mr-1 inline h-3 w-3" />
+                      {t.period}
+                    </p>
+                    <div className="mt-3 hidden gap-1.5 sm:flex">
+                      {t.swatch.map((c) => (
+                        <span
+                          key={c}
+                          className="h-5 w-5 rounded-full border border-black/10"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-auto flex gap-2 pt-3">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        variant={isSite && settings.mode === "manuel" ? "secondary" : "default"}
+                        disabled={saving !== null || (isSite && settings.mode === "manuel")}
+                        onClick={() => chooseTheme(t.id)}
+                      >
+                        {saving === "theme" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Activer"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={`Aperçu ${t.label}`}
+                        onClick={() => setPreview(isPreview ? null : t.id)}
+                      >
+                        {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="border-t pt-5">
+            <div className="mb-3">
+              <h3 className="font-display text-base font-bold text-foreground">
+                Événements ponctuels
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Ces thèmes ne sont jamais choisis automatiquement par le calendrier.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {eventThemes.map((t) => {
+                const isSite = t.id === siteTheme;
+                const isPreview = preview === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    className={cn(
+                      "relative flex flex-col rounded-xl border-2 bg-background p-3 sm:p-4",
+                      isSite ? "border-primary shadow-md" : "border-border",
+                    )}
                   >
-                    {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl leading-none">{t.emoji}</span>
+                      {isSite && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                          <Check className="h-3 w-3" /> En ligne
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 font-display text-sm font-bold text-foreground">
+                      {t.label}
+                    </div>
+                    <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                      {t.description}
+                    </p>
+                    <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                      <CalendarClock className="mr-1 inline h-3 w-3" /> {t.period}
+                    </p>
+                    <div className="mt-3 flex gap-1.5">
+                      {t.swatch.map((color) => (
+                        <span
+                          key={color}
+                          className="h-5 w-5 rounded-full border border-black/10"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-auto flex gap-2 pt-3">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        variant={isSite && settings.mode === "manuel" ? "secondary" : "default"}
+                        disabled={saving !== null || (isSite && settings.mode === "manuel")}
+                        onClick={() => chooseTheme(t.id)}
+                      >
+                        {saving === "theme" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Activer"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={`Aperçu ${t.label}`}
+                        onClick={() => setPreview(isPreview ? null : t.id)}
+                      >
+                        {isPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
         {settings.mode === "auto" && (
           <p className="mt-3 text-xs text-muted-foreground">
@@ -344,7 +458,7 @@ export function SeasonalThemeAdmin() {
           className="hidden"
           onChange={onFile}
         />
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {SEASONAL_THEMES.map((t) => {
             const url = settings.backgrounds[t.id];
             const busy = uploading === t.id;
